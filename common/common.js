@@ -15,6 +15,8 @@ const _ = {
 
 const loglevel = require('loglevel');
 
+const constants = require('./constants');
+
 /** convenience function to set all loggers to the given level */
 loglevel.setAll = (level) =>
   Object.values(loglevel.getLoggers()).forEach(l => l.setLevel(level));
@@ -502,5 +504,5 @@ module.exports = { parseMQTTUsername, parseMQTTTopic, updateObject, DataCache,
   pathToTopic, topicToPath, toFlatObject, mqttTopicMatch, pathMatch,
   mqttParsePayload, getRandomId, versionCompare, loglevel, getLogger,
   mergeVersions, mqttClearRetained, isSubTopicOf, clone, setFromPath,
-  forMatchIterator, encodeTopicElement, decodeTopicElement
+  forMatchIterator, encodeTopicElement, decodeTopicElement, constants
 };
