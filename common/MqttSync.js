@@ -316,7 +316,7 @@ class MqttSync {
         callback(null);
       } else {
         // let user know (somehow) when we don't get permission
-        callback(`not permitted to subscribe to topic ${topic}`);
+        callback(`not permitted to subscribe to topic ${topic}, ${JSON.stringify(granted)}`);
       }
     });
   }
