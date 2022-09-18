@@ -336,7 +336,10 @@ class MqttSync {
         value == null ? null : JSON.stringify(value), // aka "unparse payload"
         {retain: true},
         (err) => {
-          // Note that this returns optimistically at QoS 0
+          // Note that this returns optimistically at QoS 0, and no error occurs
+          // even when we are not allowed to publish this topic/message, see
+          // https://github.com/mqttjs/MQTT.js/#publish. Only when the client
+          // disconnects it seems.
           if (err) {
             log.warn('error in _actuallyPublish:', err);
             reject(err);

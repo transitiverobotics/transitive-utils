@@ -480,6 +480,14 @@ describe('DataCache', function() {
     assert.deepEqual(changes, {'/a/2': 1});
   });
 
+  // WIP:
+  // it('should not interpret large numbers as array indices', function() {
+  //   const d = new DataCache();
+  //   const changes = d.update(['a', '500'], 1);
+  //   assert.deepEqual(d.get(), {a: {'500': 1}});
+  //   assert.deepEqual(changes, {'/a/500': 1});
+  // });
+
   describe('forMatch', function() {
     const d = new DataCache({
       a: {

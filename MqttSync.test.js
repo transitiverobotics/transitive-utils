@@ -41,7 +41,23 @@ describe('MqttSync', function() {
     // Start the local mqtt broker
     console.log('\n    ▶ ', this.currentTest?.title);
 
-    const aedes = Aedes();
+    const aedes = Aedes({
+      authenticate: (client, username, password, callback) => {
+        // callback(null, username === 'skroob' && password === '12345')
+        // console.log('auth', username, password);
+        callback(null, true);
+      },
+      authorizePublish: (client, sub, callback) => {
+        // callback(null, username === 'skroob' && password === '12345')
+        // console.log('authorizePublish', sub);
+        if (sub.topic.endsWith('notAllowed')) {
+          // console.log('not allowing', sub);
+          callback('not allowed', false);
+        } else {
+          callback(null, true);
+        }
+      },
+    });
     // aedes.on('client', function (client) {
     //   console.log('new client', client.id);
     // })
@@ -705,4 +721,28 @@ describe('MqttSync', function() {
     clientA.onBeforeDisconnect(() => done());
     clientA.beforeDisconnect();
   });
+
+
+  describe('does not block queue processing', function() {
+    it('.. when publish non-permitted topic/message', function(done) {
+      clientA.publish('/a/#');
+      clientB.subscribe('/a/#');
+      clientA.mqtt.end();
+      clientA.data.update('a', {b: 1});
+      setTimeout(() => {
+          assert(!clientA._processing);
+          done();
+        }, 100);
+    });
+
+    it('.. when publish non-permitted topic/message', function(done) {
+      clientA.publish('/a/#');
+      clientA.data.update('a/notAllowed', 1);
+      setTimeout(() => {
+          assert(!clientA._processing);
+          done();
+        }, 100);
+    });
+  });
+
 });
