@@ -330,24 +330,33 @@ class MqttSync {
 
   /** Publish retained to MQTT, store as published, and return a promise */
   _actuallyPublish(topic, value) {
+    // return new Promise((resolve, reject) =>
+    //   this.mqtt.publish(topic,
+    //     value == null ? null : JSON.stringify(value), // aka "unparse payload"
+    //     {retain: true},
+    //     (err) => {
+    //       // Note that this returns optimistically at QoS 0, and no error occurs
+    //       // even when we are not allowed to publish this topic/message, see
+    //       // https://github.com/mqttjs/MQTT.js/#publish. Only when the client
+    //       // disconnects it seems.
+    //       if (err) {
+    //         log.warn('error in _actuallyPublish:', err);
+    //         reject(err);
+    //         // TODO: if this happens, we may need to force a full-sync
+    //       } else {
+    //         resolve();
+    //       }
+    //     }));
+
+    if (!this.mqtt.connected) {
+      log.warn('not connected, not publishing', topic);
+      return false;
+    }
     log.debug('actually publishing', topic);
-    return new Promise((resolve, reject) =>
-      this.mqtt.publish(topic,
-        value == null ? null : JSON.stringify(value), // aka "unparse payload"
-        {retain: true},
-        (err) => {
-          // Note that this returns optimistically at QoS 0, and no error occurs
-          // even when we are not allowed to publish this topic/message, see
-          // https://github.com/mqttjs/MQTT.js/#publish. Only when the client
-          // disconnects it seems.
-          if (err) {
-            log.warn('error in _actuallyPublish:', err);
-            reject(err);
-            // TODO: if this happens, we may need to force a full-sync
-          } else {
-            resolve();
-          }
-        }));
+    this.mqtt.publish(topic,
+      value == null ? null : JSON.stringify(value), // aka "unparse payload"
+      {retain: true});
+    return true;
   }
 
   /** Send all items in the queue in sequence, if any and if not already
@@ -367,10 +376,17 @@ class MqttSync {
   _processQueue_rec(cb) {
     if (this.publishQueue.size > 0) {
       const [topic, value] = this.publishQueue.entries().next().value;
-      this.publishQueue.delete(topic);
-      this._actuallyPublish(topic, value).then(
-        () => this._processQueue_rec(cb),
-        cb); // always call cb, even in rejection case
+      // this.publishQueue.delete(topic);
+      // this._actuallyPublish(topic, value).then(
+      //   () => this._processQueue_rec(cb),
+      //   cb); // always call cb, even in rejection case
+      if (this._actuallyPublish(topic, value)) {
+        this.publishQueue.delete(topic);
+        this._processQueue_rec(cb);
+      } else {
+        // try again soon
+        setTimeout(() => this._processQueue_rec(cb), 5000);
+      }
     } else {
       cb();
     }

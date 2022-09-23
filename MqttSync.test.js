@@ -36,12 +36,13 @@ describe('MqttSync', function() {
   let mqttClientA, mqttClientB;
   let clientA, clientB;
   let interval;
+  let aedes;
 
   beforeEach(function(done) {
     // Start the local mqtt broker
     console.log('\n    ▶ ', this.currentTest?.title);
 
-    const aedes = Aedes({
+    aedes = Aedes({
       authenticate: (client, username, password, callback) => {
         // callback(null, username === 'skroob' && password === '12345')
         // console.log('auth', username, password);
@@ -71,7 +72,8 @@ describe('MqttSync', function() {
       mqttClientA = mqtt.connect(mqttURL);
       mqttClientB = mqtt.connect(mqttURL);
       mqttClientA.on('connect', () => mqttClientB.on('connect', () => {
-        clientA = new MqttSync({mqttClient: mqttClientA, ignoreRetain: true});
+        !clientA &&
+          (clientA = new MqttSync({mqttClient: mqttClientA, ignoreRetain: true}));
         clientB = new MqttSync({mqttClient: mqttClientB, ignoreRetain: true});
         done();
       }));
@@ -95,7 +97,7 @@ describe('MqttSync', function() {
     clientB = null;
 
     // console.log('shutting down mqtt server');
-    server.close(done);
+    server && server.listening && server.close(done);
   });
 
   /* ---------------------------------------------------------------- */
@@ -724,15 +726,21 @@ describe('MqttSync', function() {
 
 
   describe('does not block queue processing', function() {
-    it('.. when publish non-permitted topic/message', function(done) {
+    it('.. when client disconnects and reconnects', function(done) {
+      this.timeout(10000);
       clientA.publish('/a/#');
       clientB.subscribe('/a/#');
-      clientA.mqtt.end();
-      clientA.data.update('a', {b: 1});
-      setTimeout(() => {
-          assert(!clientA._processing);
-          done();
-        }, 100);
+      clientA.mqtt.end(() => {
+        clientA.data.update('a', {b: 1});
+        assert(clientA._processing);
+        clientA.mqtt.reconnect();
+        clientA.mqtt.on('connect', () => {
+          setTimeout(() => {
+              assert(!clientA._processing);
+              done();
+            }, 8000);
+        });
+      })
     });
 
     it('.. when publish non-permitted topic/message', function(done) {
@@ -743,6 +751,25 @@ describe('MqttSync', function() {
           done();
         }, 100);
     });
+
+    // it('.. when broker restarts', function(done) {
+    //   this.timeout(5000);
+    //   clientA.publish('/a/#');
+    //   server.close(() => {
+    //     delete server;
+    //     console.log('server closed');
+    //     const newServer = require('net').createServer(aedes.handle);
+    //     newServer.listen(port, function () {
+    //       console.log('new server listening');
+    //       clientA.data.update('a', {b: 1});
+    //       setTimeout(() => {
+    //           assert(!clientA._processing);
+    //           done();
+    //         }, 100);
+    //     });
+    //   });
+    // });
+
   });
 
 });
