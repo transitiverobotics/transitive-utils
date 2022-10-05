@@ -24,6 +24,7 @@ const inSync = (a, b, done, delay = 50) => {
       // console.log('A', a.data.get());
       // console.log('B', b.data.get());
       assert.deepEqual(b.data.get(), a.data.get());
+      assert(a.publishQueue.size == 0);
       done();
     }, delay);
 };

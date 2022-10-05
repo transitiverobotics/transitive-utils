@@ -14,6 +14,7 @@ const _ = {
 };
 
 const loglevel = require('loglevel');
+const chalk = require('chalk');
 
 const constants = require('./constants');
 
@@ -21,11 +22,29 @@ const constants = require('./constants');
 loglevel.setAll = (level) =>
   Object.values(loglevel.getLoggers()).forEach(l => l.setLevel(level));
 
+const methodColors = {
+  warn: chalk.yellow,
+  error: chalk.red,
+  info: chalk.green,
+  debug: chalk.gray,
+};
+const coloredMethod = (method) =>
+  methodColors[method] ? methodColors[method](method) : method;
+
 // patch the methodFactory to prefix logs with name and level
 const originalFactory = loglevel.methodFactory;
 loglevel.methodFactory = (methodName, level, loggerName) => {
   const rawMethod = originalFactory(methodName, level, loggerName);
-  return (...args) => rawMethod(`[${loggerName},${methodName}]`, ...args);
+
+  if (typeof window != 'undefined') {
+    // browser: keep it simple
+    const context = `${loggerName} ${methodName}`;
+    return (...args) => rawMethod(`[${context}]`, ...args);
+  }
+
+  const context = `${loggerName} ${coloredMethod(methodName)}`;
+  return (...args) => rawMethod(
+    `[${chalk.blue((new Date()).toISOString())} ${context}]`, ...args);
 };
 
 /** get a new logger; call with a name, e.g., `module.id` */
