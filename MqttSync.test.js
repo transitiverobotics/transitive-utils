@@ -555,6 +555,28 @@ describe('MqttSync', function() {
           });
         }, 100);
     });
+
+    it('does not fail on empty data', function(done) {
+      // clientA.publish('/uId/dId/@scope/capname/1.0.0');
+      // clientA.publish('/uId/dId/@scope/capname/1.1.0');
+      // clientA.subscribe('/uId/dId/@scope/capname/1.2.0/b/#');
+      // clientA.data.update('/uId/dId/@scope/capname/1.0.0/b', {c: 1, d: 1});
+      // clientA.data.update('/uId/dId/@scope/capname/1.1.0/b', {c: 2, e: 3});
+      setTimeout(() => {
+          let mqttClientC = mqtt.connect(mqttURL);
+          let clientC = new MqttSync({
+            mqttClient: mqttClientC,
+            migrate: [{topic: '/uId/dId/@scope/capname/+/b', newVersion: '1.2.0'}],
+            onReady: () => {
+              log.debug('onReady');
+              mqttClientC.end();
+              mqttClientC = null;
+              clientC = null;
+              done();
+            }
+          });
+        }, 100);
+    });
   });
 
   /** testing throttle and queue-merge:

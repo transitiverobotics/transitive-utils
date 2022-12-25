@@ -53,6 +53,16 @@ const getLogger = loglevel.getLogger;
 /** Deep-clone the given object. All functionality is lost, just data is kept. */
 const clone = (obj) => JSON.parse(JSON.stringify(obj));
 
+/** reusable visitor pattern: iteratively visits all nodes in the tree
+ described by `object`, where `childField` indicates the child-of predicate.
+*/
+const visit = (object, childField, visitor) => {
+  if (!object) return;
+  visitor(object);
+  object[childField]?.forEach(child => visit(child, childField, visitor));
+};
+
+
 // -------------------------------------------------------------------------
 // DataCache tools
 
@@ -523,5 +533,5 @@ module.exports = { parseMQTTUsername, parseMQTTTopic, updateObject, DataCache,
   pathToTopic, topicToPath, toFlatObject, mqttTopicMatch, pathMatch,
   mqttParsePayload, getRandomId, versionCompare, loglevel, getLogger,
   mergeVersions, mqttClearRetained, isSubTopicOf, clone, setFromPath,
-  forMatchIterator, encodeTopicElement, decodeTopicElement, constants
+  forMatchIterator, encodeTopicElement, decodeTopicElement, constants, visit
 };

@@ -178,6 +178,12 @@ class MqttSync {
             // merge everything
             log.debug('got heartbeat', topic, subTopic);
             const all = this.data.getByTopic(prefix);
+            if (!all) {
+              // no data to migrate
+              this.unsubscribe(subTopic);
+              oneDown();
+              return;
+            }
 
             const merged = mergeVersions(all, suffix, {maxVersion: newVersion});
             // log.debug(JSON.stringify({all, merged}, true, 2));
@@ -299,7 +305,8 @@ class MqttSync {
     );
   }
 
-  /** Subscribe to the given topic (and all sub-topics) */
+  /** Subscribe to the given topic (and all sub-topics). The callback will
+  indicate success/failure, *not* a message on the topic. */
   subscribe(topic, callback = noop) {
     topic = ensureHashSuffix(topic);
     if (this.subscribedPaths[topic]) {
