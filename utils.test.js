@@ -4,7 +4,7 @@ const {expect} = require('expect'); // from jest
 
 const { updateObject, DataCache, toFlatObject, topicToPath, mqttTopicMatch,
 pathMatch, versionCompare, pathToTopic, decodeJWT, mergeVersions, isSubTopicOf,
-setFromPath, Mongo, getLogger } = require('./index');
+setFromPath, Mongo, getLogger, fetchURL, visit } = require('./index');
 
 const log = getLogger('utils.test');
 
@@ -422,6 +422,28 @@ describe('DataCache', function() {
       });
       d.update(['a'], {b: {d: 2}});
       setTimeout(() => done(error), 100);
+    });
+
+    it('should match on all places', function(done) {
+      const d = new DataCache({});
+      d.subscribePathFlat('/+first/+second/+third', (value, key, matched) => {
+        assert.equal(value, 2);
+        assert.equal(key, '/a/b/c');
+        assert.deepEqual(matched, {first: 'a', second: 'b', third: 'c'});
+        done();
+      });
+      d.update(['a'], {b: {c: 2}});
+    });
+
+    it('should match on all places with flat updates', function(done) {
+      const d = new DataCache({});
+      d.subscribePathFlat('/+first/+second/+third', (value, key, matched) => {
+        assert.equal(value, 2);
+        assert.equal(key, '/a/b/c');
+        assert.deepEqual(matched, {first: 'a', second: 'b', third: 'c'});
+        done();
+      });
+      d.update(['a', 'b', 'c'], 2);
     });
   });
 
@@ -925,3 +947,34 @@ describe('logger', function() {
 
   log.info('done');
 });
+
+describe('fetchURL', function() {
+  it('gets example.com', async function() {
+    const result = await fetchURL('https://example.com');
+    assert(result.length > 0);
+  });
+});
+
+describe('visit', function() {
+  const obj = {
+    value: '1',
+    children: [
+      {value: '1.1'},
+      {value: '1.2', children: [
+        {value: '1.2.1'}
+      ]},
+      {value: '1.3', children: [
+        {value: '1.3.1'},
+        {value: '1.3.2'}
+      ]},
+    ]
+  };
+
+  it('visits in prefix traversal order', function() {
+    const inOrder = [];
+    visit(obj, 'children', node => inOrder.push(node.value));
+    assert.deepEqual(inOrder,
+      ['1', '1.1', '1.2', '1.2.1', '1.3', '1.3.1', '1.3.2']);
+  });
+});
+
