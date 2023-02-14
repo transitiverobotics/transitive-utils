@@ -105,6 +105,32 @@ export const Timer = ({duration, onTimeout, onStart, setOnDisconnect, children})
   </div>;
 };
 
+/** A simple error boundary. Usage:
+ <ErrorBoundary message="Something went wrong">
+   <SomeFlakyComponent />
+ </ErrorBoundary>
+*/
+export class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.warn('ErrorBoundary caught:', error, errorInfo);
+  }
+
+  render() {
+    return (this.state.hasError ?
+      <div>{this.props.message || 'Something went wrong here.'}</div> :
+      this.props.children);
+  }
+};
+
 
 /** Create a WebComponent from the given react component and name that is
     reactive to the given attributes (if any). */

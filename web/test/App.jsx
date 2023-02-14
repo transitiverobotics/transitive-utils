@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 
-import { useMqttSync } from '../hooks.jsx';
-import { getLogger, fetchJson } from '../index';
-// import log from 'loglevel';
-// log.setLevel('trace');
+import { getLogger, fetchJson, useMqttSync, MqttSync, Timer, ErrorBoundary }
+  from '../index';
 const log = getLogger('test/App');
+
+// to verify the export works
+window.transitive = { MqttSync };
 
 export default () => {
   const [count, setCount] = useState(0);
@@ -55,5 +56,17 @@ export default () => {
     }}>
       update /web
     </button>
+
+    <ErrorBoundary>
+      <Fail />
+      test
+    </ErrorBoundary>
   </div>;
 };
+
+// a failing component to test the ErrorBoundary
+const Fail = () => {
+  const foo = 'test';
+  const {a, b, c} = foo.a; // fails to destruct
+  return <div>Should fail</div>;
+}
