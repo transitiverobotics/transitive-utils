@@ -865,7 +865,6 @@ describe('mergeVersions', function() {
         mergeVersions(data, 'x', {minVersion: '1.2.4-13', maxVersion: '1.2.4-11'}),
         {x: {}});
     });
-
 });
 
 

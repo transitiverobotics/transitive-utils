@@ -1,11 +1,43 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 
-import { getLogger, fetchJson, useMqttSync, MqttSync, Timer, ErrorBoundary }
-  from '../index';
+import { Badge } from 'react-bootstrap';
+
+import { getLogger, fetchJson, useMqttSync, MqttSync, Timer, TimerContext,
+  ErrorBoundary, createWebComponent } from '../index';
 const log = getLogger('test/App');
 
 // to verify the export works
 window.transitive = { MqttSync };
+
+const styles = {
+  section: {
+    borderTop: '1px solid #aaa',
+    marginTop: '1em'
+  }
+};
+
+const Section = ({title, children}) => <div style={styles.section}>
+  <h2>{title}</h2>
+  {children}
+</div>;
+
+
+const TimerChild = () => {
+  const context = useContext(TimerContext);
+  return <div style={{backgroundColor: '#ccd'}}>I'm the TimerChild.
+    <pre>{JSON.stringify(context, true, 2)}</pre>
+    <button onClick={context.reset}>Reset</button>
+  </div>;
+}
+
+const Comp = () => {
+  return <div>custom component <Badge>bootstrap</Badge></div>
+};
+
+createWebComponent(Comp, 'custom-component', ['jwt'], '1.2.3', {
+  stylesheets: ['https://unpkg.com/leaflet@1.9.3/dist/leaflet.css']
+});
+
 
 export default () => {
   const [count, setCount] = useState(0);
@@ -57,12 +89,27 @@ export default () => {
       update /web
     </button>
 
-    <ErrorBoundary>
-      <Fail />
-      test
-    </ErrorBoundary>
+    <Section title='testing error boundary'>
+      <ErrorBoundary>
+        <Fail />
+        test
+      </ErrorBoundary>
+    </Section>
+
+    <Section title="Timer">
+      <Timer duration={20}>
+        timeout in 20s
+        <TimerChild>
+        </TimerChild>
+      </Timer>
+    </Section>
+
+    <Section title="Custom Component">
+      <custom-component/>
+    </Section>
   </div>;
 };
+
 
 // a failing component to test the ErrorBoundary
 const Fail = () => {
@@ -70,3 +117,4 @@ const Fail = () => {
   const {a, b, c} = foo.a; // fails to destruct
   return <div>Should fail</div>;
 }
+

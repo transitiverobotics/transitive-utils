@@ -45,6 +45,7 @@ export const InlineCode = ({children}) => <tt style={styles.inlineCode}>
 
 const intervals = {};
 
+export const TimerContext = React.createContext({});
 export const Timer = ({duration, onTimeout, onStart, setOnDisconnect, children}) => {
   duration = duration || 60;
   const [timer, setTimer] = useState(duration);
@@ -87,22 +88,18 @@ export const Timer = ({duration, onTimeout, onStart, setOnDisconnect, children})
     stop()
   });
 
-  const resetTimer = () => setTimer(duration);
+  const reset = () => setTimer(duration);
 
-  return timer > 0 ?
-  <div>
-    { /** Inject prop into children to reset timer */
-      React.Children.map(children, (child) =>
-        React.cloneElement(child, {resetTimer})
-      )
-    }
-    {timer < duration * 0.5 && <div>Timeout in: {timer} seconds</div>}
-  </div>
-  :
-  <div>Timed out. <Button onClick={resetTimer}>
-      Resume
-    </Button>
-  </div>;
+  return <TimerContext.Provider value={{reset, duration, timer}}>
+    {timer > 0 ? <div>
+      {children}
+      {timer < 60 && <div>Timeout in: {timer} seconds</div>}
+    </div> :
+    <div>Timed out. <Button onClick={reset}>
+        Resume
+      </Button>
+    </div>}
+  </TimerContext.Provider>;
 };
 
 /** A simple error boundary. Usage:
@@ -134,8 +131,10 @@ export class ErrorBoundary extends React.Component {
 
 /** Create a WebComponent from the given react component and name that is
     reactive to the given attributes (if any). */
-export const createWebComponent =
-  (Component, name, reactiveAttributes = [], version = '0.0.0') => {
+export const createWebComponent = (Component, name,
+    reactiveAttributes = [],
+    version = '0.0.0',
+    options = {}) => {
 
     class Wrapper extends React.Component {
 
@@ -157,12 +156,11 @@ export const createWebComponent =
         this.setState({_disconnected: true});
       }
 
-      /**
-  Note this relies on the changed made in
-    github:amay0048/react-web-component#780950800e2962f45f0f029be618bb8b84610c89
-    that we used in our copy.
-    TODO: move this into our copy, i.e., do it internally to react-web-component
-  and update props.
+      /** Note this relies on the changed made in
+      github:amay0048/react-web-component#780950800e2962f45f0f029be618bb8b84610c89
+      that we used in our copy.
+      TODO: move this into our copy, i.e., do it internally to react-web-component
+      and update props.
       */
       webComponentAttributeChanged(name, oldValue, newValue) {
         // console.log('webComponentAttributeChanged', name, oldValue, newValue, this.props, this.state);
@@ -172,10 +170,13 @@ export const createWebComponent =
       }
 
       render() {
-        // @import url("https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css");
+        const stylesheets = options.stylesheets || [
+          'https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css'
+        ];
+
         return <div id={`cap-${name}-${version}`}>
           <style>
-            @import url("https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css");
+            {stylesheets.map(url => `@import url(${url});`)}
           </style>
           {!this.state._disconnected &&
             <Component
