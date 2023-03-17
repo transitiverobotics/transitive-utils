@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { decodeJWT, getLogger, clone } from './client';
+import _ from 'lodash';
+
 // import MqttSync from '../MqttSync';
 const MqttSync = require('../common/MqttSync');
 import mqtt from 'mqtt-browser';
@@ -29,8 +31,8 @@ export const useMqttSync = ({jwt, id, mqttUrl}) => {
         setStatus('connected');
 
         // Update data on change. Note: need to clone object to force reaction
-        mqttSyncClient.data.subscribe(() =>
-          setData(clone(mqttSyncClient.data.get())));
+        mqttSyncClient.data.subscribe(_.debounce(() =>
+          setData(clone(mqttSyncClient.data.get())), 100));
       });
 
       client.on('error', (error) => {

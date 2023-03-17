@@ -53,6 +53,7 @@ export default () => {
       if (mqttSync && ready) {
         console.log('using', {mqttUrl});
         mqttSync.subscribe('/test');
+        mqttSync.subscribe('/server');
         mqttSync.publish('/web/atomic', {atomic: true});
         mqttSync.publish('/web/string');
         mqttSync.subscribe('/forbidden', log.warn);
@@ -65,13 +66,15 @@ export default () => {
     return <div>Connecting...</div>;
   }
 
+  log.debug({data});
+
   return <div>
     <h1>utils/web testing</h1>
 
     <button onClick={() => setCount(c => c+1)}>clicked: {count}</button>
 
     <pre>
-      {JSON.stringify(data, true, 2)}
+      {JSON.stringify(data.test, true, 2)}
     </pre>
 
     <button onClick={() => fetchJson('/json1', console.log)}>
