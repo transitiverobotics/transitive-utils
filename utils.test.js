@@ -4,7 +4,7 @@ const {expect} = require('expect'); // from jest
 
 const { updateObject, DataCache, toFlatObject, topicToPath, mqttTopicMatch,
 pathMatch, versionCompare, pathToTopic, decodeJWT, mergeVersions, isSubTopicOf,
-setFromPath, Mongo, getLogger, fetchURL, visit } = require('./index');
+setFromPath, Mongo, getLogger, fetchURL, visit, wait } = require('./index');
 
 const log = getLogger('utils.test');
 
@@ -977,3 +977,10 @@ describe('visit', function() {
   });
 });
 
+describe('wait', function() {
+  it('can wait', async function() {
+    const start = Date.now();
+    await wait(1000);
+    assert(Date.now() - start >= 1000);
+  });
+});

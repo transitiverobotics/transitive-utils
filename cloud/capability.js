@@ -7,8 +7,6 @@ const MqttSync = require('../common/MqttSync');
 
 const log = getLogger('Capability');
 
-const MQTT_URL = process.env.MQTT_URL || 'mqtts://localhost';
-
 /** super class for all capabilities (cloud component) */
 class Capability {
 
@@ -19,8 +17,10 @@ class Capability {
     this.ourPath = [this.scope, this.name, this.version];
     this.fullName = this.ourPath.join('/');
 
+    const MQTT_URL = process.env.MQTT_URL || 'mqtts://localhost';
     console.log('using', MQTT_URL);
-    const mqttClient = mqtt.connect(MQTT_URL, {
+
+    const mqttClient = mqtt.connect(MQTT_URL, options.mqttOptions || {
       key: fs.readFileSync('certs/client.key'),
       cert: fs.readFileSync('certs/client.crt'),
       rejectUnauthorized: false,
@@ -30,13 +30,13 @@ class Capability {
 
     log.info('connecting');
     mqttClient.on('connect', () => {
-      log.info('connected');
-      this.mqttSync = new MqttSync({mqttClient});
+      log.info('(re-)connected');
+      this.mqttSync ||= new MqttSync({mqttClient});
       onReady && onReady();
     });
 
     mqttClient.on('error', log.error.bind(log));
-    mqttClient.on('disconnect', log.info.bind(log));
+    mqttClient.on('disconnect', log.warn.bind(log));
   }
 
   get data() {

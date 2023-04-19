@@ -4,7 +4,7 @@ const Aedes = require('aedes');
 const mqtt = require('mqtt');
 
 const MqttSync = require('./common/MqttSync');
-const { DataCache, parseMQTTTopic, randomId, topicToPath } = require('./index');
+const { DataCache, parseMQTTTopic, randomId, topicToPath, wait } = require('./index');
 
 const log = require('loglevel');
 // log.getLogger('MqttSync.js').setLevel('debug');
@@ -740,6 +740,29 @@ describe('MqttSync', function() {
           filter: (topic) => parseMQTTTopic(topic).version != '1.2.0'
         });
     });
+
+
+    it('does not retrigger listeners with values during clear', function(done) {
+      clientA.publish('/#');
+      clientB.subscribe('/uId/dId/@scope/capname/1.0.0/a');
+      clientB.publish('/uId/dId/@scope/capname/1.0.0/b');
+      // clientB.data.subscribePath('/uId/dId/@scope/capname/1.0.0/a', console.log);
+      clientA.data.update('/uId/dId/@scope/capname/1.0.0/a', {d: 1});
+      clientB.data.update('/uId/dId/@scope/capname/1.0.0/b', {c: 1});
+
+      setTimeout(() => {
+          clientB.data.subscribePath('/uId/dId/@scope/capname/1.0.0/a', (value) =>
+            assert(!value));
+          clientB.clear(['/uId/dId/@scope/capname/1.0.0'], () => {
+            setTimeout(() => {
+                assert.deepEqual(clientB.data.getByTopic('/uId/dId/@scope/capname/'),
+                  undefined);
+                done();
+              }, 200);
+          });
+        }, 200);
+    });
+
   });
 
   it('calls onBeforeDisconnect hooks', function(done) {
@@ -795,4 +818,20 @@ describe('MqttSync', function() {
 
   });
 
+  describe('multiple publishers', function() {
+    it('producer and destructive consumer', function(done) {
+      this.timeout(10000);
+      clientA.publish('/#');
+      clientB.publish('/#');
+      clientA.data.update('a', {b: 1});
+      setTimeout(() => {
+          clientB.data.update('a', null);
+          setTimeout(() => {
+              console.log(clientA.data.get(), clientB.data.get());
+              done();
+            }, 100);
+        }, 100);
+      // inSync(clientA, clientB, done);
+    });
+  });
 });

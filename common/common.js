@@ -62,6 +62,8 @@ const visit = (object, childField, visitor) => {
   object[childField]?.forEach(child => visit(child, childField, visitor));
 };
 
+/** wait for delay ms, usable in async functions */
+const wait = (delay) => new Promise((resolve) => { setTimeout(resolve, delay); });
 
 // -------------------------------------------------------------------------
 // DataCache tools
@@ -533,5 +535,6 @@ module.exports = { parseMQTTUsername, parseMQTTTopic, updateObject, DataCache,
   pathToTopic, topicToPath, toFlatObject, mqttTopicMatch, pathMatch,
   mqttParsePayload, getRandomId, versionCompare, loglevel, getLogger,
   mergeVersions, mqttClearRetained, isSubTopicOf, clone, setFromPath,
-  forMatchIterator, encodeTopicElement, decodeTopicElement, constants, visit
+  forMatchIterator, encodeTopicElement, decodeTopicElement, constants, visit,
+  wait
 };
