@@ -64,6 +64,15 @@ class Comp2 extends React.Component {
   }
 };
 
+/** a functional component not wrapped in forwardRef: will not allow use of
+* useImperativeHandle, but should not throw an error */
+const Comp3 =({setConfig}) => {
+  setTimeout(() => {
+    setConfig?.({k3: 'v3'});
+  }, 1000);
+  return <div>custom component3</div>
+};
+
 createWebComponent(Comp, 'custom-component', ['jwt'], '1.2.3', {
   // stylesheets: ['https://unpkg.com/leaflet@1.9.3/dist/leaflet.css']
 });
@@ -73,6 +82,9 @@ createWebComponent(Comp2, 'custom-component2', ['jwt'], '1.2.3', {
     'https://unpkg.com/leaflet@1.9.3/dist/leaflet.css'],
   shadowDOM: true
 });
+
+createWebComponent(Comp3, 'custom-component3', ['jwt'], '1.2.3');
+
 /* ------------- */
 
 export default () => {
@@ -110,6 +122,8 @@ export default () => {
     log.debug(myref2.current.call('foo', 'abc', 123),
       myref2.current.getConfig());
   }
+
+  const myref3 = useRef(null);
 
   if (!mqttSync || !ready) {
     return <div>Connecting...</div>;
@@ -160,6 +174,7 @@ export default () => {
     <Section title="Custom Components">
       <custom-component ref={myref}/>
       <custom-component2 ref={myref2}/>
+      <custom-component3 ref={myref3}/>
     </Section>
   </div>;
 };

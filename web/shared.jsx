@@ -128,6 +128,12 @@ export class ErrorBoundary extends React.Component {
   }
 };
 
+/** whether or not the given react component allows refs, i.e., is either
+ * a functional component wrapped with forwardRef or a class component */
+const componentPermitsRefs = (Component) =>
+  (Component.$$typeof == Symbol.for('react.forward_ref'))
+    || Component.prototype?.render;
+
 
 /** Create a WebComponent from the given react component and name that is
     reactive to the given attributes (if any). */
@@ -136,7 +142,10 @@ export const createWebComponent = (Component, name,
     version = '0.0.0',
     options = {}) => {
 
-    const compRef = React.createRef();
+    // Only create a ref if the component accepts it. This avoids an ugly
+    // error in the console when trying to give a ref to a non-forwardRef-wrapped
+    // functional component.
+    const compRef = componentPermitsRefs(Component) ? React.createRef() : null;
 
     class Wrapper extends React.Component {
 
