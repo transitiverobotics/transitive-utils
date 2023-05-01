@@ -255,6 +255,7 @@ class MqttSync {
       );
     }
     this.mqtt.on('message', collectToDelete);
+    // TODO: this only works if we haven't already gotten these messages before!
 
     // subscribe to all
     prefixes.forEach(prefix => {

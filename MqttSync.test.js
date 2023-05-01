@@ -763,6 +763,40 @@ describe('MqttSync', function() {
         }, 200);
     });
 
+    it('clears yet-unknown sub-topics', function(done) {
+      clientA.publish('/#');
+      clientA.data.update('/uId/dId/@scope/capname/1.0.0/a', {d: 1});
+      clientA.data.update('/uId/dId/@scope/capname/1.0.0/b', {c: 1});
+      clientA.data.update('/uId/dId/@scope/capname/1.1.0/b', {c: 2});
+      // now clear from another client who hasn't been listening
+      clientB.clear(['/uId/dId/@scope/capname/1.0.0'], () => {
+        setTimeout(() => {
+            assert.deepEqual(clientA.data.getByTopic('/uId/dId/@scope/capname/'),
+              {'1.1.0': {b: {c: 2}}}, 'a');
+            done();
+          }, 200);
+      });
+    });
+
+
+    it('clears already known sub-topics', function(done) {
+      clientA.publish('/#');
+      clientB.subscribe('/#');
+      clientA.data.update('/uId/dId/@scope/capname/1.0.0/a', {d: 1});
+      clientA.data.update('/uId/dId/@scope/capname/1.0.0/b', {c: 1});
+      clientA.data.update('/uId/dId/@scope/capname/1.1.0/b', {c: 2});
+      setTimeout(() => {
+          console.log('clearing');
+          clientB.clear(['/uId/dId/@scope/capname/1.0.0'], () => {
+            setTimeout(() => {
+                assert.deepEqual(clientA.data.getByTopic('/uId/dId/@scope/capname/'),
+                  {'1.1.0': {b: {c: 2}}}, 'a');
+                done();
+              }, 200);
+          });
+        }, 400);
+    });
+
   });
 
   it('calls onBeforeDisconnect hooks', function(done) {

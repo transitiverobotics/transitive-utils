@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Button, Accordion, AccordionContext, Card, Badge }
 from 'react-bootstrap';
 import ReactWebComponent from './react-web-component';
@@ -136,6 +136,8 @@ export const createWebComponent = (Component, name,
     version = '0.0.0',
     options = {}) => {
 
+    const compRef = React.createRef();
+
     class Wrapper extends React.Component {
 
       onDisconnect = null;
@@ -156,7 +158,7 @@ export const createWebComponent = (Component, name,
         this.setState({_disconnected: true});
       }
 
-      /** Note this relies on the changed made in
+      /** Note this relies on the changes made in
       github:amay0048/react-web-component#780950800e2962f45f0f029be618bb8b84610c89
       that we used in our copy.
       TODO: move this into our copy, i.e., do it internally to react-web-component
@@ -169,23 +171,34 @@ export const createWebComponent = (Component, name,
         this.setState(newState);
       }
 
+      /** method exposed to the wrapped component via prop that allows setting
+      * the "config" state variable inside the wrapper (not the component
+      * itself). This config is retrieved by the portal for inclusion in the
+      * embedding instructions. */
+      setConfig(config) {
+        console.log('setting state', this, config);
+        this.setState({config});
+      }
+
       render() {
         const stylesheets = options.stylesheets || [
           'https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css'
         ];
-
         return <div id={`cap-${name}-${version}`}>
           <style>
             {stylesheets.map(url => `@import url(${url});`)}
           </style>
           {!this.state._disconnected &&
-            <Component
+            <Component ref={compRef}
               {...this.state}
               {...this.props}
-              setOnDisconnect={this.setOnDisconnect.bind(this)}/>}
+              setOnDisconnect={this.setOnDisconnect.bind(this)}
+              setConfig={this.setConfig.bind(this)}
+              />}
         </div>;
       }
     };
 
-    ReactWebComponent.create(<Wrapper />, name, false, reactiveAttributes);
+    ReactWebComponent.create(<Wrapper />, name, options.shadowDOM || false,
+      reactiveAttributes, compRef);
   };

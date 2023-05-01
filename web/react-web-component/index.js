@@ -14,7 +14,8 @@ module.exports = {
    * @param {boolean} useShadowDom - If the value is set to "true" the web component will use the `shadowDom`. The default value is true.
    * @param {string[]} observedAttributes - The observed attributes of the web component
    */
-  create: (app, tagName, useShadowDom = true, observedAttributes = []) => {
+  create: (app, tagName, useShadowDom = true, observedAttributes = [],
+    compRef = undefined) => {
     let appInstance;
 
     const lifeCycleHooks = {
@@ -54,8 +55,9 @@ module.exports = {
           // Re-assign the mountPoint to the newly created "div" element
           mountPoint = document.createElement('div');
 
-          // Move all of the styles assigned to the react component inside of the shadowRoot.
-          // By default this is not used, only if the library is explicitly installed
+          // Move all of the styles assigned to the react component inside of
+          // the shadowRoot. By default this is not used, only if the library is
+          //  explicitly installed
           const styles = getStyleElementsFromReactWebComponentStyleLoader();
           styles.forEach((style) => {
             shadowRoot.appendChild(style.cloneNode(shadowRoot));
@@ -66,21 +68,36 @@ module.exports = {
           retargetEvents(shadowRoot);
         }
 
-        ReactDOM.render(React.cloneElement(app, extractAttributes(webComponentInstance)) , mountPoint, function () {
-          appInstance = this;
-
-          callConstructorHook(webComponentInstance);
-          callLifeCycleHook('connectedCallback');
-        });
+        ReactDOM.render(
+          React.cloneElement(app, extractAttributes(webComponentInstance)),
+          mountPoint, function() {
+            appInstance = this;
+            callConstructorHook(webComponentInstance);
+            callLifeCycleHook('connectedCallback');
+          });
       }
       disconnectedCallback () {
-          callLifeCycleHook('disconnectedCallback');
+        callLifeCycleHook('disconnectedCallback');
       }
       attributeChangedCallback (attributeName, oldValue, newValue, namespace) {
-        callLifeCycleHook('attributeChangedCallback', [attributeName, oldValue, newValue, namespace]);
+        callLifeCycleHook('attributeChangedCallback',
+          [attributeName, oldValue, newValue, namespace]);
       }
       adoptedCallback (oldDocument, newDocument) {
         callLifeCycleHook('adoptedCallback', [oldDocument, newDocument]);
+      }
+
+      /** call a function defined in the component, either as a class method, or
+      * via useImperativeHandle */
+      call(functionName, args) {
+        return compRef?.current?.[functionName]?.call(compRef?.current, args);
+      }
+
+      /** predefined function to retrieve the pre-defined config object of the
+       * state, populated via the pre-defined `setConfig` method given as prop
+       * to the wrapped component. */
+      getConfig() {
+        return appInstance.state.config;
       }
     }
 

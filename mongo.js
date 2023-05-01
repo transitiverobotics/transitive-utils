@@ -13,7 +13,7 @@ class Mongo {
       if (!err) {
         this._db = this.client.db(DB_NAME);
         console.log(`Connected successfully to mongodb server ${URL}, db: ${DB_NAME}`);
-        onConnect(this);
+        onConnect?.(this);
       } else {
         console.error('Error connecting to mongodb', err);
       }

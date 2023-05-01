@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef,
+    forwardRef, useImperativeHandle }
+  from 'react';
 
-import { Badge } from 'react-bootstrap';
+import { Badge, Button } from 'react-bootstrap';
 
 import { getLogger, fetchJson, useMqttSync, MqttSync, Timer, TimerContext,
   ErrorBoundary, createWebComponent } from '../index';
 const log = getLogger('test/App');
+log.setLevel('debug');
 
 // to verify the export works
 window.transitive = { MqttSync };
@@ -30,14 +33,47 @@ const TimerChild = () => {
   </div>;
 }
 
-const Comp = () => {
+/** ----  Custom components, exposing an imperative API */
+const Comp = forwardRef((props, ref) => {
+  useImperativeHandle(ref, () => ({
+    foo4: (...args) => {
+      log.debug('foo4', args, this);
+      return 'return of Comp:foo4';
+    },
+  }));
+
+  setTimeout(() => {
+    props.setConfig({k1: 'v1'});
+  }, 1000);
+
   return <div>custom component <Badge>bootstrap</Badge></div>
+});
+
+class Comp2 extends React.Component {
+  foo(...args) {
+    log.debug('foo', ...args, this);
+    return 'return of Comp2:foo';
+  }
+
+  render() {
+    setTimeout(() => {
+      this.props.setConfig({k2: new Date()});
+    }, 1000);
+
+    return <div>custom component2 <Badge>bootstrap</Badge></div>;
+  }
 };
 
 createWebComponent(Comp, 'custom-component', ['jwt'], '1.2.3', {
-  stylesheets: ['https://unpkg.com/leaflet@1.9.3/dist/leaflet.css']
+  // stylesheets: ['https://unpkg.com/leaflet@1.9.3/dist/leaflet.css']
 });
 
+createWebComponent(Comp2, 'custom-component2', ['jwt'], '1.2.3', {
+  stylesheets: [// seems to define the CSS 'badge' class
+    'https://unpkg.com/leaflet@1.9.3/dist/leaflet.css'],
+  shadowDOM: true
+});
+/* ------------- */
 
 export default () => {
   const [count, setCount] = useState(0);
@@ -62,11 +98,25 @@ export default () => {
     }, [mqttSync, ready]);
 
 
+  // test function on custom component
+  const myref = useRef(null);
+  if (myref.current) {
+    log.debug(myref.current.call('foo4', 'abc', 123),
+      myref.current.getConfig());
+  }
+
+  const myref2 = useRef(null);
+  if (myref2.current) {
+    log.debug(myref2.current.call('foo', 'abc', 123),
+      myref2.current.getConfig());
+  }
+
   if (!mqttSync || !ready) {
     return <div>Connecting...</div>;
   }
 
   log.debug({data});
+
 
   return <div>
     <h1>utils/web testing</h1>
@@ -107,8 +157,9 @@ export default () => {
       </Timer>
     </Section>
 
-    <Section title="Custom Component">
-      <custom-component/>
+    <Section title="Custom Components">
+      <custom-component ref={myref}/>
+      <custom-component2 ref={myref2}/>
     </Section>
   </div>;
 };
