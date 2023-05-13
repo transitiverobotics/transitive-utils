@@ -46,6 +46,7 @@ const Comp = forwardRef((props, ref) => {
     props.setConfig({k1: 'v1'});
   }, 1000);
 
+  console.log('comp1 render');
   return <div>custom component <Badge>bootstrap</Badge></div>
 });
 
@@ -60,6 +61,7 @@ class Comp2 extends React.Component {
       this.props.setConfig({k2: new Date()});
     }, 1000);
 
+    console.log('comp2 render');
     return <div>custom component2 <Badge>bootstrap</Badge></div>;
   }
 };
@@ -76,6 +78,7 @@ const Comp3 =({setConfig, setOnDisconnect}) => {
     throw new Error('testing failures in onDisconnect');
   });
 
+  console.log('comp3 render');
   return <div>custom component3</div>
 };
 
@@ -185,7 +188,9 @@ export default () => {
       </button>
       {show && <custom-component ref={myref}/>}
       {show && <custom-component2 ref={myref2}/>}
+      {show && <custom-component2/>}
       {show && <custom-component3 ref={myref3}/>}
+      {show && <custom-component3/>}
     </Section>
   </div>;
 };

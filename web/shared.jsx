@@ -161,6 +161,7 @@ export const createWebComponent = (Component, name,
       }
 
       webComponentDisconnected() {
+        console.log('webComponentDisconnected');
         // this ensures that the react component unmounts and all useEffect
         // cleanups are called.
         this.setState({_disconnected: true});
@@ -196,6 +197,9 @@ export const createWebComponent = (Component, name,
         const stylesheets = options.stylesheets || [
           'https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css'
         ];
+
+        console.log('_disconnected', this.state._disconnected);
+
         return <div id={`cap-${name}-${version}`}>
           <style>
             {stylesheets.map(url => `@import url(${url});`)}
@@ -213,4 +217,6 @@ export const createWebComponent = (Component, name,
 
     ReactWebComponent.create(<Wrapper />, name, options.shadowDOM || false,
       reactiveAttributes, compRef);
+    // ReactWebComponent.create(Wrapper, name, options.shadowDOM || false,
+    //   reactiveAttributes, compRef);
   };
