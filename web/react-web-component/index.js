@@ -15,79 +15,43 @@ const lifeCycleHooks = {
   adoptedCallback: 'webComponentAdopted'
 };
 
-function callInstanceLifeCycleHook(instance, hook, params) {
-  const instanceParams = params || [];
-  const instanceMethod = lifeCycleHooks[hook];
-
-  if (instanceMethod && instance && instance[instanceMethod]) {
-    instance[instanceMethod].apply(instance, instanceParams);
-  }
-}
-
-function callInstanceConstructorHook(instance, webComponentInstance) {
-  if (instance['webComponentConstructed']) {
-    instance['webComponentConstructed'].apply(instance, [webComponentInstance])
-  }
-}
-
-
 module.exports = {
   /**
-   * @param {JSX.Element} app
+   * @param {JSX.Element} wrapper: the wrapper component class to be instantiated and wrapped
    * @param {string} tagName - The name of the web component. Has to be minus "-" delimited.
    * @param {boolean} useShadowDom - If the value is set to "true" the web component will use the `shadowDom`. The default value is true.
    * @param {string[]} observedAttributes - The observed attributes of the web component
    */
-  create: (app, tagName, useShadowDom = true, observedAttributes = [],
-  // create: (Wrapper, tagName, useShadowDom = true, observedAttributes = [],
-      compRef = undefined) => {
-    let appInstance;
-
-
-    function callConstructorHook(webComponentInstance) {
-      if (appInstance['webComponentConstructed']) {
-        appInstance['webComponentConstructed'].apply(appInstance, [webComponentInstance])
-      }
-    }
-
-    function callLifeCycleHook(hook, params) {
-      const instanceParams = params || [];
-      const instanceMethod = lifeCycleHooks[hook];
-
-      if (instanceMethod && appInstance && appInstance[instanceMethod]) {
-        appInstance[instanceMethod].apply(appInstance, instanceParams);
-      }
-    }
+  create: (wrapper, tagName, useShadowDom = true, observedAttributes = [],
+    compRef = undefined) => {
 
     const proto = class extends HTMLElement {
-      appRealInstance = null;
+      instance = null; // the instance we create of the wrapper
 
       static get observedAttributes() {
         return observedAttributes;
       }
 
-      callConstructorHook(webComponentInstance) {
-        if (this.appInstance['webComponentConstructed']) {
-          this.appInstance['webComponentConstructed'].apply(this.appInstance, [webComponentInstance])
+      callConstructorHook() {
+        if (this.instance['webComponentConstructed']) {
+          this.instance['webComponentConstructed'].apply(this.instance, [this])
         }
       }
 
-      callLifeCycleHook(hook, params) {
-        const instanceParams = params || [];
-        const instanceMethod = lifeCycleHooks[hook];
-
-        if (instanceMethod && this.appInstance && this.appInstance[instanceMethod]) {
-          this.appInstance[instanceMethod].apply(this.appInstance, instanceParams);
+      callLifeCycleHook(hook, params = []) {
+        const method = lifeCycleHooks[hook];
+        if (method && this.instance && this.instance[method]) {
+          this.instance[method].apply(this.instance, params);
         }
       }
 
       connectedCallback() {
-        const webComponentInstance = this;
-        let mountPoint = webComponentInstance;
+        const self = this;
+        let mountPoint = self;
 
         if (useShadowDom) {
-          // Re-assign the webComponentInstance (this) to the newly created shadowRoot
-          const shadowRoot = webComponentInstance.attachShadow({ mode: 'open' });
+          // Re-assign the self (this) to the newly created shadowRoot
+          const shadowRoot = self.attachShadow({ mode: 'open' });
           // Re-assign the mountPoint to the newly created "div" element
           mountPoint = document.createElement('div');
 
@@ -100,53 +64,28 @@ module.exports = {
           });
 
           shadowRoot.appendChild(mountPoint);
-
           retargetEvents(shadowRoot);
         }
 
-        // const instance =
-        //     React.createElement(Wrapper, extractAttributes(webComponentInstance));
-        const self = this;
         ReactDOM.render(
-          React.cloneElement(app, extractAttributes(webComponentInstance)),
-          // instance,
+          // This is where we instantiate the actual component (in its wrapper)
+          React.createElement(wrapper, extractAttributes(self)),
           mountPoint, function() {
-            console.log('appInstance to be overwritten', appInstance);
-            // appInstance = this;
-            self.appInstance = this;
-            // appInstance = instance;
-            self.callConstructorHook(webComponentInstance);
-            // callInstanceConstructorHook(this, webComponentInstance);
+            self.instance = this;
+            self.callConstructorHook();
             self.callLifeCycleHook('connectedCallback');
-            // callInstanceLifeCycleHook(this, 'connectedCallback');
-
-            // this.disconnectedCallback = () => {
-            //   console.log('disconnecting');
-            //   callInstanceLifeCycleHook(this, 'disconnectedCallback');
-            // };
-            // this.attributeChangedCallback =
-            //   (attributeName, oldValue, newValue, namespace) => {
-            //     callInstanceLifeCycleHook(this, 'attributeChangedCallback',
-            //       [attributeName, oldValue, newValue, namespace]);
-            //   };
-            // this.adoptedCallback = (oldDocument, newDocument) => {
-            //   callInstanceLifeCycleHook(this, 'adoptedCallback',
-            //     [oldDocument, newDocument]);
-            // };
-
-            // this.getConfig = () => {
-            //   return this.state.config;
-            // }
-
           });
       }
+
       disconnectedCallback () {
         this.callLifeCycleHook('disconnectedCallback');
       }
+
       attributeChangedCallback (attributeName, oldValue, newValue, namespace) {
         this.callLifeCycleHook('attributeChangedCallback',
           [attributeName, oldValue, newValue, namespace]);
       }
+
       adoptedCallback (oldDocument, newDocument) {
         this.callLifeCycleHook('adoptedCallback', [oldDocument, newDocument]);
       }
@@ -161,7 +100,7 @@ module.exports = {
        * state, populated via the pre-defined `setConfig` method given as prop
        * to the wrapped component. */
       getConfig() {
-        return this.appInstance.state.config;
+        return this.instance.state.config;
       }
     }
 
