@@ -161,10 +161,14 @@ export const createWebComponent = (Component, name,
       }
 
       webComponentDisconnected() {
-        this.onDisconnect && this.onDisconnect();
         // this ensures that the react component unmounts and all useEffect
         // cleanups are called.
         this.setState({_disconnected: true});
+        try {
+          this.onDisconnect && this.onDisconnect();
+        } catch (e) {
+          console.log('Error during onDisconnect of web-component', e);
+        }
       }
 
       /** Note this relies on the changes made in
@@ -185,7 +189,6 @@ export const createWebComponent = (Component, name,
       * itself). This config is retrieved by the portal for inclusion in the
       * embedding instructions. */
       setConfig(config) {
-        console.log('setting state', this, config);
         this.setState({config});
       }
 

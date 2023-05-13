@@ -66,10 +66,16 @@ class Comp2 extends React.Component {
 
 /** a functional component not wrapped in forwardRef: will not allow use of
 * useImperativeHandle, but should not throw an error */
-const Comp3 =({setConfig}) => {
+const Comp3 =({setConfig, setOnDisconnect}) => {
   setTimeout(() => {
     setConfig?.({k3: 'v3'});
   }, 1000);
+
+  // test a disconnect that throws an exception
+  setOnDisconnect(() => {
+    throw new Error('testing failures in onDisconnect');
+  });
+
   return <div>custom component3</div>
 };
 
@@ -89,6 +95,8 @@ createWebComponent(Comp3, 'custom-component3', ['jwt'], '1.2.3');
 
 export default () => {
   const [count, setCount] = useState(0);
+  const [show, setShow] = useState(true);
+  const toggleShow = () => setShow(s => !s);
 
   const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2UiOiJHYkdhMnlncXF6IiwiY2FwYWJpbGl0eSI6Il9yb2JvdC1hZ2VudCIsInVzZXJJZCI6InBvcnRhbFVzZXItcUVtWW41dGlib3ZLZ0d2U20iLCJ2YWxpZGl0eSI6NDMyMDAsImlhdCI6MTY0MzMzNDgxMn0.2eciKJ-tNGJmJbyZRr8lopELr73M5EK9lQqmsOsdXyA';
   const id = 'qEmYn5tibovKgGvSm';
@@ -129,7 +137,7 @@ export default () => {
     return <div>Connecting...</div>;
   }
 
-  log.debug({data});
+  // log.debug({data});
 
 
   return <div>
@@ -172,9 +180,12 @@ export default () => {
     </Section>
 
     <Section title="Custom Components">
-      <custom-component ref={myref}/>
-      <custom-component2 ref={myref2}/>
-      <custom-component3 ref={myref3}/>
+      <button onClick={toggleShow}>
+        {show ? 'hide' : 'show'}
+      </button>
+      {show && <custom-component ref={myref}/>}
+      {show && <custom-component2 ref={myref2}/>}
+      {show && <custom-component3 ref={myref3}/>}
     </Section>
   </div>;
 };
