@@ -269,6 +269,10 @@ class DataCache {
       if (_.eq(current, value)) {
         // note: this is just a shallow equal, so replacing a sub-document
         // with an atomic copy of it should still trigger listeners.
+        // TODO: Note also that when value is an object, we will set it by
+        // reference here, so any changes made to that object will *not* trigger
+        // listeners because `current` will already be changed -- which is
+        // probably wrong. May want to always clone value first.
         return {}; // nothing to do, do not bother listeners
       }
       // console.log('setting', path, value);

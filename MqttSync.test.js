@@ -4,12 +4,15 @@ const Aedes = require('aedes');
 const mqtt = require('mqtt');
 
 const MqttSync = require('./common/MqttSync');
-const { DataCache, parseMQTTTopic, randomId, topicToPath, wait } = require('./index');
+const { getLogger, DataCache, parseMQTTTopic, randomId, topicToPath, wait } =
+  require('./index');
 
-const log = require('loglevel');
+const loglevel = require('loglevel');
 // log.getLogger('MqttSync.js').setLevel('debug');
-// log.setAll('debug');
-log.setAll('info');
+const log = getLogger('test');
+// loglevel.setAll('debug');
+loglevel.setAll('info');
+log.setLevel('debug');
 
 const port = 9900;
 const mqttURL = `mqtt://localhost:${port}`;
@@ -21,8 +24,8 @@ const mqttURL = `mqtt://localhost:${port}`;
 /** assert that mqttSync instances a and b are in sync, then call done */
 const inSync = (a, b, done, delay = 50) => {
   setTimeout(() => {
-      // console.log('A', a.data.get());
-      // console.log('B', b.data.get());
+      log.debug('A', a.data.get());
+      log.debug('B', b.data.get());
       assert.deepEqual(b.data.get(), a.data.get());
       assert(a.publishQueue.size == 0);
       done();
@@ -107,6 +110,15 @@ describe('MqttSync', function() {
     clientA.publish('/a/#');
     clientB.subscribe('/a/#');
     clientA.data.update('a', {b: 1});
+    inSync(clientA, clientB, done);
+  });
+
+  it('does simple sync with 0\'s', function(done) {
+    clientA.publish('/a/#');
+    clientB.subscribe('/a/#');
+    clientA.data.updateFromArray(['a', 'b'], 0);
+    clientA.data.updateFromArray(['a', 'c', 'd'], 1);
+    clientA.data.updateFromArray(['a', 'c', '2'], 0);
     inSync(clientA, clientB, done);
   });
 
@@ -202,6 +214,13 @@ describe('MqttSync', function() {
     inSync(clientA, clientB, done);
   });
 
+  it('syncs when updating sub-document', function(done) {
+    clientA.publish('/a');
+    clientB.subscribe('/a');
+    clientA.data.update('/a', {b: {c: 1, d: 4}, e: 1});
+    clientA.data.update('/a/b', {c: 2, d: 5});
+    inSync(clientA, clientB, done);
+  });
 
   it('syncs when using atomic', function(done) {
     clientA.publish('/a', {atomic: true});

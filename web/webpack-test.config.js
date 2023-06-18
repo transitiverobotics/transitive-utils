@@ -63,6 +63,10 @@ module.exports = {
         response.json({msg: 'json1'});
       });
 
+      devServer.app.get('/unauthorized', (_, response) => {
+        response.status(401).json({error: 'you are not authorized!'});
+      });
+
       startServer();
       return middlewares;
     },

@@ -6,6 +6,7 @@ const { DataCache, mqttParsePayload, getLogger } = require('../common/common');
 const MqttSync = require('../common/MqttSync');
 
 const log = getLogger('Capability');
+log.setLevel('info');
 
 /** super class for all capabilities (cloud component) */
 class Capability {
@@ -18,7 +19,7 @@ class Capability {
     this.fullName = this.ourPath.join('/');
 
     const MQTT_URL = process.env.MQTT_URL || 'mqtts://localhost';
-    console.log('using', MQTT_URL);
+    log.info('using', MQTT_URL);
 
     const mqttClient = mqtt.connect(MQTT_URL, options.mqttOptions || {
       key: fs.readFileSync('certs/client.key'),

@@ -77,16 +77,16 @@ module.exports = {
           });
       }
 
-      disconnectedCallback () {
+      disconnectedCallback() {
         this.callLifeCycleHook('disconnectedCallback');
       }
 
-      attributeChangedCallback (attributeName, oldValue, newValue, namespace) {
+      attributeChangedCallback(attributeName, oldValue, newValue, namespace) {
         this.callLifeCycleHook('attributeChangedCallback',
           [attributeName, oldValue, newValue, namespace]);
       }
 
-      adoptedCallback (oldDocument, newDocument) {
+      adoptedCallback(oldDocument, newDocument) {
         this.callLifeCycleHook('adoptedCallback', [oldDocument, newDocument]);
       }
 

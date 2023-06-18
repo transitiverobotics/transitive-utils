@@ -32,10 +32,12 @@ export const fetchJson = (url, callback, options = {}) => {
     referrerPolicy: 'no-referrer',
     body: options.body ? JSON.stringify(options.body) : undefined
   }).then(res => {
-    if (!res.ok) {
-      throw new Error(`fetching ${url} failed: ${res.status} ${res.statusText}`)
-    }
-    return res.json();
-  }).then(data => callback(null, data))
-    .catch((error) => callback(`error: ${error}`));
+      const error = !res.ok &&
+        `fetching ${url} failed: ${res.status} ${res.statusText}`;
+      res.json()
+        .then(data => callback(error, data))
+        .catch(err => {
+          throw new Error(err);
+        });
+    }).catch((error) => callback(`error: ${error}`));
 };

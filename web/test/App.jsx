@@ -160,6 +160,10 @@ export default () => {
       fetchJson fail: 404
     </button>
 
+    <button onClick={() => fetchJson('/unauthorized', console.log)}>
+      fetchJson fail: 401
+    </button>
+
     <button onClick={() => {
       mqttSync.data.update('/web/atomic', {a: Date.now()});
       mqttSync.data.update('/web/string', (new Date()).toLocaleString());

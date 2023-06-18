@@ -6,7 +6,7 @@ import _ from 'lodash';
 const MqttSync = require('../common/MqttSync');
 import mqtt from 'mqtt-browser';
 const log = getLogger('utils-web/hooks');
-
+log.setLevel('info');
 
 /** hook for using MqttSync in react */
 export const useMqttSync = ({jwt, id, mqttUrl}) => {
