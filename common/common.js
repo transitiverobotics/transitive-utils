@@ -152,7 +152,7 @@ const topicToPath = (topic) => {
 /** match a slash-separated topic with a selector using +XYZ for (named)
   wildcards. Return the matching result.
 */
-const pathMatch = (selector, topic) => {
+const topicMatch = (selector, topic) => {
   const byArray = (s, p) => {
     if (s.length == 0) return true; // we are done: prefix matched
     if (s[0][0] == '#') return true; // explicit tail-wildcard
@@ -193,10 +193,6 @@ const isPrefixOf = (prefixArray, array) => {
 
 
 // -------------------------------------------------------------------------
-
-
-
-// -------------------------------------------------------------------------
 // MQTT Tools
 
 /** parse usernames used in MQTT */
@@ -223,31 +219,6 @@ const parseMQTTTopic = (topic) => {
   }
 };
 
-/** check whether topic matches the mqtt subscription expression, i.e.,
-  a topic with potential wildcards; see https://mosquitto.org/man/mqtt-7.html */
-
-// TODO: by now pretty much a copy of pathMatch, which seems better maintained.
-// Remove?
-const mqttTopicMatch = (topic, subscription) => {
-  const partsMatch = (topicParts, subParts) => {
-    if (subParts.length == 0 && topicParts.length == 0) {
-      return true;
-    } else if (subParts.length == 0 && topicParts.length > 0) {
-      // subscription is for a (specific) parent topic
-      return false;
-    } else if (subParts[0] == '#') {
-      return true;
-    } else if (subParts.length > 0 && topicParts.length == 0) {
-      // subscription is more specific than topic
-      return false;
-    } else {
-      return (subParts[0] == '+' || subParts[0] == topicParts[0])
-        && partsMatch(topicParts.slice(1), subParts.slice(1));
-    }
-  };
-
-  return partsMatch(topicToPath(topic), topicToPath(subscription));
-}
 
 const mqttParsePayload = (payload) =>
   payload.length == 0 ? null : JSON.parse(payload.toString('utf-8'));
@@ -263,7 +234,8 @@ const mqttClearRetained = (mqttClient, prefixes, callback, delay = 1000) => {
   const collectToDelete = (topic) => {
     // there may be other mqtt subscriptions running, filter by topic
     prefixes.forEach(prefix =>
-      mqttTopicMatch(topic, `${prefix}/#`) && toDelete.push(topic)
+      // mqttTopicMatch(topic, `${prefix}/#`) && toDelete.push(topic)
+      topicMatch(`${prefix}/#`, topic) && toDelete.push(topic)
     );
   }
   mqttClient.on('message', collectToDelete);
@@ -366,7 +338,7 @@ const formatDuration = (seconds) => {
 // -------------------------------------------------------------------------
 
 module.exports = { parseMQTTUsername, parseMQTTTopic,
-  pathToTopic, topicToPath, toFlatObject, mqttTopicMatch, pathMatch,
+  pathToTopic, topicToPath, toFlatObject, topicMatch,
   mqttParsePayload, getRandomId, versionCompare, loglevel, getLogger,
   mergeVersions, mqttClearRetained, isSubTopicOf, clone, setFromPath,
   forMatchIterator, encodeTopicElement, decodeTopicElement, constants, visit,

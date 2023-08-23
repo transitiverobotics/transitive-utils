@@ -1,6 +1,6 @@
 'use strict';
 
-const { mqttParsePayload, pathMatch, topicToPath, pathToTopic,
+const { mqttParsePayload, topicMatch, topicToPath, pathToTopic,
 toFlatObject, getLogger, mergeVersions, parseMQTTTopic, isSubTopicOf,
 versionCompare, encodeTopicElement } = require('./common');
 const { DataCache } = require('./DataCache');
@@ -249,8 +249,7 @@ class MqttSync {
     const collectToDelete = (topic) => {
       // there may be other mqtt subscriptions running, filter by topic
       prefixes.forEach(prefix =>
-        // mqttTopicMatch(topic, `${prefix}/#`)
-        pathMatch(`${prefix}/#`, topic)
+        topicMatch(`${prefix}/#`, topic)
           && (!options.filter || options.filter(topic))
           && toDelete.push(topic)
       );
@@ -295,14 +294,14 @@ class MqttSync {
   /** check whether we are subscribed to the given topic */
   isSubscribed(topic) {
     return Object.keys(this.subscribedPaths).some(subscribedTopic =>
-      pathMatch(subscribedTopic, topic));
+      topicMatch(subscribedTopic, topic));
   }
 
   /** Check whether we are publishing the given topic in a non-atomic way.
   This is used to determine whether to store the published value or not. */
   isPublished(topic) {
     return Object.keys(this.publishedPaths).some(subscribedTopic =>
-      pathMatch(subscribedTopic, topic) &&
+      topicMatch(subscribedTopic, topic) &&
       !this.publishedPaths[subscribedTopic].atomic
     );
   }

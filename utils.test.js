@@ -2,49 +2,49 @@
 const assert = require('assert');
 const {expect} = require('expect'); // from jest
 
-const { updateObject, DataCache, toFlatObject, topicToPath, mqttTopicMatch,
-  pathMatch, versionCompare, pathToTopic, decodeJWT, mergeVersions, isSubTopicOf,
+const { updateObject, DataCache, toFlatObject, topicToPath, topicMatch,
+  versionCompare, pathToTopic, decodeJWT, mergeVersions, isSubTopicOf,
   setFromPath, Mongo, getLogger, fetchURL, visit, wait, formatBytes,
   formatDuration } = require('./index');
 
 const log = getLogger('utils.test');
 
-describe('pathMatch', function() {
+describe('topicMatch', function() {
   const path = '/a123/b234/c345/d456';
 
   it('should do full matches', function() {
-    assert(pathMatch(path, path));
+    assert(topicMatch(path, path));
   });
 
   it('should do tail matches', function() {
-    assert(pathMatch('/a123/b234', path));
-    assert(pathMatch('/#', path));
-    assert(!pathMatch('/a', path));
+    assert(topicMatch('/a123/b234', path));
+    assert(topicMatch('/#', path));
+    assert(!topicMatch('/a', path));
   });
 
   it('should do wild-card matches and return result', function() {
-    assert.deepEqual(pathMatch('/a123/+bpart/c345/d456', path), {bpart: 'b234'});
-    assert.deepEqual(pathMatch('/a123/+bpart', path), {bpart: 'b234'});
-    assert.deepEqual(pathMatch('/a123/+bpart/c345/+dpart', path), {
+    assert.deepEqual(topicMatch('/a123/+bpart/c345/d456', path), {bpart: 'b234'});
+    assert.deepEqual(topicMatch('/a123/+bpart', path), {bpart: 'b234'});
+    assert.deepEqual(topicMatch('/a123/+bpart/c345/+dpart', path), {
       bpart: 'b234',
       dpart: 'd456'
     });
-    assert(!pathMatch('/a123/+bpart/1345/+dpart', path));
+    assert(!topicMatch('/a123/+bpart/1345/+dpart', path));
   });
 
   it('wildcards should match empty', function() {
-    assert(pathMatch('/a/#', '/a'));
-    assert(pathMatch('/a/b/#', '/a/b'));
-    assert(pathMatch('/a/b/c/#', '/a/b'));
+    assert(topicMatch('/a/#', '/a'));
+    assert(topicMatch('/a/b/#', '/a/b'));
+    assert(topicMatch('/a/b/c/#', '/a/b'));
   });
 
   it('should match on over-specific selectors', function() {
     // because the place in the object described by the selector does get
     // affected by that key
-    assert(pathMatch('/a/b/c', '/a/b'));
-    assert(pathMatch('/a/b/c/#', '/a/b'));
-    assert(!pathMatch('/a/b/c', '/a/b/d'));
-    assert(!pathMatch('/a/b/c/#', '/a/b/d'));
+    assert(topicMatch('/a/b/c', '/a/b'));
+    assert(topicMatch('/a/b/c/#', '/a/b'));
+    assert(!topicMatch('/a/b/c', '/a/b/d'));
+    assert(!topicMatch('/a/b/c/#', '/a/b/d'));
   });
 });
 
@@ -665,50 +665,6 @@ describe('pathToTopic', function() {
 });
 
 
-
-describe('mqttTopicMatch', function() {
-  // examples taken from https://mosquitto.org/man/mqtt-7.html
-  const topic = 'a/b/c/d';
-
-  it('should match itself', function() {
-    assert(mqttTopicMatch(topic, topic));
-  }),
-
-  it('should match examples with "+" wildcards', function() {
-    const positive = [
-      '+/b/c/d',
-      'a/+/c/d',
-      'a/+/+/d',
-      '+/+/+/+',
-    ];
-    positive.forEach(sub => assert(mqttTopicMatch(topic, sub)));
-  });
-
-  it('should match examples with "#" wildcards', function() {
-    const positive = [
-      '#',
-      'a/#',
-      'a/b/#',
-      'a/b/c/#',
-      '+/b/c/#',
-    ];
-    positive.forEach(sub => assert(mqttTopicMatch(topic, sub)));
-  });
-
-  it('should not match examples with "+" wildcards', function() {
-    const negative = [
-      'a/b/c',
-      'b/+/c/d',
-      '+/+/+',
-    ];
-    negative.forEach(sub =>
-      assert(!mqttTopicMatch(topic, sub), `${topic} !~ ${sub}`));
-  });
-});
-
-
-
-
 describe('versionCompare', function() {
   it('should work on any part', function() {
     assert(versionCompare('10.5.1', '2.50.1') > 0);
@@ -743,7 +699,6 @@ describe('versionCompare', function() {
     )
   });
 });
-
 
 
 describe('decodeJWT', function() {

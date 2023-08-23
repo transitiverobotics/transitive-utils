@@ -11,7 +11,7 @@ const _ = {
   merge: require('lodash/merge'),
 };
 
-const {topicToPath, pathToTopic, toFlatObject, pathMatch, forMatchIterator}
+const {topicToPath, pathToTopic, toFlatObject, topicMatch, forMatchIterator}
   = require('./common');
 
 /** Unset the topic in that obj, and clean up parent if empty, recursively.
@@ -165,7 +165,7 @@ class DataCache {
   subscribePath(topic, callback) {
     this.#listeners.push((changes, tags) => {
       _.forEach(changes, (value, key) => {
-        const matched = pathMatch(topic, key);
+        const matched = topicMatch(topic, key);
         matched && callback(value, key, matched, tags);
       });
     });
@@ -175,7 +175,7 @@ class DataCache {
   subscribePathFlat(topic, callback) {
     this.#flatListeners.push((changes, tags) => {
       _.forEach(changes, (value, key) => {
-        const matched = pathMatch(topic, key);
+        const matched = topicMatch(topic, key);
         matched && callback(value, key, matched, tags);
       });
     });
