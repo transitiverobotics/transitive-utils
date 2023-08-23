@@ -10,6 +10,7 @@ const common = require('./common/common');
 const MqttSync = require('./common/MqttSync');
 const cloud = require('./cloud');
 const Mongo = require('./mongo');
+const {DataCache, updateObject} = require('./common/DataCache');
 
 const randomId = (bytes = 16) => crypto.randomBytes(bytes).toString('base64');
 
@@ -70,5 +71,6 @@ const verifyPremiumJWT = (token) => {
 //
 
 module.exports = Object.assign({}, common, cloud, {
-  randomId, decodeJWT, setTerminalTitle, MqttSync, Mongo, fetchURL
+  randomId, decodeJWT, setTerminalTitle, MqttSync, Mongo, fetchURL, DataCache,
+  updateObject
 });

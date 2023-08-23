@@ -1,8 +1,9 @@
 'use strict';
 
-const { DataCache, mqttParsePayload, pathMatch, topicToPath, pathToTopic,
+const { mqttParsePayload, pathMatch, topicToPath, pathToTopic,
 toFlatObject, getLogger, mergeVersions, parseMQTTTopic, isSubTopicOf,
 versionCompare, encodeTopicElement } = require('./common');
+const { DataCache } = require('./DataCache');
 const _ = require('lodash');
 
 const log = getLogger('MqttSync');
