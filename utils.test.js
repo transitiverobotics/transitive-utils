@@ -3,8 +3,9 @@ const assert = require('assert');
 const {expect} = require('expect'); // from jest
 
 const { updateObject, DataCache, toFlatObject, topicToPath, mqttTopicMatch,
-pathMatch, versionCompare, pathToTopic, decodeJWT, mergeVersions, isSubTopicOf,
-setFromPath, Mongo, getLogger, fetchURL, visit, wait } = require('./index');
+  pathMatch, versionCompare, pathToTopic, decodeJWT, mergeVersions, isSubTopicOf,
+  setFromPath, Mongo, getLogger, fetchURL, visit, wait, formatBytes,
+  formatDuration } = require('./index');
 
 const log = getLogger('utils.test');
 
@@ -982,5 +983,19 @@ describe('wait', function() {
     const start = Date.now();
     await wait(1000);
     assert(Date.now() - start >= 1000);
+  });
+});
+
+describe('formatting', function() {
+  it('formats bytes', async function() {
+    assert.equal(formatBytes(100), '100.00 B');
+    assert.equal(formatBytes(2048), '2.00 KB');
+    assert.equal(formatBytes(1234567), '1.18 MB');
+  });
+
+  it('formats durations', async function() {
+    assert.equal(formatDuration(10), '10s');
+    assert.equal(formatDuration(200), '3m 20s');
+    assert.equal(formatDuration(4600), '1h 16m');
   });
 });

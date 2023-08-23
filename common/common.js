@@ -330,12 +330,45 @@ const mergeVersions = (versionsObject, subTopic = undefined, options = {}) => {
 };
 
 // -------------------------------------------------------------------------
+// Formatting tools
 
+const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+const formatBytes = (bytes) => {
+  if (!bytes) return '--';
+  let i = 0;
+  while (bytes > 1024) {
+    bytes /= 1024;
+    i++;
+  }
+  return `${bytes.toFixed(2)} ${units[i]}`;
+}
+
+const formatDuration = (seconds) => {
+  if (!seconds) return '--';
+  const parts = {};
+  if (seconds > 3600) {
+    parts.h = Math.floor(seconds / 3600);
+    seconds = seconds % 3600;
+  }
+  if (seconds > 60) {
+    parts.m = Math.floor(seconds / 60);
+    seconds = seconds % 60;
+  }
+  parts.s = Math.floor(seconds);
+
+  let rtv = '';
+  parts.h > 0 && (rtv += `${parts.h}h `);
+  parts.m > 0 && (rtv += `${parts.m}m `);
+  !parts.h && (rtv += `${parts.s}s`);
+  return rtv.trim();
+};
+
+// -------------------------------------------------------------------------
 
 module.exports = { parseMQTTUsername, parseMQTTTopic,
   pathToTopic, topicToPath, toFlatObject, mqttTopicMatch, pathMatch,
   mqttParsePayload, getRandomId, versionCompare, loglevel, getLogger,
   mergeVersions, mqttClearRetained, isSubTopicOf, clone, setFromPath,
   forMatchIterator, encodeTopicElement, decodeTopicElement, constants, visit,
-  wait
+  wait, formatBytes, formatDuration
 };
