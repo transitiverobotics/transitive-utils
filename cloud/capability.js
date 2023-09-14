@@ -4,6 +4,7 @@ const mqtt = require('mqtt');
 
 const { DataCache, mqttParsePayload, getLogger } = require('../common/common');
 const MqttSync = require('../common/MqttSync');
+const { findPath } = require('../server');
 
 const log = getLogger('Capability');
 log.setLevel('info');
@@ -12,6 +13,7 @@ log.setLevel('info');
 class Capability {
 
   constructor(onReady, options = {}) {
+
     [this.scope, this.name] = process.env.npm_package_name.split('/');
     this.version = process.env.npm_package_version;
     this.capability = `${this.scope}/${this.name}`;
@@ -21,9 +23,16 @@ class Capability {
     const MQTT_URL = process.env.MQTT_URL || 'mqtts://localhost';
     log.info('using', MQTT_URL);
 
+    const certsPath = findPath('certs');
+    if (!certsPath) {
+      const error = 'Unable to find certificates directory';
+      log.error(error);
+      throw new Error(error);
+    }
+
     const mqttClient = mqtt.connect(MQTT_URL, options.mqttOptions || {
-      key: fs.readFileSync('certs/client.key'),
-      cert: fs.readFileSync('certs/client.crt'),
+      key: fs.readFileSync(`${certsPath}/client.key`),
+      cert: fs.readFileSync(`${certsPath}/client.crt`),
       rejectUnauthorized: false,
       protocolVersion: 5 // needed for the `rap` option, i.e., to get retain flags
     });

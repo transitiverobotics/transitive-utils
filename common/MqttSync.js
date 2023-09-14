@@ -242,6 +242,10 @@ class MqttSync {
     `options.filter(topic)`: a function that can be provided to further,
     programmatically filter the set of topics to clear, e.g., to onlt clear
   topics of old versions.
+
+  Note: This may not yet work in robot-capabilities, since the subscription
+  prefix and received topic prefix don't match (the device prefix is added to
+  subscription by localMQTT.
   */
   clear(prefixes, callback = undefined, options = {}) {
 

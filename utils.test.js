@@ -1,11 +1,12 @@
 
 const assert = require('assert');
+const fs = require('fs');
 const {expect} = require('expect'); // from jest
 
 const { updateObject, DataCache, toFlatObject, topicToPath, topicMatch,
   versionCompare, pathToTopic, decodeJWT, mergeVersions, isSubTopicOf,
   setFromPath, Mongo, getLogger, fetchURL, visit, wait, formatBytes,
-  formatDuration } = require('./index');
+  formatDuration, findPath } = require('./index');
 
 const log = getLogger('utils.test');
 
@@ -14,12 +15,15 @@ describe('topicMatch', function() {
 
   it('should do full matches', function() {
     assert(topicMatch(path, path));
+    assert(!topicMatch('/a123/b234/wrong/d456', path));
   });
 
   it('should do tail matches', function() {
     assert(topicMatch('/a123/b234', path));
     assert(topicMatch('/#', path));
     assert(!topicMatch('/a', path));
+    assert(!topicMatch('/a/#', path));
+    assert(!topicMatch('/a123/b234/wrong/#', path));
   });
 
   it('should do wild-card matches and return result', function() {
@@ -953,4 +957,38 @@ describe('formatting', function() {
     assert.equal(formatDuration(200), '3m 20s');
     assert.equal(formatDuration(4600), '1h 16m');
   });
+});
+
+describe('findPath', function() {
+
+  const cwd = process.cwd();
+
+  it('find it in starting dir', async function() {
+    // set up a directory tree for testing
+    const tmp = fs.mkdtempSync('/tmp/');
+    fs.mkdirSync(`${tmp}/a/certs`, {recursive: true});
+    process.chdir(`${tmp}/a`);
+
+    assert.equal(findPath('certs'), `${tmp}/a/certs`);
+    fs.rmSync(tmp, {recursive: true, forced: true});
+  });
+
+  it('find it in upper dir', async function() {
+    const tmp = fs.mkdtempSync('/tmp/');
+    fs.mkdirSync(`${tmp}/a/b`, {recursive: true});
+    fs.mkdirSync(`${tmp}/a/certs`, {recursive: true});
+    process.chdir(`${tmp}/a/b`);
+    assert.equal(findPath('certs'), `${tmp}/a/certs`);
+    fs.rmSync(tmp, {recursive: true, forced: true});
+  });
+
+  it('returns null when none is found', async function() {
+    const tmp = fs.mkdtempSync('/tmp/');
+    fs.mkdirSync(`${tmp}/a/b/c/d`, {recursive: true});
+    process.chdir(`${tmp}/a/b/c/d`);
+
+    assert.equal(findPath('certs'), null);
+    fs.rmSync(tmp, {recursive: true, forced: true});
+  });
+
 });

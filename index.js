@@ -11,6 +11,7 @@ const MqttSync = require('./common/MqttSync');
 const cloud = require('./cloud');
 const Mongo = require('./mongo');
 const {DataCache, updateObject} = require('./common/DataCache');
+const {findPath} = require('./server');
 
 const randomId = (bytes = 16) => crypto.randomBytes(bytes).toString('base64');
 
@@ -49,28 +50,27 @@ const fetchURL = (url) => new Promise((resolve, reject) => {
     });
 });
 
-const PUBLIC_BILLING_KEY_PATH = '/home/transitive/publicBillingKey';
-const BILLING_KEY_URL = 'https://billing.transitiverobotics.com/publicKey';
-let publicBillingKey;
-const verifyPremiumJWT = (token) => {
-  if (!publicBillingKey) {
-    try {
-      publicBillingKey = fs.readFileSync(PUBLIC_BILLING_KEY_PATH,
-        {encoding: 'utf-8'});
-    } catch (e) {
-      // not yet stored locally
-      // #HERE: get key, test this;
-      const publicBillingKey = fetchURL(BILLING_KEY_URL);
-      // #NO this fetch could be spoofed by a self-hosting user, see ticket
-      fs.writeFileSync(PUBLIC_BILLING_KEY_PATH, publicBillingKey);
-    }
-  }
+// const PUBLIC_BILLING_KEY_PATH = '/home/transitive/publicBillingKey';
+// const BILLING_KEY_URL = 'https://billing.transitiverobotics.com/publicKey';
+// let publicBillingKey;
+// const verifyPremiumJWT = (token) => {
+//   if (!publicBillingKey) {
+//     try {
+//       publicBillingKey = fs.readFileSync(PUBLIC_BILLING_KEY_PATH,
+//         {encoding: 'utf-8'});
+//     } catch (e) {
+//       // not yet stored locally
+//       // #HERE: get key, test this;
+//       const publicBillingKey = fetchURL(BILLING_KEY_URL);
+//       // #NO this fetch could be spoofed by a self-hosting user, see ticket
+//       fs.writeFileSync(PUBLIC_BILLING_KEY_PATH, publicBillingKey);
+//     }
+//   }
 
-  jwt.verify(token, publicBillingKey, {algorithm: 'RS256'});
-};
-//
+//   jwt.verify(token, publicBillingKey, {algorithm: 'RS256'});
+// };
 
 module.exports = Object.assign({}, common, cloud, {
   randomId, decodeJWT, setTerminalTitle, MqttSync, Mongo, fetchURL, DataCache,
-  updateObject
+  updateObject, findPath
 });
