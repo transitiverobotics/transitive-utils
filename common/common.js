@@ -1,5 +1,5 @@
 const semverCompare = require('semver/functions/compare');
-// import semverCompare from 'semver/functions/compare';
+const semverMinVersion = require('semver/ranges/min-version');
 
 const _ = {
   get: require('lodash/get'),
@@ -273,8 +273,22 @@ const getRandomId = () => Math.random().toString(36).slice(2);
 // -------------------------------------------------------------------------
 
 /** Compare to version strings. Return -1 if a is lower than b,
-  0 if they are equal, and 1 otherwise. */
-const versionCompare = semverCompare;
+0 if they are equal, and 1 otherwise. If either is not a complete version,
+e.g., 2.0, interpret it as a range and use its minimum version for the
+comparison. Hence, 2.0 < 2.0.1. */
+const versionCompare = (a, b) =>
+  semverCompare(semverMinVersion(a), semverMinVersion(b));
+
+const versionScopes = ['major', 'minor', 'patch'];
+/** Get from package info the version namespace we should use, e.g.,
+version: '1.2.3', config.versionNamespace: 'minor' => '1.2' */
+const getPackageVersionNamespace = () => {
+  let versionScope =
+    versionScopes.indexOf(process.env.npm_package_config_versionNamespace || 'patch');
+  versionScope < 0 && (versionScope = 2);
+  return process.env.npm_package_version?.split('.')
+      .slice(0, versionScope + 1).join('.');
+};
 
 // -------------------------------------------------------------------------
 
@@ -339,7 +353,8 @@ const formatDuration = (seconds) => {
 
 module.exports = { parseMQTTUsername, parseMQTTTopic,
   pathToTopic, topicToPath, toFlatObject, topicMatch,
-  mqttParsePayload, getRandomId, versionCompare, loglevel, getLogger,
+  mqttParsePayload, getRandomId, versionCompare, getPackageVersionNamespace,
+  loglevel, getLogger,
   mergeVersions, mqttClearRetained, isSubTopicOf, clone, setFromPath,
   forMatchIterator, encodeTopicElement, decodeTopicElement, constants, visit,
   wait, formatBytes, formatDuration

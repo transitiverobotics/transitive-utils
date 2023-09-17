@@ -16,7 +16,7 @@ class Capability {
 
     [this.scope, this.name] = process.env.npm_package_name.split('/');
     this.version = process.env.npm_package_version;
-    // TODO: ^^ this also needs to be reduced to what the versionNamespace says
+    // TODO: ^^ this also needs to be reduced to minor version when desired
     this.capability = `${this.scope}/${this.name}`;
     this.ourPath = [this.scope, this.name, this.version];
     this.fullName = this.ourPath.join('/');

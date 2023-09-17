@@ -4,7 +4,8 @@ const fs = require('fs');
 const {expect} = require('expect'); // from jest
 
 const { updateObject, DataCache, toFlatObject, topicToPath, topicMatch,
-  versionCompare, pathToTopic, decodeJWT, mergeVersions, isSubTopicOf,
+  versionCompare, getPackageVersionNamespace, pathToTopic, decodeJWT,
+  mergeVersions, isSubTopicOf,
   setFromPath, Mongo, getLogger, fetchURL, visit, wait, formatBytes,
   formatDuration, findPath } = require('./index');
 
@@ -702,6 +703,16 @@ describe('versionCompare', function() {
       ]
     )
   });
+
+  it('compares ranges based on minVersion', function() {
+    assert(versionCompare('1.3.1', '1.3') > 0);
+    assert(versionCompare('2.0', '1.0.1') > 0);
+    assert(versionCompare('2.1', '2.0') > 0);
+    assert(versionCompare('2.0.1', '2.0') > 0);
+    assert(versionCompare('2', '1') > 0);
+    assert(versionCompare('2.1', '2') > 0);
+    assert(versionCompare('2.1', '2') > 0);
+  });
 });
 
 
@@ -991,4 +1002,22 @@ describe('findPath', function() {
     fs.rmSync(tmp, {recursive: true, forced: true});
   });
 
+});
+
+
+describe('getPackageVersionNamespace', function() {
+  const cases = [
+    {ns: null, version: '1.2.3', correct: '1.2.3'},
+    {ns: 'patch', version: '1.2.3', correct: '1.2.3'},
+    {ns: 'minor', version: '1.2.3', correct: '1.2'},
+    {ns: 'major', version: '1.2.3', correct: '1'},
+  ];
+
+  cases.forEach(({ns, version, correct}) => {
+    it(`works for ${ns}`, function() {
+      process.env.npm_package_config_versionNamespace = ns;
+      process.env.npm_package_version = version;
+      assert.equal(getPackageVersionNamespace(), correct);
+    });
+  });
 });
