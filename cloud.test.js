@@ -11,4 +11,13 @@ describe('Capability', function() {
     const c = new Capability();
     done();
   });
+
+  it('sets the right version', function(done) {
+    process.env.npm_package_version = '1.2.3';
+    process.env.npm_package_config_versionNamespace = 'minor';
+    const c = new Capability();
+    assert.equal(c.version, '1.2');
+    done();
+  });
+
 });

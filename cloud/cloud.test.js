@@ -45,7 +45,6 @@ describe('Capability', function() {
   let server;
   let mqttClientA;
   let clientA;
-  let interval;
   let aedes;
   let sockets = [];
   let worker = null;
@@ -81,7 +80,6 @@ describe('Capability', function() {
   });
 
   afterEach(function(done) {
-    clearInterval(interval);
     mqttClientA.end();
     mqttClientA = null;
     clientA = null;
