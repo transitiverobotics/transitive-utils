@@ -7,7 +7,7 @@ const { updateObject, DataCache, toFlatObject, topicToPath, topicMatch,
   versionCompare, getPackageVersionNamespace, pathToTopic, decodeJWT,
   mergeVersions, isSubTopicOf,
   setFromPath, Mongo, getLogger, fetchURL, visit, wait, formatBytes,
-  formatDuration, findPath } = require('./index');
+  formatDuration, findPath, tryJSONParse } = require('./index');
 
 const log = getLogger('utils.test');
 
@@ -1019,5 +1019,34 @@ describe('getPackageVersionNamespace', function() {
       process.env.npm_package_version = version;
       assert.equal(getPackageVersionNamespace(), correct);
     });
+  });
+});
+
+describe('tryJSONParse', function() {
+  it('handles failures', function() {
+    assert.equal(tryJSONParse(null), null);
+    assert.equal(tryJSONParse(''), null);
+    assert.equal(tryJSONParse(undefined), null);
+    assert.equal(tryJSONParse('this is not json'), null);
+    assert.equal(tryJSONParse('{a: "this is not json either"}'), null);
+  });
+
+  it('handles basics', function() {
+    assert.equal(tryJSONParse('true'), true);
+    assert.equal(tryJSONParse('false'), false);
+    assert.equal(tryJSONParse('1'), 1);
+    assert.equal(tryJSONParse('\"abc\"'), 'abc');
+  });
+
+  it('handles objects and arrays', function() {
+    assert.deepEqual(tryJSONParse('{"a": 1}'), {a: 1});
+    assert.deepEqual(tryJSONParse('[1,2,3]'), [1,2,3]);
+  });
+
+  it('handles Buffers', function() {
+    assert.equal(tryJSONParse(Buffer.from('')), null);
+    assert.equal(tryJSONParse(Buffer.alloc(0)), null);
+    assert.equal(tryJSONParse(Buffer.from('true')), true);
+    assert.deepEqual(tryJSONParse(Buffer.from('{"a": 1}')), {a: 1});
   });
 });

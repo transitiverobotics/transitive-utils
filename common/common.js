@@ -53,6 +53,15 @@ const getLogger = loglevel.getLogger;
 /** Deep-clone the given object. All functionality is lost, just data is kept. */
 const clone = (obj) => JSON.parse(JSON.stringify(obj));
 
+/** try parsing JSON, return null if unsuccessful */
+const tryJSONParse = (string) => {
+  try {
+    return JSON.parse(string);
+  } catch (e) {
+    return null;
+  }
+};
+
 /** reusable visitor pattern: iteratively visits all nodes in the tree
  described by `object`, where `childField` indicates the child-of predicate.
 */
@@ -219,10 +228,9 @@ const parseMQTTTopic = (topic) => {
   }
 };
 
-
 const mqttParsePayload = (payload) =>
   payload.length == 0 ? null : JSON.parse(payload.toString('utf-8'));
-
+// TODO: ^ This can probably now just become tryJSONParse
 
 /** delete all retained messages in a certain topic prefix, waiting for
     a given delay to collect existing retained. Use with care, never delete topics
@@ -357,5 +365,5 @@ module.exports = { parseMQTTUsername, parseMQTTTopic,
   loglevel, getLogger,
   mergeVersions, mqttClearRetained, isSubTopicOf, clone, setFromPath,
   forMatchIterator, encodeTopicElement, decodeTopicElement, constants, visit,
-  wait, formatBytes, formatDuration
+  wait, formatBytes, formatDuration, tryJSONParse
 };

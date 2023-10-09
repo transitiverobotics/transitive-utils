@@ -2,8 +2,7 @@ const _ = require('lodash');
 const fs = require('fs');
 const mqtt = require('mqtt');
 
-const { DataCache, mqttParsePayload, getLogger, getPackageVersionNamespace } =
-  require('../common/common');
+const { getLogger, getPackageVersionNamespace } = require('../common/common');
 const MqttSync = require('../common/MqttSync');
 const { findPath } = require('../server');
 
