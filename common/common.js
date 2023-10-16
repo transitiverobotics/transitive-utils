@@ -287,17 +287,6 @@ comparison. Hence, 2.0 < 2.0.1. */
 const versionCompare = (a, b) =>
   semverCompare(semverMinVersion(a), semverMinVersion(b));
 
-const versionScopes = ['major', 'minor', 'patch'];
-/** Get from package info the version namespace we should use, e.g.,
-version: '1.2.3', config.versionNamespace: 'minor' => '1.2' */
-const getPackageVersionNamespace = () => {
-  let versionScope =
-    versionScopes.indexOf(process.env.npm_package_config_versionNamespace || 'patch');
-  versionScope < 0 && (versionScope = 2);
-  return process.env.npm_package_version?.split('.')
-      .slice(0, versionScope + 1).join('.');
-};
-
 // -------------------------------------------------------------------------
 
 /** given an object where the keys are versions, merge this into one object
@@ -361,7 +350,7 @@ const formatDuration = (seconds) => {
 
 module.exports = { parseMQTTUsername, parseMQTTTopic,
   pathToTopic, topicToPath, toFlatObject, topicMatch,
-  mqttParsePayload, getRandomId, versionCompare, getPackageVersionNamespace,
+  mqttParsePayload, getRandomId, versionCompare,
   loglevel, getLogger,
   mergeVersions, mqttClearRetained, isSubTopicOf, clone, setFromPath,
   forMatchIterator, encodeTopicElement, decodeTopicElement, constants, visit,

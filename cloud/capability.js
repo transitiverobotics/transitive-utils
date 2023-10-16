@@ -2,9 +2,9 @@ const _ = require('lodash');
 const fs = require('fs');
 const mqtt = require('mqtt');
 
-const { getLogger, getPackageVersionNamespace } = require('../common/common');
+const { getLogger } = require('../common/common');
 const MqttSync = require('../common/MqttSync');
-const { findPath } = require('../server');
+const { findPath, getPackageVersionNamespace } = require('../server');
 
 const log = getLogger('Capability');
 log.setLevel('info');

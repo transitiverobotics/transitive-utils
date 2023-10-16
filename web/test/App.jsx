@@ -5,7 +5,7 @@ import React, { useState, useEffect, useContext, useRef,
 import { Badge, Button } from 'react-bootstrap';
 
 import { getLogger, fetchJson, useMqttSync, MqttSync, Timer, TimerContext,
-  ErrorBoundary, createWebComponent } from '../index';
+  ErrorBoundary, createWebComponent, useTransitive } from '../index';
 const log = getLogger('test/App');
 log.setLevel('debug');
 
@@ -104,9 +104,11 @@ export default () => {
   const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2UiOiJHYkdhMnlncXF6IiwiY2FwYWJpbGl0eSI6Il9yb2JvdC1hZ2VudCIsInVzZXJJZCI6InBvcnRhbFVzZXItcUVtWW41dGlib3ZLZ0d2U20iLCJ2YWxpZGl0eSI6NDMyMDAsImlhdCI6MTY0MzMzNDgxMn0.2eciKJ-tNGJmJbyZRr8lopELr73M5EK9lQqmsOsdXyA';
   const id = 'qEmYn5tibovKgGvSm';
   const mqttUrl = 'ws://localhost:8888';
-
   const {mqttSync, data, status, ready, StatusComponent} =
-    useMqttSync({jwt, id, mqttUrl});
+    // useMqttSync({jwt, id, mqttUrl});
+    useTransitive({jwt, id, host: 'homedesk.local:8888', ssl: false,
+      capability: '@transitive-robotics/web-test',
+      versionNS: '0.1'});
 
   useEffect(() => {
       if (mqttSync && ready) {

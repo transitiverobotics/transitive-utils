@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { decodeJWT, getLogger, clone } from './client';
 import _ from 'lodash';
-
-// import MqttSync from '../MqttSync';
-const MqttSync = require('../common/MqttSync');
 import mqtt from 'mqtt-browser';
+import { decodeJWT, getLogger, clone, pathToTopic } from './client';
+const MqttSync = require('../common/MqttSync');
+
 const log = getLogger('utils-web/hooks');
 log.setLevel('info');
 
-/** hook for using MqttSync in react */
+/** hook for using MqttSync in React */
 export const useMqttSync = ({jwt, id, mqttUrl}) => {
   const [status, setStatus] = useState('connecting');
   const [mqttSync, setMqttSync] = useState();
@@ -58,4 +57,23 @@ export const useMqttSync = ({jwt, id, mqttUrl}) => {
     mqttSync, // Note: mqttSync.data is not reactive.
     data, // This is a reactive data-source (to use meteor terminology).
   };
+};
+
+/** Hook for using Transitive in React. Connects to MQTT, establishes sync, and
+exposes reactive `data` state variable. */
+export const useTransitive = ({jwt, id, host, ssl, capability, versionNS}) => {
+
+  const [scope, capabilityName] = capability;
+
+  const { device } = decodeJWT(jwt);
+  const prefixPath = [id, device, scope, capabilityName];
+  const prefix = pathToTopic(prefixPath);
+  const prefixPathVersion = [...prefixPath, versionNS];
+  const prefixVersion = pathToTopic(prefixPathVersion);
+
+  const mqttUrl = `${ssl && JSON.parse(ssl) ? 'wss' : 'ws'}://mqtt.${host}`;
+  const fromMqttSync = useMqttSync({ jwt, id, mqttUrl });
+
+  return {...fromMqttSync, device, prefixPath, prefix, prefixPathVersion,
+    prefixVersion};
 };

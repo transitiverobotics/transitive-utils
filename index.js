@@ -7,18 +7,19 @@ const http = require('http');
 const https = require('https');
 
 const common = require('./common/common');
-const MqttSync = require('./common/MqttSync');
 const cloud = require('./cloud');
+const dataCache = require('./common/DataCache');
+const server = require('./server');
+
+const MqttSync = require('./common/MqttSync');
 const Mongo = require('./mongo');
-const {DataCache, updateObject} = require('./common/DataCache');
-const {findPath} = require('./server');
 
 const randomId = (bytes = 16) => crypto.randomBytes(bytes).toString('base64');
 
+const decodeJWT = (token) => JSON.parse(Buffer.from(token.split('.')[1], 'base64'));
+
 /** set the title of the terminal we are running in */
 const setTerminalTitle = (title) => console.log(`\0o33]0;${title}\0o07`);
-
-const decodeJWT = (token) => JSON.parse(Buffer.from(token.split('.')[1], 'base64'));
 
 /** a simple function to fetch a URL */
 const fetchURL = (url) => new Promise((resolve, reject) => {
@@ -50,27 +51,6 @@ const fetchURL = (url) => new Promise((resolve, reject) => {
     });
 });
 
-// const PUBLIC_BILLING_KEY_PATH = '/home/transitive/publicBillingKey';
-// const BILLING_KEY_URL = 'https://billing.transitiverobotics.com/publicKey';
-// let publicBillingKey;
-// const verifyPremiumJWT = (token) => {
-//   if (!publicBillingKey) {
-//     try {
-//       publicBillingKey = fs.readFileSync(PUBLIC_BILLING_KEY_PATH,
-//         {encoding: 'utf-8'});
-//     } catch (e) {
-//       // not yet stored locally
-//       // #HERE: get key, test this;
-//       const publicBillingKey = fetchURL(BILLING_KEY_URL);
-//       // #NO this fetch could be spoofed by a self-hosting user, see ticket
-//       fs.writeFileSync(PUBLIC_BILLING_KEY_PATH, publicBillingKey);
-//     }
-//   }
-
-//   jwt.verify(token, publicBillingKey, {algorithm: 'RS256'});
-// };
-
-module.exports = Object.assign({}, common, cloud, {
-  randomId, decodeJWT, setTerminalTitle, MqttSync, Mongo, fetchURL, DataCache,
-  updateObject, findPath
+module.exports = Object.assign({}, common, cloud, dataCache, server, {
+  randomId, decodeJWT, setTerminalTitle, MqttSync, Mongo, fetchURL
 });
