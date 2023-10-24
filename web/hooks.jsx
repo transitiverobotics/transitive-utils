@@ -63,7 +63,7 @@ export const useMqttSync = ({jwt, id, mqttUrl}) => {
 exposes reactive `data` state variable. */
 export const useTransitive = ({jwt, id, host, ssl, capability, versionNS}) => {
 
-  const [scope, capabilityName] = capability;
+  const [scope, capabilityName] = capability.split('/');
 
   const { device } = decodeJWT(jwt);
   const prefixPath = [id, device, scope, capabilityName];
