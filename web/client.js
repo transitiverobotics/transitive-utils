@@ -18,7 +18,7 @@ export const parseCookie = str =>
       return acc;
     }, {});
 
-/* get or post (if body given) json */
+/** get or post (if body given) json */
 export const fetchJson = (url, callback, options = {}) => {
   fetch(url, {
     method: options.method || (options.body ? 'post' : 'get'),

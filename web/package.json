@@ -18,7 +18,8 @@
   "scripts": {
     "test": "webpack serve -c webpack-test.config.js",
     "build-test": "webpack -c webpack-test.config.js",
-    "prepare": "webpack --no-watch --mode=production"
+    "prepare": "webpack --no-watch --mode=production",
+    "prepack": "cat ../docs.js | node --input-type=module"
   },
   "dependencies": {
     "@babel/runtime": "^7.16.7",

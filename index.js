@@ -1,4 +1,5 @@
-/** server-only utils */
+/* Server-only utils */
+
 const assert = require('assert');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');

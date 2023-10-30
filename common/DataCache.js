@@ -45,8 +45,12 @@ const updateObject = (obj, modifier) => {
 };
 
 /** given an object and a path with wildcards (* and +), *modify* the object
-  to only contain elements matched by the path, e.g.,
-  {a: {b: 1, c: 2}, d: 2} and ['a','+'] would give {a: {b: 1, c: 2}}
+to only contain elements matched by the path, e.g.,
+{a: {b: 1, c: 2}, d: 2} and ['a','+'] would give {a: {b: 1, c: 2}}
+
+@param {object} obj - The object to select from
+@param {array} path - An array specifying the path to select, potentially
+containing mqtt wildcards ('+').
 */
 const selectFromObject = (obj, path) => {
   if (path.length == 0) return;
@@ -63,6 +67,10 @@ const selectFromObject = (obj, path) => {
 };
 
 
+/**
+ * A class implementing a local data cache, used as a local data store with
+ * deduplication detection and update events.
+ */
 class DataCache {
 
   #data = {};

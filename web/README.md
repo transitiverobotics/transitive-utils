@@ -4,8 +4,8 @@
   </a>
 </p>
 
-## Transitive Utils
+## Transitive Web Utils
 
-Utilities used by the [Transitive Robotics](https://transitiverobotics.com) framework and it's capabilities.
+Utilities used by the web components of [Transitive Robotics](https://transitiverobotics.com) capabilities.
 
 [API Documentation](./docs/index.md)
