@@ -7,7 +7,9 @@ const { updateObject, DataCache, toFlatObject, topicToPath, topicMatch,
   versionCompare, getPackageVersionNamespace, pathToTopic, decodeJWT,
   mergeVersions, isSubTopicOf,
   setFromPath, Mongo, getLogger, fetchURL, visit, wait, formatBytes,
-  formatDuration, findPath, tryJSONParse } = require('./index');
+  formatDuration, findPath, tryJSONParse,
+  forMatchIterator
+} = require('./index');
 
 const log = getLogger('utils.test');
 
@@ -1048,5 +1050,35 @@ describe('tryJSONParse', function() {
     assert.equal(tryJSONParse(Buffer.alloc(0)), null);
     assert.equal(tryJSONParse(Buffer.from('true')), true);
     assert.deepEqual(tryJSONParse(Buffer.from('{"a": 1}')), {a: 1});
+  });
+});
+
+
+describe('forMatchIterator', function() {
+  const obj = {
+    a: {
+      b: {c: 'abc'},
+      c: {d: 'acd'}
+    },
+    b: {
+      c: 'bc'
+    }
+  };
+
+  it('matches static values', function(done) {
+    forMatchIterator(obj, ['b', 'c'], (value, path, match) => {
+      assert.equal(value, 'bc');
+      assert.deepEqual(path, ['b', 'c']);
+      done();
+    });
+  });
+
+  it('matches wildcards', function(done) {
+    forMatchIterator(obj, ['+first', 'b', 'c'], (value, path, match) => {
+      assert.equal(value, 'abc');
+      assert.equal(match.first, 'a');
+      assert.deepEqual(path, ['a', 'b', 'c']);
+      done();
+    });
   });
 });

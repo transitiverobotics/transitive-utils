@@ -16,7 +16,7 @@ const lifeCycleHooks = {
 };
 
 module.exports = {
-  /**
+  /*
    * @param {JSX.Element} wrapper: the wrapper component class to be instantiated and wrapped
    * @param {string} tagName - The name of the web component. Has to be minus "-" delimited.
    * @param {boolean} useShadowDom - If the value is set to "true" the web component will use the `shadowDom`. The default value is true.
@@ -90,13 +90,13 @@ module.exports = {
         this.callLifeCycleHook('adoptedCallback', [oldDocument, newDocument]);
       }
 
-      /** call a function defined in the component, either as a class method, or
+      /* call a function defined in the component, either as a class method, or
       * via useImperativeHandle */
       call(functionName, args) {
         return compRef?.current?.[functionName]?.call(compRef?.current, args);
       }
 
-      /** predefined function to retrieve the pre-defined config object of the
+      /* predefined function to retrieve the pre-defined config object of the
        * state, populated via the pre-defined `setConfig` method given as prop
        * to the wrapped component. */
       getConfig() {

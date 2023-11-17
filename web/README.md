@@ -8,4 +8,4 @@
 
 Utilities used by the web components of [Transitive Robotics](https://transitiverobotics.com) capabilities.
 
-[API Documentation](./docs/index.md)
+[Documentation](https://transitiverobotics.com/docs/sdk/utils-web)
