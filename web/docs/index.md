@@ -12,7 +12,7 @@ import React, { useEffect } from 'react';
 import { createWebComponent, useTransitive, getLogger }
   from '@transitive-sdk/utils-web';
 
-const log = getLogger('webrtc-video');
+const log = getLogger('my-new-capability');
 log.setLevel('debug');
 
 // Get the name of the package we are part of. TR_PKG_NAME is set by esbuild.
@@ -20,7 +20,7 @@ const [scope, capabilityName] = TR_PKG_NAME.split('/');
 
 const Device = ({jwt, id, host, ssl}) => {
 
-  const { mqttSync, data, ready, StatusComponent, prefixVersion } =
+  const { mqttSync, data, StatusComponent, prefixVersion } =
     useTransitive({ jwt, id, host, ssl,
       capability: TR_PKG_NAME,
       versionNS: TR_PKG_VERSION_NS
@@ -33,14 +33,10 @@ const Device = ({jwt, id, host, ssl}) => {
       mqttSync.subscribe(`${prefixVersion}/cloud`);
     }, [mqttSync]);
 
-  return <div>
-    <ul>
-      <li>package name: {TR_PKG_NAME}</li>
-      <li>package version: {TR_PKG_VERSION}</li>
-      <li>package version namespace: {TR_PKG_VERSION_NS}</li>
-    </ul>
-    <StatusComponent />
+  log.debug({prefixVersion, data, TR_PKG_NAME, TR_PKG_VERSION, TR_PKG_VERSION_NS});
 
+  return <div>
+    <StatusComponent />
     <pre>
       {/* Render the data. This updates automatically whenever data changes. */}
       {JSON.stringify(data, true, 2)}
@@ -56,7 +52,23 @@ createWebComponent(Device, `${capabilityName}-device`, ['jwt']);
 ## DataCache
 
 A class implementing a local data cache, used as a local data store with
-deduplication detection and update events.
+deduplication detection and update events. While this class is very handy
+you probably won't need to create instances of it directly. Instead use
+the mqttSync.data instance which holds the locally stored data
+subscribed/published from/to MQTTSync.
+For example on the robot:
+
+```js
+// update/publish our status:
+mqttSync.data.update('status', {changed: Date.now(), msg: 'OK'});
+// subscribe to new user requests (e.g., from UI):
+mqttSync.data.subscribePath('+user/request', (request, key, {user}) => {
+log.debug(`user ${user} made request`, request);
+});
+```
+
+In the cloud or in a web component you would need to use the full topic including
+org, device, scope, cap-name, and version.
 
 #### Parameters
 
@@ -64,7 +76,7 @@ deduplication detection and update events.
 
 ### filter
 
-filter the object using path with wildcards
+Filter the object using path with wildcards
 
 ##### Parameters
 
@@ -72,7 +84,7 @@ filter the object using path with wildcards
 
 ### filterByTopic
 
-filter the object using topic with wildcards
+Filter the object using topic with wildcards
 
 ##### Parameters
 
@@ -80,8 +92,8 @@ filter the object using topic with wildcards
 
 ### forMatch
 
-for each topic match, invoke the callback with the value, topic, and match
-just like subscribePath
+For each topic match, invoke the callback with the value, topic, and match
+just like subscribePath, but on the current data rather than future changes.
 
 ##### Parameters
 
@@ -90,7 +102,7 @@ just like subscribePath
 
 ### forPathMatch
 
-for each path match, invoke the callback with the value, topic, and match
+For each path match, invoke the callback with the value, topic, and match
 just like subscribePath
 
 ##### Parameters
@@ -100,15 +112,23 @@ just like subscribePath
 
 ### get
 
-get sub-value at path, or entire object if none given
+Get sub-value at path, or entire object if none given
 
 ##### Parameters
 
 *   `path`   (optional, default `[]`)
 
+### getByTopic
+
+Get sub-value specified by topic
+
+##### Parameters
+
+*   `topic` &#x20;
+
 ### subscribe
 
-add a callback for change events
+Add a callback for all change events.
 
 ##### Parameters
 
@@ -116,8 +136,8 @@ add a callback for change events
 
 ### subscribePath
 
-Subscribe to a specific topic only. Unlike in `subscribe`, here callback
-only receives the value.
+Subscribe to a specific topic only. Callback receives
+`value, key, matched, tags`.
 
 ##### Parameters
 
@@ -135,7 +155,7 @@ Same as subscribePath but always get all changes in flat form
 
 ### unsubscribe
 
-remove a callback
+Remove a callback previously registered using `subscribe`.
 
 ##### Parameters
 
@@ -143,7 +163,7 @@ remove a callback
 
 ### update
 
-update the value at the given path (array or dot separated string)
+Update the value at the given path (array or dot separated string)
 
 ##### Parameters
 
@@ -153,7 +173,7 @@ update the value at the given path (array or dot separated string)
 
 ### updateFromArray
 
-update the object with the given value at the given path, remove empty;
+Update the object with the given value at the given path, remove empty;
 return the flat changes (see toFlatObject). Add `tags` to updates to mark
 them somehow based on the context, e.g., so that some subscriptions can choose
 to ignore updates with a certain tag.
@@ -166,7 +186,7 @@ to ignore updates with a certain tag.
 
 ### updateFromModifier
 
-update data from a modifier object where keys are topic names to be
+Update data from a modifier object where keys are topic names to be
 interpreted as paths, and values are the values to set
 
 ##### Parameters
@@ -176,7 +196,7 @@ interpreted as paths, and values are the values to set
 
 ### updateFromTopic
 
-set value from the given topic (with or without leading or trailing slash)
+Set value from the given topic (with or without leading or trailing slash)
 
 ##### Parameters
 
@@ -201,14 +221,31 @@ feature over the latter. Relies on retained messages in mqtt for persistence.
 
 #### Parameters
 
-*   `$0` **[Object][1]**&#x20;
+*   `options` **[object][1]**&#x20;
 
-    *   `$0.mqttClient` &#x20;
-    *   `$0.onChange` &#x20;
-    *   `$0.ignoreRetain` &#x20;
-    *   `$0.migrate` &#x20;
-    *   `$0.onReady` &#x20;
-    *   `$0.sliceTopic` &#x20;
+    *   `options.mqttClient` **[object][1]** An already connected mqtt.js client.
+    *   `options.onChange` **[function][2]?** A function that is called any time there
+        is a change to the shared data. This is not usually used. It's usually better to
+        use the finer grained `MqttSync.data.subscribePath` instead, that allows you to
+        subscribe to changes just on a specific sun-object instead, see DataCache.
+    *   `options.ignoreRetain` **[boolean][3]?** retain all messages, ignorant of the retain
+        flag.
+    *   `options.migrate` **[array][4]?** an array of objects of the form
+        `{topic, newVersion, level}`. Only meaningful in the cloud. Instructs MQTTSync
+        to first migrate existing topics to a new version namespace, publishing at the
+        designated level down from the version level. For example:```js
+        [{ topic: `/myorg/mydevice/@local/my-cap/+/config`,
+        newVersion: this.version,
+        level: 1
+        }]
+        ```Would migrate any existing data in the capability's `config` namespace to the
+        current version of the package, publishing at the `config/+` level (rather than
+        atomically at the config level itself).
+    *   `options.onReady` **[function][2]?** A function that is called when the MQTTSync
+        client is ready and has completed any requested migrations.
+    *   `options.sliceTopic` **[number][5]?** a number indicating at what level to
+        slice the topic, i.e., only use a suffix. Used in robot-capabilities to slice
+        off the topic prefix (namespaces).
 
 ### beforeDisconnect
 
@@ -282,7 +319,7 @@ before calling this or set the data all at once afterwards.
 
 With option "atomic" this will always send the whole sub-document,
 not flat changes. Useful, e.g., for desiredPackages, see
-[https://github.com/chfritz/transitive/issues/85][2].
+[https://github.com/chfritz/transitive/issues/85][6].
 
 ##### Parameters
 
@@ -328,39 +365,6 @@ register a callback for the next heartbeat from the broker
 ##### Parameters
 
 *   `callback` &#x20;
-
-### heartbeatWaitersOnce
-
-List of callbacks waiting for next heartbeat, gets purged with each
-heartbeat
-
-### publishedMessages
-
-Store messages retained on mqtt so we can publish what is necessary to
-achieve the "should-be" state. Note that we cannot use a structured document
-for storing these publishedMessages since we need to be able to store separate
-values at non-leaf nodes in the object (just like mqtt, where you can have
-/a/b = 1 and /a/b/c = 1 at the same time). Note: not used in atomic mode.
-
-### publishQueue
-
-The order in which we send retained messages matters, which is why we use
-a queue for sending things. Note that we here use the property of Map that it
-remembers insertion order of keys.
-
-### subscribedPaths
-
-Directory of paths we've subscribed to in this class; this matters
-because the same mqtt client may have subscriptions to paths that we don't
-care to store (sync).
-
-## clone
-
-clone a mqtt payload, if necessary
-
-#### Parameters
-
-*   `payload` &#x20;
 
 ## clone
 
@@ -410,14 +414,6 @@ reduce wildcards with Ids, such as `+sessionId`, to just +
 
 *   `x` &#x20;
 
-## ensureHashSuffix
-
-return new string that ends in /# for sure
-
-#### Parameters
-
-*   `topic` &#x20;
-
 ## fetchJson
 
 get or post (if body given) json
@@ -443,7 +439,9 @@ named wildcards)
 
 ## getLogger
 
-get a new logger; call with a name, e.g., `module.id`
+Get a new loglevel logger; call with a name, e.g., `module.id`. The returned
+logger has methods trace, debug, info, warn, error. See
+[https://www.npmjs.com/package/loglevel][7] for details.
 
 ## isPrefixOf
 
@@ -497,10 +495,6 @@ not owned by us. Harmless within capabilities, which are namespaced already.
 *   `callback` &#x20;
 *   `delay`   (optional, default `1000`)
 
-## oneDown
-
-called each time one item is done
-
 ## parseCookie
 
 parse document cookies
@@ -533,14 +527,6 @@ convert a path array to mqtt topic; reduces +id identifiers to +
 
 *   `pathArray` &#x20;
 
-## resolveDoubleSlashes
-
-given a path, replace any double slashes, '//', with single ones
-
-#### Parameters
-
-*   `path` &#x20;
-
 ## selectFromObject
 
 given an object and a path with wildcards (\* and +), *modify* the object
@@ -550,7 +536,7 @@ to only contain elements matched by the path, e.g.,
 #### Parameters
 
 *   `obj` **[object][1]** The object to select from
-*   `path` **[array][3]** An array specifying the path to select, potentially
+*   `path` **[array][4]** An array specifying the path to select, potentially
     containing mqtt wildcards ('+').
 
 ## setFromPath
@@ -565,11 +551,17 @@ Like \_.set but without arrays. This allows using numbers as keys.
 
 ## toFlatObject
 
-given an object, return a new object where all sub-objects are
-replaced by topic-values, e.g.:
-{a: {b: 1, c: 2}, d: 3}   ->   {'/a/b': 1, '/a/c': 2, d: 3}
+Given an object, return a new flat object of topic+value pairs, e.g.:
+
+```js
+{a: {b: 1, c: 2}, d: 3}   →   {'/a/b': 1, '/a/c': 2, '/d': 3}
+```
+
 Note: not idempotent!
-{'/a/b': 1, '/a/c': 2, d: 3}  -> {'%2Fa%2Fb': 1, '%2Fa%2Fc': 2, d: 3}
+
+```js
+{'/a/b': 1, '/a/c': 2, d: 3}  →  {'%2Fa%2Fb': 1, '%2Fa%2Fc': 2, '/d': 3}
+```
 
 #### Parameters
 
@@ -597,7 +589,7 @@ convert topic to path array
 
 ## tryJSONParse
 
-try parsing JSON, return null if unsuccessful
+Try parsing JSON, return null if unsuccessful
 
 #### Parameters
 
@@ -665,7 +657,7 @@ comparison. Hence, 2.0 < 2.0.1.
 
 ## visit
 
-reusable visitor pattern: iteratively visits all nodes in the tree
+Reusable visitor pattern: iteratively visits all nodes in the tree
 described by `object`, where `childField` indicates the child-of predicate.
 
 #### Parameters
@@ -676,7 +668,7 @@ described by `object`, where `childField` indicates the child-of predicate.
 
 ## wait
 
-wait for delay ms, usable in async functions
+Wait for delay ms, for use in async functions.
 
 #### Parameters
 
@@ -698,14 +690,6 @@ Returns **{}**&#x20;
 An optional library which is conditionally added
 
 Returns **\[]**&#x20;
-
-## setAll
-
-convenience function to set all loggers to the given level
-
-#### Parameters
-
-*   `level` &#x20;
 
 ## setConfig
 
@@ -742,6 +726,14 @@ and update props.
 
 [1]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object
 
-[2]: https://github.com/chfritz/transitive/issues/85
+[2]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Statements/function
 
-[3]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Array
+[3]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Boolean
+
+[4]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Array
+
+[5]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Number
+
+[6]: https://github.com/chfritz/transitive/issues/85
+
+[7]: https://www.npmjs.com/package/loglevel
