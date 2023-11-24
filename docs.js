@@ -17,6 +17,13 @@ build(['index.js'], {
     // post-process
     const processed = output.split('\n').map(postProcessLine).join('\n');
 
+    let header = '';
+    try {
+      header = fs.readFileSync('./docs_header.md', {encoding: 'utf-8'});
+    } catch (e) {
+      console.log('No docs_header.md found, proceeding without');
+    }
+
     fs.mkdirSync('docs', {recursive: true});
-    fs.writeFileSync('./docs/index.md', processed);
+    fs.writeFileSync('./docs/index.md', header + processed);
   });
