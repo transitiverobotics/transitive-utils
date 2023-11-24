@@ -12,7 +12,7 @@ const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 
 const noop = () => {};
 
-/** clone a mqtt payload, if necessary */
+/* clone a mqtt payload, if necessary */
 const clone = (payload) => {
   if (typeof payload == 'object') {
     return JSON.parse(JSON.stringify(payload));
@@ -21,43 +21,69 @@ const clone = (payload) => {
   }
 };
 
-/** return new string that ends in /# for sure */
+/* return new string that ends in /# for sure */
 const ensureHashSuffix = (topic) =>
   topic.endsWith('/#') ? topic :
   ( topic.endsWith('/') ? topic.concat('#') :
     topic.concat('/#') );
 
-/** given a path, replace any double slashes, '//', with single ones */
+/* given a path, replace any double slashes, '//', with single ones */
 const resolveDoubleSlashes = (path) => path.replace(/\/\//g, '/');
 
 
 /** A class that combines DataCache and MQTT to implement a data synchronization
-  feature over the latter. Relies on retained messages in mqtt for persistence.
+feature over the latter. Relies on retained messages in mqtt for persistence.
+* @param {object} options
+* @param {object} options.mqttClient - An already connected mqtt.js client.
+* @param {boolean} [options.ignoreRetain] - retain all messages, ignorant of the retain
+* flag.
+* @param {number} [options.sliceTopic] - a number indicating at what level to
+* slice the topic, i.e., only use a suffix. Used in robot-capabilities to slice
+off the topic prefix (namespaces).
+* @param {array} [options.migrate] - an array of objects of the form
+* `{topic, newVersion, level}`. Only meaningful in the cloud. Instructs MQTTSync
+to first migrate existing topics to a new version namespace, publishing at the
+designated level down from the version level. For example:
+```js
+[{ topic: `/myorg/mydevice/@local/my-cap/+/config`,
+   newVersion: this.version,
+   level: 1
+}]
+```
+Would migrate any existing data in the capability's `config` namespace to the
+current version of the package, publishing at the `config/+` level (rather than
+atomically at the config level itself).
+* @param {function} [options.onReady] - A function that is called when the MQTTSync
+client is ready and has completed any requested migrations.
+* @param {function} [options.onChange] - A function that is called any time there
+is a change to the shared data. This is not usually used. It's usually better to
+use the finer grained `MqttSync.data.subscribePath` instead, that allows you to
+subscribe to changes just on a specific sun-object instead, see DataCache.
 */
 class MqttSync {
 
   data = new DataCache();
 
-  /** Directory of paths we've subscribed to in this class; this matters
+  /* Directory of paths we've subscribed to in this class; this matters
     because the same mqtt client may have subscriptions to paths that we don't
   care to store (sync). */
   subscribedPaths = {};
 
   publishedPaths = {}; // not used in atomic mode
 
-  /** Store messages retained on mqtt so we can publish what is necessary to
+  /* Store messages retained on mqtt so we can publish what is necessary to
     achieve the "should-be" state. Note that we cannot use a structured document
     for storing these publishedMessages since we need to be able to store separate
     values at non-leaf nodes in the object (just like mqtt, where you can have
   /a/b = 1 and /a/b/c = 1 at the same time). Note: not used in atomic mode. */
   publishedMessages = {};
 
-  /** The order in which we send retained messages matters, which is why we use
+  /* The order in which we send retained messages matters, which is why we use
   a queue for sending things. Note that we here use the property of Map that it
   remembers insertion order of keys. */
   publishQueue = new Map();
 
-  /** List of callbacks waiting for next heartbeat, gets purged with each
+  /* List of callbacks waiting for next heartbeat, gets purged with each
   heartbeat */
   heartbeatWaitersOnce = [];
 
@@ -65,11 +91,6 @@ class MqttSync {
 
   beforeDisconnectHooks = [];
 
-  /**
-  - ignoreRetain: retain all messages, ignorant of the retain flag.
-  - sliceTopic: (optional) a number indicating at what level to slice the topic,
-  i.e., only use a suffix.
-  */
   constructor({mqttClient, onChange, ignoreRetain, migrate, onReady,
   sliceTopic }) {
     this.mqtt = mqttClient;

@@ -68,9 +68,23 @@ const selectFromObject = (obj, path) => {
 
 
 /**
- * A class implementing a local data cache, used as a local data store with
- * deduplication detection and update events.
- */
+* A class implementing a local data cache, used as a local data store with
+* deduplication detection and update events. While this class is very handy
+* you probably won't need to create instances of it directly. Instead use
+* the mqttSync.data instance which holds the locally stored data
+* subscribed/published from/to MQTTSync.
+For example on the robot:
+```js
+// update/publish our status:
+mqttSync.data.update('status', {changed: Date.now(), msg: 'OK'});
+// subscribe to new user requests (e.g., from UI):
+mqttSync.data.subscribePath('+user/request', (request, key, {user}) => {
+  log.debug(`user ${user} made request`, request);
+});
+```
+In the cloud or in a web component you would need to use the full topic including
+org, device, scope, cap-name, and version.
+*/
 class DataCache {
 
   #data = {};
@@ -81,7 +95,7 @@ class DataCache {
     this.#data = data;
   }
 
-  /** update the object with the given value at the given path, remove empty;
+  /** Update the object with the given value at the given path, remove empty;
     return the flat changes (see toFlatObject). Add `tags` to updates to mark
     them somehow based on the context, e.g., so that some subscriptions can choose
   to ignore updates with a certain tag.
@@ -136,7 +150,7 @@ class DataCache {
     return flatChanges;
   }
 
-  /** update the value at the given path (array or dot separated string) */
+  /** Update the value at the given path (array or dot separated string) */
   update(path, value, tags) {
     if (typeof path == 'string') {
       return this.updateFromTopic(path, value, tags);
@@ -147,19 +161,19 @@ class DataCache {
     }
   }
 
-  /** set value from the given topic (with or without leading or trailing slash) */
+  /** Set value from the given topic (with or without leading or trailing slash) */
   updateFromTopic(topic, value, tags) {
     return this.updateFromArray(topicToPath(topic), value, tags);
   }
 
-  /** update data from a modifier object where keys are topic names to be
+  /** Update data from a modifier object where keys are topic names to be
     interpreted as paths, and values are the values to set */
   updateFromModifier(modifier, tags) {
     return _.map(modifier, (value, topic) =>
       this.updateFromTopic(topic, value, tags));
   }
 
-  /** add a callback for change events */
+  /** Add a callback for all change events. */
   subscribe(callback) {
     if (callback instanceof Function) {
       this.#listeners.push(callback);
@@ -168,8 +182,8 @@ class DataCache {
     }
   }
 
-  /** Subscribe to a specific topic only. Unlike in `subscribe`, here callback
-  only receives the value. */
+  /** Subscribe to a specific topic only. Callback receives
+  `value, key, matched, tags`. */
   subscribePath(topic, callback) {
     this.#listeners.push((changes, tags) => {
       _.forEach(changes, (value, key) => {
@@ -189,40 +203,41 @@ class DataCache {
     });
   }
 
-  /** remove a callback */
+  /** Remove a callback previously registered using `subscribe`. */
   unsubscribe(callback) {
     this.#listeners = this.#listeners.filter(f => f != callback);
   }
 
-  /** get sub-value at path, or entire object if none given */
+  /** Get sub-value at path, or entire object if none given */
   get(path = []) {
     return path.length == 0 ? this.#data : _.get(this.#data, path);
   }
 
+  /** Get sub-value specified by topic */
   getByTopic(topic) {
     return this.get(topicToPath(topic));
   }
 
-  /** filter the object using path with wildcards */
+  /** Filter the object using path with wildcards */
   filter(path) {
     const rtv = JSON.parse(JSON.stringify(this.get()));
     selectFromObject(rtv, path);
     return rtv;
   }
 
-  /** filter the object using topic with wildcards */
+  /** Filter the object using topic with wildcards */
   filterByTopic(topic) {
     return this.filter(topicToPath(topic));
   }
 
-  /** for each topic match, invoke the callback with the value, topic, and match
-  just like subscribePath */
+  /** For each topic match, invoke the callback with the value, topic, and match
+  just like subscribePath, but on the current data rather than future changes. */
   forMatch(topic, callback) {
     const path = topicToPath(topic);
     this.forPathMatch(path, callback);
   }
 
-  /** for each path match, invoke the callback with the value, topic, and match
+  /** For each path match, invoke the callback with the value, topic, and match
   just like subscribePath */
   forPathMatch(path, callback) {
     forMatchIterator(this.get(), path, callback);
