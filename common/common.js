@@ -18,7 +18,7 @@ const chalk = require('chalk');
 
 const constants = require('./constants');
 
-/** convenience function to set all loggers to the given level */
+/* Convenience function to set all loggers to the given level. */
 loglevel.setAll = (level) =>
   Object.values(loglevel.getLoggers()).forEach(l => l.setLevel(level));
 
@@ -47,13 +47,16 @@ loglevel.methodFactory = (methodName, level, loggerName) => {
     `[${chalk.blue((new Date()).toISOString())} ${context}]`, ...args);
 };
 
-/** get a new logger; call with a name, e.g., `module.id` */
+/** Get a new loglevel logger; call with a name, e.g., `module.id`. The returned
+* logger has methods trace, debug, info, warn, error. See
+*  https://www.npmjs.com/package/loglevel for details.
+*/
 const getLogger = loglevel.getLogger;
 
 /** Deep-clone the given object. All functionality is lost, just data is kept. */
 const clone = (obj) => JSON.parse(JSON.stringify(obj));
 
-/** try parsing JSON, return null if unsuccessful */
+/** Try parsing JSON, return null if unsuccessful */
 const tryJSONParse = (string) => {
   try {
     return JSON.parse(string);
@@ -62,7 +65,7 @@ const tryJSONParse = (string) => {
   }
 };
 
-/** reusable visitor pattern: iteratively visits all nodes in the tree
+/** Reusable visitor pattern: iteratively visits all nodes in the tree
  described by `object`, where `childField` indicates the child-of predicate.
 */
 const visit = (object, childField, visitor) => {
@@ -71,18 +74,21 @@ const visit = (object, childField, visitor) => {
   object[childField]?.forEach(child => visit(child, childField, visitor));
 };
 
-/** wait for delay ms, usable in async functions */
+/** Wait for delay ms, for use in async functions. */
 const wait = (delay) => new Promise((resolve) => { setTimeout(resolve, delay); });
 
 // -------------------------------------------------------------------------
 // DataCache tools
 
-
-/** given an object, return a new object where all sub-objects are
-replaced by topic-values, e.g.:
-{a: {b: 1, c: 2}, d: 3}   ->   {'/a/b': 1, '/a/c': 2, d: 3}
+/**
+ * Given an object, return a new flat object of topic+value pairs, e.g.:
+```js
+{a: {b: 1, c: 2}, d: 3}   →   {'/a/b': 1, '/a/c': 2, '/d': 3}
+```
 Note: not idempotent!
-{'/a/b': 1, '/a/c': 2, d: 3}  -> {'%2Fa%2Fb': 1, '%2Fa%2Fc': 2, d: 3}
+```js
+{'/a/b': 1, '/a/c': 2, d: 3}  →  {'%2Fa%2Fb': 1, '%2Fa%2Fc': 2, '/d': 3}
+```
 */
 const toFlatObject = (obj, prefix = [], rtv = {}) => {
   _.forEach(obj, (value, key) => {

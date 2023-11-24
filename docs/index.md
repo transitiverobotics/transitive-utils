@@ -408,7 +408,9 @@ named wildcards)
 
 ## getLogger
 
-get a new logger; call with a name, e.g., `module.id`
+Get a new loglevel logger; call with a name, e.g., `module.id`. The returned
+logger has methods trace, debug, info, warn, error. See
+[https://www.npmjs.com/package/loglevel][7] for details.
 
 ## getPackageVersionNamespace
 
@@ -456,10 +458,6 @@ not owned by us. Harmless within capabilities, which are namespaced already.
 *   `prefixes` &#x20;
 *   `callback` &#x20;
 *   `delay`   (optional, default `1000`)
-
-## oneDown
-
-called each time one item is done
 
 ## parseMQTTTopic
 
@@ -517,11 +515,17 @@ set the title of the terminal we are running in
 
 ## toFlatObject
 
-given an object, return a new object where all sub-objects are
-replaced by topic-values, e.g.:
-{a: {b: 1, c: 2}, d: 3}   ->   {'/a/b': 1, '/a/c': 2, d: 3}
+Given an object, return a new flat object of topic+value pairs, e.g.:
+
+```js
+{a: {b: 1, c: 2}, d: 3}   →   {'/a/b': 1, '/a/c': 2, '/d': 3}
+```
+
 Note: not idempotent!
-{'/a/b': 1, '/a/c': 2, d: 3}  -> {'%2Fa%2Fb': 1, '%2Fa%2Fc': 2, d: 3}
+
+```js
+{'/a/b': 1, '/a/c': 2, d: 3}  →  {'%2Fa%2Fb': 1, '%2Fa%2Fc': 2, '/d': 3}
+```
 
 #### Parameters
 
@@ -549,7 +553,7 @@ convert topic to path array
 
 ## tryJSONParse
 
-try parsing JSON, return null if unsuccessful
+Try parsing JSON, return null if unsuccessful
 
 #### Parameters
 
@@ -589,7 +593,7 @@ comparison. Hence, 2.0 < 2.0.1.
 
 ## visit
 
-reusable visitor pattern: iteratively visits all nodes in the tree
+Reusable visitor pattern: iteratively visits all nodes in the tree
 described by `object`, where `childField` indicates the child-of predicate.
 
 #### Parameters
@@ -600,19 +604,11 @@ described by `object`, where `childField` indicates the child-of predicate.
 
 ## wait
 
-wait for delay ms, usable in async functions
+Wait for delay ms, for use in async functions.
 
 #### Parameters
 
 *   `delay` &#x20;
-
-## setAll
-
-convenience function to set all loggers to the given level
-
-#### Parameters
-
-*   `level` &#x20;
 
 [1]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object
 
@@ -625,3 +621,5 @@ convenience function to set all loggers to the given level
 [5]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Number
 
 [6]: https://github.com/chfritz/transitive/issues/85
+
+[7]: https://www.npmjs.com/package/loglevel

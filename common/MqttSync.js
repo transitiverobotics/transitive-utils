@@ -176,7 +176,7 @@ class MqttSync {
       return;
     }
 
-    /** called each time one item is done */
+    /* called each time one item is done */
     const oneDown = () => --toGo == 0 && onReady && onReady();
 
     list.forEach(({topic, newVersion, transform = undefined, flat = false,
