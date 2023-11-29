@@ -2,7 +2,7 @@
 
 These classes and functions are available via the `@transitive-sdk/utils` npm package and are for use in node.js, i.e., on the robot and the cloud.
 
-### Example
+#### Example
 
 ```js
 const mqtt = require('mqtt');

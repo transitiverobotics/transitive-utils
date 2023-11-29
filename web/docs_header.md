@@ -2,7 +2,7 @@
 
 These classes and functions are available via the `@transitive-sdk/utils-web` npm package and are for use in the browser or other browser based front-ends.
 
-### Example
+#### Example
 
 In this example we create a new web-component (custom element) from a React component using mqttSync to subscribe to some data and re-rendering it in real-time whenever it changes.
 

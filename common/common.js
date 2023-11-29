@@ -56,6 +56,9 @@ const getLogger = loglevel.getLogger;
 /** Deep-clone the given object. All functionality is lost, just data is kept. */
 const clone = (obj) => JSON.parse(JSON.stringify(obj));
 
+/** Parse JWT and return the decoded payload (JSON). */
+const decodeJWT = (jwt) => JSON.parse(atob(jwt.split('.')[1]));
+
 /** Try parsing JSON, return null if unsuccessful */
 const tryJSONParse = (string) => {
   try {
@@ -360,5 +363,6 @@ module.exports = { parseMQTTUsername, parseMQTTTopic,
   loglevel, getLogger,
   mergeVersions, mqttClearRetained, isSubTopicOf, clone, setFromPath,
   forMatchIterator, encodeTopicElement, decodeTopicElement, constants, visit,
-  wait, formatBytes, formatDuration, tryJSONParse
+  wait, formatBytes, formatDuration, tryJSONParse,
+  decodeJWT
 };

@@ -6,7 +6,8 @@ export * from '../common/DataCache';
 
 export const MqttSync = MS;
 
-export const decodeJWT = (jwt) => JSON.parse(atob(jwt.split('.')[1]));
+// moved to common
+// export const decodeJWT = (jwt) => JSON.parse(atob(jwt.split('.')[1]));
 
 /** parse document cookies */
 export const parseCookie = str =>

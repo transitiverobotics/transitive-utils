@@ -9,21 +9,45 @@ const postProcessLine = (line) => line
     // table of content
     .replace('### Parameters', '#### Parameters');
 
-build(['index.js'], {
-  sortOrder: ['kind', 'alpha'],
-  inferPrivate: '^_'
-}).then(formats.md)
-  .then(output => {
-    // post-process
-    const processed = output.split('\n').map(postProcessLine).join('\n');
+// build(process.argv.slice(2), {
+//   sortOrder: ['kind', 'alpha'],
+//   inferPrivate: '^_'
+//   shallow: true,
+// }).then(formats.md)
+//   .then(output => {
+//     // post-process
+//     const processed = output.split('\n').map(postProcessLine).join('\n');
 
-    let header = '';
-    try {
-      header = fs.readFileSync('./docs_header.md', {encoding: 'utf-8'});
-    } catch (e) {
-      console.log('No docs_header.md found, proceeding without');
-    }
+//     let header = '';
+//     try {
+//       header = fs.readFileSync('./docs_header.md', {encoding: 'utf-8'});
+//     } catch (e) {
+//       console.log('No docs_header.md found, proceeding without');
+//     }
 
-    fs.mkdirSync('docs', {recursive: true});
-    fs.writeFileSync('./docs/index.md', header + processed);
-  });
+//     fs.mkdirSync('docs', {recursive: true});
+//     fs.writeFileSync('./docs/index.md', header + processed);
+//   });
+
+
+process.argv.slice(2).forEach(folder => {
+  build(folder, {
+    sortOrder: ['kind', 'alpha'],
+    inferPrivate: '^_',
+    shallow: true,
+  }).then(formats.md)
+    .then(output => {
+      // post-process
+      const processed = output.split('\n').map(postProcessLine).join('\n');
+
+      let header = '';
+      try {
+        header = fs.readFileSync(`./${folder}/docs_header.md`, {encoding: 'utf-8'});
+      } catch (e) {
+        console.log('No docs_header.md found, proceeding without');
+      }
+
+      fs.mkdirSync('docs', {recursive: true});
+      fs.writeFileSync(`./docs/${folder.replace(/\//g, '')}.md`, header + processed);
+    });
+});

@@ -4,12 +4,12 @@ const mqtt = require('mqtt');
 
 const { getLogger } = require('../common/common');
 const MqttSync = require('../common/MqttSync');
-const { findPath, getPackageVersionNamespace } = require('../server');
+const { findPath, getPackageVersionNamespace } = require('./server.js');
 
 const log = getLogger('Capability');
 log.setLevel('info');
 
-/** super class for all capabilities (cloud component) */
+/** Super class for all cloud capabilities. */
 class Capability {
 
   constructor(onReady, options = {}) {

@@ -9,7 +9,7 @@ const { updateObject, DataCache, toFlatObject, topicToPath, topicMatch,
   setFromPath, Mongo, getLogger, fetchURL, visit, wait, formatBytes,
   formatDuration, findPath, tryJSONParse,
   forMatchIterator
-} = require('./index');
+} = require('../index');
 
 const log = getLogger('utils.test');
 
