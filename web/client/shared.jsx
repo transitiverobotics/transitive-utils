@@ -30,10 +30,10 @@ const levelBadges = [
   <Badge bg="secondary" style={styles.badge}>Stale</Badge>,
 ];
 
-/** The right badge for the level */
+/* The right badge for the level */
 export const LevelBadge = ({level}) => levelBadges[level] || <span>{level}</span>;
 
-/** reusable component for showing code */
+/** Reusable component for showing code */
 export const Code = ({children}) => <pre style={styles.code}>
   {children}
 </pre>;
@@ -103,9 +103,11 @@ export const Timer = ({duration, onTimeout, onStart, setOnDisconnect, children})
 };
 
 /** A simple error boundary. Usage:
+```jsx
  <ErrorBoundary message="Something went wrong">
    <SomeFlakyComponent />
  </ErrorBoundary>
+```
 */
 export class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -128,7 +130,7 @@ export class ErrorBoundary extends React.Component {
   }
 };
 
-/** whether or not the given react component allows refs, i.e., is either
+/* whether or not the given react component allows refs, i.e., is either
  * a functional component wrapped with forwardRef or a class component */
 const componentPermitsRefs = (Component) =>
   (Component.$$typeof == Symbol.for('react.forward_ref'))
@@ -136,7 +138,12 @@ const componentPermitsRefs = (Component) =>
 
 
 /** Create a WebComponent from the given react component and name that is
-    reactive to the given attributes (if any). */
+    reactive to the given attributes (if any). Used in web capabilities.
+Example:
+```js
+    createWebComponent(Diagnostics, 'health-monitoring-device', ['jwt', 'host', 'device'], TR_PKG_VERSION);
+```
+*/
 export const createWebComponent = (Component, name,
     reactiveAttributes = [],
     version = '0.0.0',
@@ -155,7 +162,7 @@ export const createWebComponent = (Component, name,
       // state = this.props;
       state = {};
 
-      /** function used by `Component` to register a onDisconnect handler */
+      /* function used by `Component` to register a onDisconnect handler */
       setOnDisconnect(fn) {
         this.onDisconnect = fn;
       }
@@ -171,7 +178,7 @@ export const createWebComponent = (Component, name,
         }
       }
 
-      /** Note this relies on the changes made in
+      /* Note this relies on the changes made in
       github:amay0048/react-web-component#780950800e2962f45f0f029be618bb8b84610c89
       that we used in our copy.
       TODO: move this into our copy, i.e., do it internally to react-web-component
@@ -183,7 +190,7 @@ export const createWebComponent = (Component, name,
         this.setState(newState);
       }
 
-      /** method exposed to the wrapped component via prop that allows setting
+      /* method exposed to the wrapped component via prop that allows setting
       * the "config" state variable inside the wrapper (not the component
       * itself). This config is retrieved by the portal for inclusion in the
       * embedding instructions. */

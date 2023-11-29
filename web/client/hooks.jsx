@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import _ from 'lodash';
 import mqtt from 'mqtt-browser';
 import { decodeJWT, getLogger, clone, pathToTopic } from './client';
-const MqttSync = require('../common/MqttSync');
+const MqttSync = require('../../common/MqttSync');
 
 const log = getLogger('utils-web/hooks');
 log.setLevel('info');

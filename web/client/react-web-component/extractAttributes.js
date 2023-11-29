@@ -1,4 +1,4 @@
-/**
+/*
  * Takes in a node attributes map and returns an object with camelCased
  * properties and values
  * @param nodeMap

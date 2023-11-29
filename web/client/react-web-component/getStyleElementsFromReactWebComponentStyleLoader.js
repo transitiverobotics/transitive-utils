@@ -1,4 +1,4 @@
-/**
+/*
  * An optional library which is conditionally added
  * @returns {[]}
  */
