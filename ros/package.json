@@ -1,0 +1,32 @@
+{
+  "name": "@transitive-sdk/utils-ros",
+  "version": "0.1.0",
+  "description": "Utils for using ROS with Transitive",
+  "homepage": "https://transitiverobotics.com",
+  "author": {
+    "name": "Christian Fritz",
+    "email": "christian@transitiverobotics.com"
+  },
+  "keywords": [
+    "robotics"
+  ],
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "index.js",
+  "scripts": {
+    "test": "jest --watch",
+    "prepack": "cat ../docs.js | node --input-type=module - ros"
+  },
+  "dependencies": {
+    "@transitive-sdk/utils": "^0.8.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "optionalDependencies": {
+    "rclnodejs": "0.22.2",
+    "rosnodejs": "github:chfritz/rosjs"
+  }
+}
