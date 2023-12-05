@@ -30,8 +30,8 @@ export const useMqttSync = ({jwt, id, mqttUrl}) => {
         setStatus('connected');
 
         // Update data on change. Note: need to clone object to force reaction
-        mqttSyncClient.data.subscribe(_.debounce(() =>
-          setData(clone(mqttSyncClient.data.get())), 100));
+        mqttSyncClient.data.subscribe(_.throttle(() =>
+          setData(clone(mqttSyncClient.data.get())), 50));
       });
 
       client.on('error', (error) => {
