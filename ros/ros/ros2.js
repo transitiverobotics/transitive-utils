@@ -4,6 +4,9 @@ const { getLogger } = require('@transitive-sdk/utils');
 const log = getLogger('ROS2');
 log.setLevel('info');
 
+qos = new rclnodejs.QoS();
+qos.reliability = rclnodejs.QoS.ReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+
 /** Small convenient singleton class for interfacing with ROS2, including some
   auxiliary functions that come in handy in capabilities. Based on rclnodejs. */
 class ROS2 {
@@ -16,6 +19,7 @@ class ROS2 {
 
   rosVersion = 2;
 
+  /** Initialize ROS node. This needs to be called first. */
   async init(suffix = '') {
 
     if (this.node) {
@@ -66,9 +70,15 @@ class ROS2 {
     return subscribedTopics;
   }
 
-  subscribe(topic, type, onMessage) {
+  /** Subscribe to the named topic of the named type. Each time a new message
+  * is received the provided callback is called. For available options see
+  * https://robotwebtools.github.io/rclnodejs/docs/0.22.3/Node.html#createSubscription.
+  * The default `options.qos.reliability` is best-effort.
+  * */
+  subscribe(topic, type, onMessage, options = {}) {
     this.requireInit();
-    const sub = this.node.createSubscription(type, topic, onMessage);
+    const sub = this.node.createSubscription(
+      type, topic, {qos, ...options}, onMessage);
     this.subscriptions[topic] = sub;
     return {
       shutdown: () => {
@@ -79,6 +89,7 @@ class ROS2 {
     }
   }
 
+  /** Unsubscribe from topic */
   unsubscribe(topic) {
     const sub = this.subscriptions[topic];
     if (!sub) {

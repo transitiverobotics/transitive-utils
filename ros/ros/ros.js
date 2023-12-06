@@ -14,6 +14,7 @@ class ROS {
 
   rosVersion = 1;
 
+  /** Initialize ROS node. This needs to be called first. */
   async init(suffix = '') {
     if (this.rn) {
       log.info('already initialized');
@@ -50,6 +51,7 @@ class ROS {
     return topics;
   }
 
+  /** Get all topic of a given type or all topics ifno type is specified */
   async getTopics(type = undefined) {
     const topics = await this.getTopicsWithTypes(type);
     return topics.map(t => t.name);
@@ -67,12 +69,18 @@ class ROS {
     ).map(topic => topic.name); // we only want the name
   }
 
-  subscribe(topic, type, onMessage) {
+  /** Subscribe to the named topic of the named type. Each time a new message
+  * is received the provided callback is called. Here `options` is an optional
+  * object: `{ "throttleMs": throttle-in-milliseconds }`.
+  * */
+  subscribe(topic, type, onMessage, options = {}) {
     this.requireInit();
-    const subscriber = this.rn.subscribe(topic, type, onMessage, {throttleMs: -1});
+    const subscriber = this.rn.subscribe(topic, type, onMessage,
+      {throttleMs: -1, ...options});
     return {shutdown: subscriber.shutdown.bind(subscriber)};
   }
 
+  /** Unsubscribe from topic */
   unsubscribe(topic) {
     this.rn.unsubscribe(topic);
   }

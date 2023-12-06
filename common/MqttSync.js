@@ -432,13 +432,19 @@ class MqttSync {
     this._processQueue_rec(() => this._processing = false);
   }
 
-  /** set min delay between processing of queue */
+  /** Set delay between processing of publishing queue in milliseconds. This
+  allows you to effectively throttle the rate at which this instance will
+  publish changes. Note that updates to a topic already in the queue will not
+  cause multiple publications. Only the latest value will be published.
+  @param {number} [delay] - Number of milliseconds to wait between processing
+  of publish queue.
+  */
   setThrottle(delay) {
     this._processQueueThrottled =
       _.throttle(this._processQueue.bind(this), delay);
   }
 
-  /** clear the set throttling delay */
+  /** Clear the set throttling delay. */
   clearThrottle() {
     delete this._processQueueThrottled;
   }

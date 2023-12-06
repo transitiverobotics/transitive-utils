@@ -18,7 +18,7 @@ try {
 const active = !config.global?.rosReleases ? available :
   available.filter(release => config.global.rosReleases.includes(release));
 
-/** check which ROS versions (1 or 2 or both) we are configured to use */
+/* check which ROS versions (1 or 2 or both) we are configured to use */
 const releases = {};
 active.forEach(rosRelease =>
   releases[constants.rosReleases[rosRelease]?.rosVersion] = true);
