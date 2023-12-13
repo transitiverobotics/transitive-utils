@@ -52,6 +52,7 @@ module.exports = {
         if (useShadowDom) {
           // Re-assign the self (this) to the newly created shadowRoot
           const shadowRoot = self.attachShadow({ mode: 'open' });
+
           // Re-assign the mountPoint to the newly created "div" element
           mountPoint = document.createElement('div');
 

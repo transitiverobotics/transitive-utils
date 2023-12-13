@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext, useRef,
     forwardRef, useImperativeHandle }
   from 'react';
 
-import { Badge, Button } from 'react-bootstrap';
+import { Badge, Button, OverlayTrigger, Popover } from 'react-bootstrap';
 
 import { getLogger, fetchJson, useMqttSync, MqttSync, Timer, TimerContext,
   ErrorBoundary, createWebComponent, useTransitive } from '../index';
@@ -47,7 +47,20 @@ const Comp = forwardRef((props, ref) => {
   }, 1000);
 
   console.log('comp1 render');
-  return <div>custom component <Badge>bootstrap</Badge></div>
+  return <div>custom component:
+    <OverlayTrigger placement='bottom-start' trigger="click"
+      overlay={
+        <Popover id="stats" className='transitive-bs-root'>
+          <Popover.Header as="h3">header</Popover.Header>
+          <Popover.Body>
+            Body
+          </Popover.Body>
+        </Popover>
+      }
+    >
+      <Badge bg="primary">bootstrap badge</Badge>
+    </OverlayTrigger>
+  </div>;
 });
 
 class Comp2 extends React.Component {
@@ -62,7 +75,9 @@ class Comp2 extends React.Component {
     }, 1000);
 
     console.log('comp2 render');
-    return <div>custom component2 <Badge>bootstrap</Badge></div>;
+    return <div>custom component 2:
+      <Badge bg="primary">bootstrap badge (missing stylesheet)</Badge>
+    </div>;
   }
 };
 
@@ -83,7 +98,6 @@ const Comp3 =({setConfig, setOnDisconnect}) => {
 };
 
 createWebComponent(Comp, 'custom-component', ['jwt'], '1.2.3', {
-  // stylesheets: ['https://unpkg.com/leaflet@1.9.3/dist/leaflet.css']
 });
 
 createWebComponent(Comp2, 'custom-component2', ['jwt'], '1.2.3', {
@@ -189,9 +203,10 @@ export default () => {
     </Section>
 
     <Section title="Custom Components">
+      <Badge bg="primary">bootstrap badge (outside)</Badge><br/>
       <button onClick={toggleShow}>
         {show ? 'hide' : 'show'}
-      </button>
+      </button> showing/hiding should not make a style change above<br/>
       {show && <custom-component ref={myref}/>}
       {show && <custom-component2 ref={myref2}/>}
       {show && <custom-component2/>}

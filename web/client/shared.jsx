@@ -200,10 +200,13 @@ export const createWebComponent = (Component, name,
 
       render() {
         const stylesheets = options.stylesheets || [
-          'https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css'
+          // 'https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css'
+          // Bootstrap 5.3.2 css scoped to `.transitive-bs-root`:
+          'https://cdn.jsdelivr.net/gh/transitiverobotics/cdn/bootstrap_transitive-bs-root.min.css'
         ];
 
-        return <div id={`cap-${name}-${version}`}>
+        return <div id={`cap-${name}-${version}`}
+          className={options.className || 'transitive-bs-root'}>
           <style>
             {stylesheets.map(url => `@import url(${url});`)}
           </style>
