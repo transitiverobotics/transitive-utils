@@ -202,7 +202,7 @@ export const createWebComponent = (Component, name,
         const stylesheets = options.stylesheets || [
           // 'https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css'
           // Bootstrap 5.3.2 css scoped to `.transitive-bs-root`:
-          'https://cdn.jsdelivr.net/gh/transitiverobotics/cdn/bootstrap_transitive-bs-root.min.css'
+          'https://cdn.jsdelivr.net/gh/transitiverobotics/transitive-utils@0.8.3/web/css/bootstrap_transitive-bs-root.min.css'
         ];
 
         return <div id={`cap-${name}-${version}`}

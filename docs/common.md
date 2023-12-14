@@ -217,7 +217,7 @@ subscription by localMQTT.
 
 ### clearThrottle
 
-clear the set throttling delay
+Clear the set throttling delay.
 
 ### isPublished
 
@@ -285,11 +285,15 @@ TODO: Is this OK, or do we need to go through this.publish?
 
 ### setThrottle
 
-set min delay between processing of queue
+Set delay between processing of publishing queue in milliseconds. This
+allows you to effectively throttle the rate at which this instance will
+publish changes. Note that updates to a topic already in the queue will not
+cause multiple publications. Only the latest value will be published.
 
 ##### Parameters
 
-*   `delay` &#x20;
+*   `delay` **[number][5]?** Number of milliseconds to wait between processing
+    of publish queue.
 
 ### subscribe
 

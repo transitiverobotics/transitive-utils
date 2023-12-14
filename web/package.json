@@ -1,6 +1,6 @@
 {
   "name": "@transitive-sdk/utils-web",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "Web utils for the Transitive framework",
   "homepage": "https://transitiverobotics.com",
   "author": {
@@ -18,7 +18,7 @@
   "scripts": {
     "test": "webpack serve -c webpack-test.config.js",
     "build-test": "webpack -c webpack-test.config.js",
-    "prepare": "webpack --no-watch --mode=production",
+    "prepare": "webpack --no-watch --mode=production && cd css && npx cleancss -o bootstrap_transitive-bs-root.min.css bootstrap_transitive-bs-root.css",
     "prepack": "cat ../docs.js | node --input-type=module - client"
   },
   "dependencies": {
@@ -41,6 +41,7 @@
     "@babel/preset-env": "^7.13.9",
     "@babel/preset-react": "^7.12.10",
     "babel-loader": "^8.2.2",
+    "clean-css-cli": "^5.6.3",
     "css-loader": "^5.0.1",
     "extract-loader": "^5.1.0",
     "react": "^17.0.1",

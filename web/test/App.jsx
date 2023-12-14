@@ -51,14 +51,14 @@ const Comp = forwardRef((props, ref) => {
     <OverlayTrigger placement='bottom-start' trigger="click"
       overlay={
         <Popover id="stats" className='transitive-bs-root'>
-          <Popover.Header as="h3">header</Popover.Header>
+          <Popover.Header>header</Popover.Header>
           <Popover.Body>
             Body
           </Popover.Body>
         </Popover>
       }
     >
-      <Badge bg="primary">bootstrap badge</Badge>
+      <Badge bg="primary">bootstrap badge (click me)</Badge>
     </OverlayTrigger>
   </div>;
 });
@@ -98,7 +98,11 @@ const Comp3 =({setConfig, setOnDisconnect}) => {
 };
 
 createWebComponent(Comp, 'custom-component', ['jwt'], '1.2.3', {
-});
+  stylesheets: [
+    // load local css for testing
+    '/bootstrap_transitive-bs-root.css'
+  ],
+  });
 
 createWebComponent(Comp2, 'custom-component2', ['jwt'], '1.2.3', {
   stylesheets: [// seems to define the CSS 'badge' class
@@ -106,7 +110,10 @@ createWebComponent(Comp2, 'custom-component2', ['jwt'], '1.2.3', {
   shadowDOM: true
 });
 
-createWebComponent(Comp3, 'custom-component3', ['jwt'], '1.2.3');
+createWebComponent(Comp3, 'custom-component3', ['jwt'], '1.2.3', {
+  stylesheets: [],
+  shadowDOM: true
+});
 
 /* ------------- */
 
