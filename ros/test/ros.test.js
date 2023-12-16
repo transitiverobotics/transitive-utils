@@ -50,6 +50,19 @@ test('loads', () => {
       });
     });
 
+    test('can publish messages with headers', () => {
+      const topic = '/test_diag';
+      const type = version == 1 ? 'diagnostic_msgs/DiagnosticArray' :
+        'diagnostic_msgs/msg/DiagnosticArray';
+
+      ros.publish(topic, type, {
+        level: 0,
+        name: 'test',
+        message: 'all good',
+        hardware_id: 1,
+      });
+    });
+
   });
 
   });

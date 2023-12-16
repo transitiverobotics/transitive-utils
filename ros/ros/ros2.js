@@ -121,8 +121,8 @@ class ROS2 {
     const msecs = date.getTime();
     return {
       stamp: {
-        secs: Math.floor(msecs / 1000),
-        nsecs: (msecs % 1000) * 1e6
+        sec: Math.floor(msecs / 1000),
+        nanosec: (msecs % 1000) * 1e6
       },
       frame_id
     };
