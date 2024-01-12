@@ -14,7 +14,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "main": "dist/utils-web.js",
+  "browser": "dist/utils-web.js",
   "scripts": {
     "test": "webpack serve -c webpack-test.config.js",
     "build-test": "webpack -c webpack-test.config.js",
@@ -44,6 +44,7 @@
     "clean-css-cli": "^5.6.3",
     "css-loader": "^5.0.1",
     "extract-loader": "^5.1.0",
+    "esbuild": "^0.19.11",
     "react": "^17.0.1",
     "react-bootstrap": "^2.9.1",
     "react-dom": "^17.0.1",
