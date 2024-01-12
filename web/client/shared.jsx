@@ -158,8 +158,6 @@ export const createWebComponent = (Component, name,
 
       onDisconnect = null;
 
-      // state = JSON.parse(JSON.stringify(this.props));
-      // state = this.props;
       state = {};
 
       /* function used by `Component` to register a onDisconnect handler */
@@ -213,8 +211,9 @@ export const createWebComponent = (Component, name,
 
           {!this.state._disconnected &&
             <Component ref={compRef}
-              {...this.state}
               {...this.props}
+              // Important to keep state *after* props for reactivity to work
+              {...this.state}
               setOnDisconnect={this.setOnDisconnect.bind(this)}
               setConfig={this.setConfig.bind(this)}
               />}
