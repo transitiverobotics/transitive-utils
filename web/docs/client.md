@@ -78,18 +78,16 @@ Reusable component for showing code
 ## createWebComponent
 
 Create a WebComponent from the given react component and name that is
-reactive to the given attributes (if any). Used in web capabilities.
-Example:
+reactive to all attributes. Used in web capabilities. Example:
 
 ```js
-createWebComponent(Diagnostics, 'health-monitoring-device', ['jwt', 'host', 'device'], TR_PKG_VERSION);
+createWebComponent(Diagnostics, 'health-monitoring-device', TR_PKG_VERSION);
 ```
 
 #### Parameters
 
 *   `Component` &#x20;
 *   `name` &#x20;
-*   `reactiveAttributes`   (optional, default `[]`)
 *   `version`   (optional, default `'0.0.0'`)
 *   `options`   (optional, default `{}`)
 
