@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Button, Accordion, AccordionContext, Card, Badge }
-from 'react-bootstrap';
+  from 'react-bootstrap';
 import ReactWebComponent from './react-web-component';
 
 import { parseCookie } from './client';
@@ -138,15 +138,12 @@ const componentPermitsRefs = (Component) =>
 
 
 /** Create a WebComponent from the given react component and name that is
-    reactive to the given attributes (if any). Used in web capabilities.
-Example:
+    reactive to all attributes. Used in web capabilities. Example:
 ```js
-    createWebComponent(Diagnostics, 'health-monitoring-device', ['jwt', 'host', 'device'], TR_PKG_VERSION);
+    createWebComponent(Diagnostics, 'health-monitoring-device', TR_PKG_VERSION);
 ```
 */
-export const createWebComponent = (Component, name,
-    reactiveAttributes = [],
-    version = '0.0.0',
+export const createWebComponent = (Component, name, version = '0.0.0',
     options = {}) => {
 
     // Only create a ref if the component accepts it. This avoids an ugly
@@ -157,7 +154,6 @@ export const createWebComponent = (Component, name,
     class Wrapper extends React.Component {
 
       onDisconnect = null;
-
       state = {};
 
       /* function used by `Component` to register a onDisconnect handler */
@@ -165,8 +161,19 @@ export const createWebComponent = (Component, name,
         this.onDisconnect = fn;
       }
 
+      webComponentConstructed(instance) {
+        // Observe all changes to attributes and update React state from it
+        const observer = new MutationObserver((mutationRecords) => {
+          const update = {};
+          mutationRecords.forEach(({attributeName}) => {
+            update[attributeName] = instance.getAttribute(attributeName);
+          });
+          this.setState(old => ({...old, ...update}));
+        }).observe(instance, { attributes: true });
+      }
+
       webComponentDisconnected() {
-        // this ensures that the react component unmounts and all useEffect
+        // This ensures that the react component unmounts and all useEffect
         // cleanups are called.
         this.setState({_disconnected: true});
         try {
@@ -174,18 +181,6 @@ export const createWebComponent = (Component, name,
         } catch (e) {
           console.log('Error during onDisconnect of web-component', e);
         }
-      }
-
-      /* Note this relies on the changes made in
-      github:amay0048/react-web-component#780950800e2962f45f0f029be618bb8b84610c89
-      that we used in our copy.
-      TODO: move this into our copy, i.e., do it internally to react-web-component
-      and update props.
-      */
-      webComponentAttributeChanged(name, oldValue, newValue) {
-        const newState = this.state;
-        newState[name] = newValue;
-        this.setState(newState);
       }
 
       /* method exposed to the wrapped component via prop that allows setting
@@ -222,5 +217,5 @@ export const createWebComponent = (Component, name,
     };
 
     ReactWebComponent.create(Wrapper, name, options.shadowDOM || false,
-      reactiveAttributes, compRef);
+      compRef);
   };

@@ -19,7 +19,8 @@
     "test": "webpack serve -c webpack-test.config.js",
     "build-test": "webpack -c webpack-test.config.js",
     "prepare": "webpack --no-watch --mode=production && cd css && npx cleancss -o bootstrap_transitive-bs-root.min.css bootstrap_transitive-bs-root.css",
-    "prepack": "cat ../docs.js | node --input-type=module - client"
+    "prepack": "cat ../docs.js | node --input-type=module - client",
+    "dev": "webpack"
   },
   "dependencies": {
     "@babel/runtime": "^7.16.7",

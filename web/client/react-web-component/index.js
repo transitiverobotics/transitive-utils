@@ -11,7 +11,6 @@ const lifeCycleHooks = {
   attachedCallback: 'webComponentAttached',
   connectedCallback: 'webComponentConnected',
   disconnectedCallback: 'webComponentDisconnected',
-  attributeChangedCallback: 'webComponentAttributeChanged',
   adoptedCallback: 'webComponentAdopted'
 };
 
@@ -20,17 +19,11 @@ module.exports = {
    * @param {JSX.Element} wrapper: the wrapper component class to be instantiated and wrapped
    * @param {string} tagName - The name of the web component. Has to be minus "-" delimited.
    * @param {boolean} useShadowDom - If the value is set to "true" the web component will use the `shadowDom`. The default value is true.
-   * @param {string[]} observedAttributes - The observed attributes of the web component
    */
-  create: (wrapper, tagName, useShadowDom = true, observedAttributes = [],
-    compRef = undefined) => {
+  create: (wrapper, tagName, useShadowDom = true, compRef = undefined) => {
 
     const proto = class extends HTMLElement {
       instance = null; // the instance we create of the wrapper
-
-      static get observedAttributes() {
-        return observedAttributes;
-      }
 
       callConstructorHook() {
         if (this.instance['webComponentConstructed']) {
@@ -80,11 +73,6 @@ module.exports = {
 
       disconnectedCallback() {
         this.callLifeCycleHook('disconnectedCallback');
-      }
-
-      attributeChangedCallback(attributeName, oldValue, newValue, namespace) {
-        this.callLifeCycleHook('attributeChangedCallback',
-          [attributeName, oldValue, newValue, namespace]);
       }
 
       adoptedCallback(oldDocument, newDocument) {
