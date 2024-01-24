@@ -533,6 +533,17 @@ described by `object`, where `childField` indicates the child-of predicate.
 *   `childField` &#x20;
 *   `visitor` &#x20;
 
+## visitAncestor
+
+Given an object and a path, visit each ancestor of the path
+
+#### Parameters
+
+*   `object` &#x20;
+*   `path` &#x20;
+*   `visitor` &#x20;
+*   `prefix`   (optional, default `[]`)
+
 ## wait
 
 Wait for delay ms, for use in async functions.
