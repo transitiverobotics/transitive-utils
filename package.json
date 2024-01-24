@@ -17,7 +17,7 @@
   "main": "index.js",
   "scripts": {
     "test": "mocha -w test/*.test.js -b",
-    "testMqttSync": "mocha -w MqttSync.test.js -b",
+    "testMqttSync": "mocha -w test/MqttSync.test.js -b",
     "testCloud": "cd cloud && mocha -w *.test.js -b",
     "prepack": "cat docs.js | node --input-type=module - server common"
   },

@@ -2,13 +2,14 @@
 
 const { mqttParsePayload, topicMatch, topicToPath, pathToTopic,
 toFlatObject, getLogger, mergeVersions, parseMQTTTopic, isSubTopicOf,
-versionCompare, encodeTopicElement } = require('./common');
+versionCompare, encodeTopicElement, visitAncestor } = require('./common');
 const { DataCache } = require('./DataCache');
 const _ = require('lodash');
 
 const log = getLogger('MqttSync');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
+const specialKey = '$_'; // special key to reify "value" in publishedMessages
 
 const noop = () => {};
 
@@ -72,11 +73,14 @@ class MqttSync {
   publishedPaths = {}; // not used in atomic mode
 
   /* Store messages retained on mqtt so we can publish what is necessary to
-    achieve the "should-be" state. Note that we cannot use a structured document
-    for storing these publishedMessages since we need to be able to store separate
-    values at non-leaf nodes in the object (just like mqtt, where you can have
-  /a/b = 1 and /a/b/c = 1 at the same time). Note: not used in atomic mode. */
-  publishedMessages = {};
+  achieve the "should-be" state. Note that we cannot use a structured document
+  for storing these publishedMessages since we need to be able to store separate
+  values at non-leaf nodes in the object (just like mqtt, where you can have
+  /a/b = 1 and /a/b/c = 1 at the same time). Note: not used in atomic mode.
+  Note: we use specialKey in this DataCache to allow overlapping
+  topics (e.g., `/a/b/$_ = 1` and `/a/$_ = {b: 2}`)
+  */
+  publishedMessages = new DataCache();
 
   /* The order in which we send retained messages matters, which is why we use
   a queue for sending things. Note that we here use the property of Map that it
@@ -110,9 +114,12 @@ class MqttSync {
         this.heartbeats++;
 
       } else if (packet.retain || ignoreRetain) {
-        log.debug('processing message', topic);
-        sliceTopic &&
-          (topic = pathToTopic(topicToPath(topic).slice(sliceTopic)));
+        let path = topicToPath(topic);
+        log.debug('processing message', topic, path);
+        if (sliceTopic) {
+          path = path.slice(sliceTopic);
+          topic = pathToTopic(path);
+        }
 
         const json = mqttParsePayload(payload);
         if (this.isPublished(topic)) {
@@ -120,7 +127,8 @@ class MqttSync {
           // not interpreted; we just store them to undo them if necessary, e.g.,
           // for switching between atomic and non-atomic subdocuments
           // log.trace('setting publishedMessages', topic);
-          this.publishedMessages[topic] = json;
+          this.publishedMessages.updateFromArray([...path, specialKey], json);
+
           // this.pubData.update(topic, json);
           // Still need to update the data so that we can detect changes we make
           // and publish them. But we need to break the reaction-chain to avoid
@@ -458,8 +466,6 @@ class MqttSync {
   _enqueue(topic, value) {
     log.debug('enqueuing', topic);
     this.addToQueue(topic, value);
-    // const fn = (this._processQueueThrottled || this._processQueue).bind(this);
-    // fn();
     if (this._processQueueThrottled) {
       this._processQueueThrottled();
     } else {
@@ -467,11 +473,9 @@ class MqttSync {
     }
     // yes, this is optimistic, but if we don't, then upcoming changes
     // may not work as expected (e.g., when switching from flat to atomic to flat)
-    if (value == null) {
-      delete this.publishedMessages[topic];
-    } else {
-      this.publishedMessages[topic] = clone(value);
-    }
+    const path = topicToPath(topic);
+    this.publishedMessages.updateFromArray([...path, specialKey],
+      value == null ? null : clone(value));
   }
 
   /** Register a listener for path in data. Make sure to populate the data
@@ -524,36 +528,50 @@ class MqttSync {
         the current value of this.data (and if not, publish what is necessary to
       create consistency). */
       // first, clear/replace all messages below or above this sub-path (if any)
-      _.each(this.publishedMessages, (oldValue, oldKey) => {
-        log.trace('oldKey', oldKey);
-        if (oldKey == key) {
-          // no special treatment required when just replacing values 1:1
-          return true;
-        }
+      const path = topicToPath(key);
 
-        if (isSubTopicOf(oldKey, key)) {
-          // we are going from flat to atomic, i.e., we are publishing at a
-          // higher level than before: just clear out
-          // log.trace('going atomic: need to clear', oldKey);
-          this._enqueue(oldKey, null);
-        }
+      // Check flat to atomic
+      const publishedSub = this.publishedMessages.get(path);
+      _.each(publishedSub, (oldSubVal, oldSubKey) => {
+        if (oldSubKey == specialKey) return true;
+        // We are going from flat to atomic, i.e., we are publishing at a
+        // higher level than before: clear out old sub-keys.
 
-        if (isSubTopicOf(key, oldKey)) {
-          // we are going from atomic to separate values: need to transform
-          // existing sub-document to flat values
-          // log.trace('need to replace', oldKey, 'with flat values');
-          // remove the old published (atomic) message:
-          this._enqueue(oldKey, null);
+        // Find all sub-sub-keys that end in `specialKey`:
+        const toClear = Object.keys(toFlatObject(oldSubVal))
+            .filter(subkey => subkey.endsWith(specialKey));
 
-          // now re-add as separate flat messages
-          const flat = toFlatObject(oldValue);
+        log.debug('flat->atomic: ', {toClear}, oldSubKey);
+        // Clear them all:
+        toClear.forEach(oldSubSubKey => {
+          const oldKey = oldSubSubKey.slice(0, -(specialKey.length + 1));
+          const clearKey = `${key}/${oldSubKey}/${oldKey}`
+          // log.debug('flat->atomic: clear', clearKey);
+          this._enqueue(clearKey, null);
+        });
+      });
+
+      // Check atomic to flat
+      visitAncestor(this.publishedMessages.get(), path, (subObj, prefix) => {
+        const oldVal = subObj[specialKey];
+        if (oldVal && _.isObject(oldVal)) {
+          log.debug('atomic->flat', {oldVal});
+          // A parent topic has been published. We are going from atomic to
+          // separate values: need to transform existing sub-document to flat
+          // values.
+
+          // Remove the old published (atomic) message:
+          const prefixTopic = pathToTopic(prefix);
+          this._enqueue(prefixTopic, null);
+
+          // Now re-add as separate flat messages
+          const flat = toFlatObject(oldVal);
           _.each(flat, (flatValue, flatKey) => {
-            const oldFlatKey = `${oldKey}${flatKey}`;
-            // log.trace('publish flat', oldFlatKey, flatValue);
+            const oldFlatKey = `${prefixTopic}${flatKey}`;
             this._enqueue(oldFlatKey, flatValue);
           })
         }
-      })
+      });
 
       /* We need to first wait until all of the above messages are out;
         otherwise replacing an atomic `/a = {c: 1}` with `/a/c = 2` would create

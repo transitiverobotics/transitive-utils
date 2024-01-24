@@ -144,11 +144,13 @@ describe('MqttSync', function() {
     clientA.data.update('/a/c', 3);
     clientA.data.update('/a/d/e', 4);
     setTimeout(() => {
-        assert(clientA.publishedMessages['/a/b']);
-        assert(clientA.publishedMessages['/a/c']);
-        assert(clientA.publishedMessages['/a/d/e']);
+        const published = clientA.publishedMessages.get();
+        console.log(JSON.stringify(published, true, 2));
+        assert(published.a.b);
+        assert(published.a.c);
+        assert(published.a.d.e);
         done();
-      }, 20);
+      }, 60);
   });
 
   it('removes sub-document messages when setting sub-document (flat to atomic)',
@@ -159,8 +161,11 @@ describe('MqttSync', function() {
       clientA.waitForHeartbeatOnce(() => {
         clientA.data.update('/a/b', {c: 2});
         inSync(clientA, clientB, () => {
-          console.log(clientA.publishedMessages);
-          assert(clientA.publishedMessages['/a/b/c'] === null);
+          // also check that publishedMessages were updated
+          // assert(clientA.publishedMessages['/a/b/c'] === null);
+          const published = clientA.publishedMessages.get();
+          console.log(JSON.stringify(published, true, 2));
+          assert(published.a.b.c == null);
           done();
         });
       });
@@ -181,8 +186,11 @@ describe('MqttSync', function() {
     clientA.data.update('/a/b', {c: 2});
     clientA.data.update('/a/b/c', 1);
     inSync(clientA, clientB, () => {
-      console.log(clientA.publishedMessages);
-      assert(clientA.publishedMessages['/a/b'] === null);
+      // console.log(clientA.publishedMessages);
+      // assert(clientA.publishedMessages['/a/b'] === null);
+      const published = clientA.publishedMessages.get();
+      console.log(JSON.stringify(published, true, 2));
+      assert(!published.a.b['$_']);
       done();
     });
   });

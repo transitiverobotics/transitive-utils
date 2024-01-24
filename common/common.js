@@ -77,6 +77,18 @@ const visit = (object, childField, visitor) => {
   object[childField]?.forEach(child => visit(child, childField, visitor));
 };
 
+/** Given an object and a path, visit each ancestor of the path */
+const visitAncestor = (object, path, visitor, prefix = []) => {
+  visitor(object, prefix);
+  const next = path[0];
+  if (next) {
+    const sub = object[next];
+    if (sub) {
+      visitAncestor(sub, path.slice(1), visitor, prefix.concat(next));
+    }
+  }
+};
+
 /** Wait for delay ms, for use in async functions. */
 const wait = (delay) => new Promise((resolve) => { setTimeout(resolve, delay); });
 
@@ -364,5 +376,5 @@ module.exports = { parseMQTTUsername, parseMQTTTopic,
   mergeVersions, mqttClearRetained, isSubTopicOf, clone, setFromPath,
   forMatchIterator, encodeTopicElement, decodeTopicElement, constants, visit,
   wait, formatBytes, formatDuration, tryJSONParse,
-  decodeJWT
+  decodeJWT, visitAncestor
 };
