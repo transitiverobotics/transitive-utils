@@ -195,6 +195,22 @@ describe('MqttSync', function() {
     });
   });
 
+  it('stays atomic on re-publish', function(done) {
+    clientA.publish('/a/#');
+    // clientA.setThrottle(10);
+    clientB.subscribe('/a/#');
+    clientA.data.update('/a/b', {c: 2});
+    setTimeout(() => {
+      clientA.data.update('/a/b', {c: 3});
+      inSync(clientA, clientB, () => {
+        const published = clientA.publishedMessages.get();
+        console.log(JSON.stringify(published, true, 2));
+        assert(published.a.b['$_']); // checks that it is still atomic
+        done();
+      });
+    }, 3);  // works with 1, not with 0 (because the self-published 2 will overwrite the 3), #FIX
+  });
+
   it('syncs correctly when switching from atomic to flat', function(done) {
     clientA.publish('/a');
     clientB.subscribe('/a');
