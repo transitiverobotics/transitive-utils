@@ -552,7 +552,8 @@ class MqttSync {
       });
 
       // Check atomic to flat
-      visitAncestor(this.publishedMessages.get(), path, (subObj, prefix) => {
+      const published = this.publishedMessages.get();
+      visitAncestor(published, path.slice(0, -1), (subObj, prefix) => {
         const oldVal = subObj[specialKey];
         if (oldVal && _.isObject(oldVal)) {
           log.debug('atomic->flat', {oldVal});
