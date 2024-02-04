@@ -27,6 +27,7 @@ export const fetchJson = (url, callback, options = {}) => {
     // credentials: 'same-origin', // include, *same-origin, omit
     headers: {
       'Content-Type': 'application/json'
+      ...options.headers
     },
     redirect: 'follow',
     referrerPolicy: 'no-referrer',
