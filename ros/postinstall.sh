@@ -5,9 +5,11 @@
 # succeed, namely when ROS2 is installed and sourced, and not even try otherwise.
 # See #442.
 
+NPM="$NODE $npm_execpath"
+
 if [[ $ROS_VERSION == 2 ]]; then
-  echo Found ROS2, installing rclnodejs
-  $NODE $npm_execpath i rclnodejs@0.25.0
+  echo 'Found ROS2, installing rclnodejs'
+  $NPM i --no-save rclnodejs@0.25.0
 else
   echo ROS2 not found
 fi

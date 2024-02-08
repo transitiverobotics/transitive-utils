@@ -30,7 +30,10 @@ class ROS {
     this.rn = await rosnodejs.initNode(`/transitive/${nodeName}${suffix}`, {
       rosMasterUri: ROS_MASTER_URI,
       notime: true,
-      logging: {skipRosLogging: true},
+      logging: {
+        skipRosLogging: true,
+        overrideLoggerCleanup: true
+      },
       node: {forceExit: true}
     });
 
