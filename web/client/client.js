@@ -26,7 +26,7 @@ export const fetchJson = (url, callback, options = {}) => {
     // Maybe we'll need this (when embedding)?
     // credentials: 'same-origin', // include, *same-origin, omit
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
       ...options.headers
     },
     redirect: 'follow',
