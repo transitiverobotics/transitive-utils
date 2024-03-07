@@ -4,8 +4,8 @@ const retargetEvents = require('react-shadow-dom-retarget-events');
 const getStyleElementsFromReactWebComponentStyleLoader = require('./getStyleElementsFromReactWebComponentStyleLoader');
 const extractAttributes = require('./extractAttributes');
 
-require('@webcomponents/shadydom');
-require('@webcomponents/custom-elements');
+// require('@webcomponents/shadydom');
+// require('@webcomponents/custom-elements');
 
 const lifeCycleHooks = {
   attachedCallback: 'webComponentAttached',

@@ -110,6 +110,8 @@ const toFlatObject = (obj, prefix = [], rtv = {}) => {
     // const newPrefix = prefix.concat(topicToPath(String(key)));
     const newPrefix = prefix.concat(String(key));
 
+    // TODO: using isPlainObject also means custom objects (classes) do not get
+    // broken down.
     if ((_.isPlainObject(value) || value instanceof Array) && value !== null) {
       // it's an object or array
       toFlatObject(value, newPrefix, rtv);
