@@ -5,7 +5,7 @@ import React, { useState, useEffect, useContext, useRef,
 import { Badge, Button, OverlayTrigger, Popover } from 'react-bootstrap';
 
 import { getLogger, fetchJson, useMqttSync, MqttSync, Timer, TimerContext,
-  ErrorBoundary, createWebComponent, useTransitive } from '../index';
+  ErrorBoundary, createWebComponent, useTransitive, useTopics } from '../index';
 const log = getLogger('test/App');
 log.setLevel('debug');
 
@@ -143,6 +143,10 @@ export default () => {
       }
     }, [mqttSync, ready]);
 
+  // const {data: allData, agentStatus, topicData} =
+  //   useTopics({jwt, host: 'homedesk.local:8888', ssl: false, topics: []});
+  // console.log({allData, agentStatus, topicData});
+  // ^^ This doesn't work here, since there is no agent data in our test
 
   // test function on custom component
   const myref = useRef(null);

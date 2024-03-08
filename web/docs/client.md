@@ -121,6 +121,38 @@ hook for using MqttSync in React
     *   `$0.id` &#x20;
     *   `$0.mqttUrl` &#x20;
 
+## useTopics
+
+Subscribe to MqttSync topics using the provided JWT. This will
+automatically find which version of the capability named in the JWT is running
+on the device of the JWT and get the data for that version.
+
+Example usage (with webrtc-video):
+
+```js
+const { agentStatus, topicData } = useTopics({ jwt, topics: [
+'/options/videoSource',
+'/stats/+/log/'
+]});
+```
+
+#### Parameters
+
+*   `options` **[object][1]** An object containing:
+    `JWT`: A list of subtopics of the capability named in the JWT.
+    `topics`: A list of subtopics of the capability named in the JWT.
+
+    *   `options.jwt` &#x20;
+    *   `options.host`   (optional, default `'transitiverobotics.com'`)
+    *   `options.ssl`   (optional, default `true`)
+    *   `options.topics`   (optional, default `[]`)
+
+Returns **[object][1]** An object `{data, mqttSync, ready, agentStatus, topicData}`
+where:
+`agentStatus` is the `status` field of the running robot agent, including
+heartbeat and runningPackages, and
+`topicData` is the data for the selected topics of the capability
+
 ## useTransitive
 
 Hook for using Transitive in React. Connects to MQTT, establishes sync, and
