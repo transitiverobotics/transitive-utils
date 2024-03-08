@@ -1,6 +1,6 @@
 {
   "name": "@transitive-sdk/utils",
-  "version": "0.9.4",
+  "version": "0.9.5",
   "description": "Utils for the Transitive framework",
   "homepage": "https://transitiverobotics.com",
   "author": {
