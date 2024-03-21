@@ -1,0 +1,23 @@
+{
+  "name": "@transitive-sdk/utils-caps",
+  "version": "0.1.0",
+  "description": "Utilities to build and run Transitive capabilities in dev",
+  "main": "index.js",
+  "bin": {
+    "subScript": "subScript.sh",
+    "transitiveDev": "transitiveDev.sh"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Christian Fritz",
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@transitive-sdk/utils": ">=0.9.5",
+    "esbuild": "^0.18.15"
+  }
+}
