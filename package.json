@@ -3,6 +3,7 @@
   "version": "0.9.5",
   "description": "Utils for the Transitive framework",
   "homepage": "https://transitiverobotics.com",
+  "repository": "github:transitiverobotics/transitive-utils",
   "author": {
     "name": "Christian Fritz",
     "email": "christian@transitiverobotics.com"

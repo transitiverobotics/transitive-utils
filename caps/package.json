@@ -2,7 +2,20 @@
   "name": "@transitive-sdk/utils-caps",
   "version": "0.1.0",
   "description": "Utilities to build and run Transitive capabilities in dev",
+  "homepage": "https://transitiverobotics.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/transitiverobotics/transitive-utils.git",
+    "directory": "caps"
+  },
   "main": "index.js",
+  "author": {
+    "name": "Christian Fritz",
+    "email": "christian@transitiverobotics.com"
+  },
+  "keywords": [
+    "robotics"
+  ],
   "bin": {
     "subScript": "subScript.sh",
     "transitiveDev": "transitiveDev.sh"
@@ -10,8 +23,6 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "Christian Fritz",
   "license": "Apache-2.0",
   "publishConfig": {
     "access": "public"
