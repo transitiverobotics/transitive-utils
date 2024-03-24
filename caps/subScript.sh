@@ -40,6 +40,12 @@ fi;
 if [[ $SUBPROJECT ]]; then
   if [[ ${npmCommands[$npm_lifecycle_event]} ]]; then
     echo "Invoking $npm_lifecycle_event in $SUBPROJECT"
+
+    if [[ $npm_command == "ci" ]] && [[ $npm_lifecycle_event == "install" ]]; then
+      echo "ci: Removing $SUBPROJECT/node_modules"
+      rm -rf $SUBPROJECT/node_modules
+    fi;
+
     npm $PREFIX $npm_lifecycle_event
   else
     echo "Invoking $SUBSCRIPT in $SUBPROJECT"
