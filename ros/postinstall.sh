@@ -9,7 +9,7 @@ NPM="$NODE $npm_execpath"
 
 if [[ $ROS_VERSION == 2 ]]; then
   echo 'Found ROS2, installing rclnodejs'
-  $NPM i --no-save rclnodejs@0.25.0
+  $NPM i --no-save rclnodejs@0.26.1
 else
   echo ROS2 not found
 fi
