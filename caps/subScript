@@ -1,7 +1,9 @@
 #!/bin/bash
 
+# This file gets updated by @transitive-sdk/utils-caps. Do not modify!
+
 # Use this script in your wrapper package's script to relay invokation to scripts
-# int he correct subproject.
+# in the correct subproject.
 
 # Define a mapping from lifecycle events to scripts in sub-project. Note that
 # we *don't* want to map preinstall to preinstall, since in the subproject
