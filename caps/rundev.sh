@@ -14,6 +14,9 @@ mkdir -p ~/.transitive/packages/$CAP
 echo -n 1234 > ~/.transitive/packages/$CAP/password
 . ~/.transitive/etc/env_local
 
+# Use the node.js version installed locally in ~/.transitive
+export PATH=~/.transitive/usr/bin:$PATH
+
 getROSRelease() {
   case $(lsb_release -sc) in
     xenial) echo kinetic;;
