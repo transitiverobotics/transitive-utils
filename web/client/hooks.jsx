@@ -7,6 +7,7 @@ const MqttSync = require('../../common/MqttSync');
 
 const log = getLogger('utils-web/hooks');
 log.setLevel('info');
+log.setLevel('debug'); // #DEBUG
 
 /** hook for using MqttSync in React */
 export const useMqttSync = ({jwt, id, mqttUrl}) => {
@@ -144,4 +145,48 @@ export const useTopics = ({jwt, host = 'transitiverobotics.com', ssl = true,
     log.debug(data, agentStatus, topicData);
 
     return {data: data?.[id]?.[device], mqttSync, agentStatus, topicData};
+  };
+
+
+/** Hook to load and use a Transitive web component. Besides loading the custom
+element, this hook also returns any functions and objects the component exports.
+*/
+const loading = {};
+export const useComponent = ({
+    capability, name, userId, deviceId,
+    host = 'transitiverobotics.com', secure = true,
+    testing = false
+  }) => {
+
+    const [returns, setReturns] = useState({});
+
+    const done = (message, loadedModule = undefined) => {
+      log.debug(`custom component ${name}: ${message}`);
+      setReturns(x => ({...x, loadedModule, loaded: true}));
+    };
+
+    useEffect(() => {
+        log.debug(`loading custom component ${name}`);
+
+        if (customElements.get(name)) return done('already loaded');
+        if (loading[name]) return done('already loading');
+        loading[name] = 1;
+
+        const baseUrl = testing ? '' : // for testing
+          `http${secure ? 's' : ''}://portal.${host}`;
+        const params = new URLSearchParams({userId, deviceId});
+        // filename without extension as we'll try multiple
+        const fileBasename = `${baseUrl}/running/${capability}/dist/${name}`;
+
+        import(`${fileBasename}.esm.js?${params.toString()}`).then(
+          esm => done('loaded esm', esm),
+          error => {
+            log.warn(`No ESM module found for ${name}, loading iife`);
+            import(`${fileBasename}.js?${params.toString()}`).then(
+              iife => done('loaded iife', iife),
+              error => log.warn(`Failed to load ${name} iife`, error));
+          });
+      }, [capability, name, userId, deviceId]);
+
+    return returns;
   };

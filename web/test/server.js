@@ -1,6 +1,7 @@
 const Aedes = require('aedes');
 const mqtt = require('mqtt');
-const httpServer = require('http').createServer();
+const express = require('express');
+const http = require('http');
 const ws = require('websocket-stream');
 
 const MqttSync = require('../../common/MqttSync');
@@ -8,15 +9,31 @@ const { loglevel, getLogger } = require('../..');
 
 const log = getLogger('server');
 log.setLevel('debug');
-loglevel.setAll('debug');
+// loglevel.setAll('debug');
 
 const port = 8888;
 const mqttPort = port + 1;
 const mqttURL = `mqtt://localhost:${mqttPort}`;
 
+
+const Spinner = class {
+  states = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+  index = 0;
+
+  tick() {
+    this.index = (this.index + 1) % this.states.length;
+    return this.states[this.index];
+  }
+};
+
 /** fire up a small mqtt broker over websocket, using aedes, for testing */
 const startServer = () => {
   console.log('starting server');
+
+  const app = express();
+  const httpServer = http.createServer(app);
+
+  // MQTT server
   const aedes = Aedes();
   ws.createServer({ server: httpServer }, aedes.handle);
 
@@ -29,12 +46,27 @@ const startServer = () => {
     callback(null, sub.topic.startsWith('/forbidden') ? null : sub)
   };
 
+
+  // App routes
+  app.use(express.static('test/dist'));
+  app.use(express.static('test/static'));
+
+  app.get('/json1', (_, response) => {
+    response.json({msg: 'json1'});
+  });
+
+  app.get('/unauthorized', (_, response) => {
+    response.status(401).json({error: 'you are not authorized!'});
+  });
+
+  // Start listening
   httpServer.listen(port, function () {
     console.log('websocket server listening on port ', port);
     // const client = mqtt.connect('ws://localhost:8888');
 
+    const spinner = new Spinner();
     const ping = () => {
-      process.stdout.write('.');
+      process.stdout.write(`\r${spinner.tick()}`);
       aedes.publish({
         topic: '/test/ping',
         payload: JSON.stringify(new Date()),
@@ -64,11 +96,12 @@ const startServer = () => {
       Array(1000).fill(1).map((ignore, i) => [`id${i}`, {i, randomData}])));
   });
   mqttClient.on('message', (topic, value) =>
-    console.log(topic, value == null ? null : value.toString()));
+    console.log(topic, value == null ? null : value.toString().slice(0,80)));
+
+  console.log(`open http://localhost:${port}`);
 };
 
 module.exports = startServer;
-
 
 const randomData = (i) => ({
   "status": "failed",
