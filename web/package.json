@@ -19,43 +19,31 @@
   "publishConfig": {
     "access": "public"
   },
-  "main": "dist/utils-web.js",
+  "browser": "dist/utils-web.js",
   "scripts": {
-    "test": "webpack serve -c webpack-test.config.js",
-    "build-test": "webpack -c webpack-test.config.js",
-    "prepare": "webpack --no-watch --mode=production && cd css && npx cleancss -o bootstrap_transitive-bs-root.min.css bootstrap_transitive-bs-root.css",
+    "prepare": "node esbuild.js && cd css && npx cleancss -o bootstrap_transitive-bs-root.min.css bootstrap_transitive-bs-root.css",
     "prepack": "cat ../docs.js | node --input-type=module - client",
-    "dev": "webpack"
+    "dev": "node esbuild.js"
   },
   "dependencies": {
-    "@babel/runtime": "^7.16.7",
     "bootstrap": "^4.6.0",
     "chalk": "^4.1.2",
     "jsonwebtoken": "^8.5.1",
     "lodash": "^4.17.21",
     "loglevel": "^1.8.0",
     "mqtt-browser": "^4.2.7",
+    "react-bootstrap": "^2.9.1",
     "react-shadow-dom-retarget-events": "^1.0.8",
+    "react-web-component-style-loader": "^0.1.4-alpha",
     "semver": "7.3.5"
   },
   "devDependencies": {
-    "@babel/core": "^7.13.8",
-    "@babel/plugin-proposal-class-properties": "^7.13.0",
-    "@babel/plugin-transform-runtime": "^7.16.10",
-    "@babel/preset-env": "^7.13.9",
-    "@babel/preset-react": "^7.12.10",
-    "babel-loader": "^8.2.2",
     "clean-css-cli": "^5.6.3",
-    "css-loader": "^5.0.1",
+    "esbuild": "^0.19.11",
+    "express": "^4.19.2",
     "extract-loader": "^5.1.0",
-    "react": "^17.0.1",
-    "react-bootstrap": "^2.9.1",
-    "react-dom": "^17.0.1",
-    "react-web-component-style-loader": "^0.1.4-alpha",
-    "webpack": "^5.65.0",
-    "webpack-cli": "^4.9.1",
-    "webpack-dev-server": "^4.7.3",
-    "webpack-node-externals": "^3.0.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "websocket-stream": "^5.5.2"
   }
 }

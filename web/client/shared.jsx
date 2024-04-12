@@ -3,7 +3,8 @@ import { Button, Accordion, AccordionContext, Card, Badge }
   from 'react-bootstrap';
 import ReactWebComponent from './react-web-component';
 
-import { parseCookie } from './client';
+import { parseCookie, decodeJWT } from './client';
+import { useComponent } from './hooks';
 
 const styles = {
   badge: {
@@ -102,6 +103,29 @@ export const Timer = ({duration, onTimeout, onStart, setOnDisconnect, children})
   </TimerContext.Provider>;
 };
 
+
+/** Dynamically load and use the Transitive web component specified in the JWT. */
+export const TransitiveCapability = ({jwt, ssl = true,
+    host = 'transitiverobotics.com', ...config}) => {
+
+    const {id, device, capability} = decodeJWT(jwt);
+    const type = device == '_fleet' ? 'fleet' : 'device';
+    const capName = capability.split('/')[1];
+    const name = `${capName}-${type}`;
+
+    const {loaded, module} = useComponent({
+      capability,
+      name,
+      userId: id,
+      deviceId: device,
+      testing: config.testing,
+    });
+
+    return loaded ? React.createElement(name, {id, jwt, host, ssl, ...config})
+    : <div>Loading {name}</div>;
+  };
+
+
 /** A simple error boundary. Usage:
 ```jsx
  <ErrorBoundary message="Something went wrong">
@@ -129,6 +153,7 @@ export class ErrorBoundary extends React.Component {
       this.props.children);
   }
 };
+
 
 /* whether or not the given react component allows refs, i.e., is either
  * a functional component wrapped with forwardRef or a class component */

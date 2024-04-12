@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useContext, useRef,
-    forwardRef, useImperativeHandle }
+    forwardRef, useImperativeHandle, Suspense }
   from 'react';
 
 import { Badge, Button, OverlayTrigger, Popover } from 'react-bootstrap';
 
 import { getLogger, fetchJson, useMqttSync, MqttSync, Timer, TimerContext,
-  ErrorBoundary, createWebComponent, useTransitive, useTopics } from '../index';
+    ErrorBoundary, createWebComponent, useTransitive, useTopics, useComponent,
+    TransitiveCapability } from '../../index';
 const log = getLogger('test/App');
 log.setLevel('debug');
 
@@ -37,7 +38,7 @@ const TimerChild = () => {
 const Comp = forwardRef((props, ref) => {
   useImperativeHandle(ref, () => ({
     foo4: (...args) => {
-      log.debug('foo4', args, this);
+      // log.debug('foo4', args, this);
       return 'return of Comp:foo4';
     },
   }));
@@ -46,7 +47,7 @@ const Comp = forwardRef((props, ref) => {
     props.setConfig({k1: 'v1'});
   }, 1000);
 
-  console.log('comp1 render');
+  // console.log('comp1 render');
   return <div>custom component:
     <OverlayTrigger placement='bottom-start' trigger="click"
       overlay={
@@ -65,7 +66,7 @@ const Comp = forwardRef((props, ref) => {
 
 class Comp2 extends React.Component {
   foo(...args) {
-    log.debug('foo', ...args, this);
+    // log.debug('foo', ...args, this);
     return 'return of Comp2:foo';
   }
 
@@ -74,7 +75,7 @@ class Comp2 extends React.Component {
       this.props.setConfig({k2: new Date()});
     }, 1000);
 
-    console.log('comp2 render');
+    // console.log('comp2 render');
     return <div>custom component 2:
       <Badge bg="primary">bootstrap badge (missing stylesheet)</Badge>
     </div>;
@@ -93,38 +94,49 @@ const Comp3 =({setConfig, setOnDisconnect}) => {
     throw new Error('testing failures in onDisconnect');
   });
 
-  console.log('comp3 render');
+  // console.log('comp3 render');
   return <div>custom component3</div>
 };
 
-createWebComponent(Comp, 'custom-component', ['jwt'], '1.2.3', {
+createWebComponent(Comp, 'custom-component', '1.2.3', {
   stylesheets: [
     // load local css for testing
     '/bootstrap_transitive-bs-root.css'
   ],
   });
 
-createWebComponent(Comp2, 'custom-component2', ['jwt'], '1.2.3', {
+createWebComponent(Comp2, 'custom-component2', '1.2.3', {
   stylesheets: [// seems to define the CSS 'badge' class
     'https://unpkg.com/leaflet@1.9.3/dist/leaflet.css'],
   shadowDOM: true
 });
 
-createWebComponent(Comp3, 'custom-component3', ['jwt'], '1.2.3', {
+createWebComponent(Comp3, 'custom-component3', '1.2.3', {
   stylesheets: [],
   shadowDOM: true
 });
 
 /* ------------- */
 
+// const OtherComponent = React.lazy(() =>
+//   import('http://portal.localhost/caps/@transitive-robotics/webrtc-video/0.19.2/dist/webrtc-video-device.js'));
+const OtherComponent = null;
+
+
 export default () => {
   const [count, setCount] = useState(0);
   const [show, setShow] = useState(true);
   const toggleShow = () => setShow(s => !s);
 
-  const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2UiOiJHYkdhMnlncXF6IiwiY2FwYWJpbGl0eSI6Il9yb2JvdC1hZ2VudCIsInVzZXJJZCI6InBvcnRhbFVzZXItcUVtWW41dGlib3ZLZ0d2U20iLCJ2YWxpZGl0eSI6NDMyMDAsImlhdCI6MTY0MzMzNDgxMn0.2eciKJ-tNGJmJbyZRr8lopELr73M5EK9lQqmsOsdXyA';
-  const id = 'qEmYn5tibovKgGvSm';
+  // const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2UiOiJHYkdhMnlncXF6IiwiY2FwYWJpbGl0eSI6Il9yb2JvdC1hZ2VudCIsInVzZXJJZCI6InBvcnRhbFVzZXItcUVtWW41dGlib3ZLZ0d2U20iLCJ2YWxpZGl0eSI6NDMyMDAsImlhdCI6MTY0MzMzNDgxMn0.2eciKJ-tNGJmJbyZRr8lopELr73M5EK9lQqmsOsdXyA';
+  const id = 'mockUser';
+  const jwt = `ignore.${btoa(JSON.stringify({
+    id,
+    device: 'd_mock',
+    capability: '@transitive-robotics/mock'
+  }))}.ignore`;
   const mqttUrl = 'ws://localhost:8888';
+
   const {mqttSync, data, status, ready, StatusComponent} =
     // useMqttSync({jwt, id, mqttUrl});
     useTransitive({jwt, id, host: 'homedesk.local:8888', ssl: false,
@@ -151,24 +163,40 @@ export default () => {
   // test function on custom component
   const myref = useRef(null);
   if (myref.current) {
-    log.debug(myref.current.call('foo4', 'abc', 123),
-      myref.current.getConfig());
+    // log.debug(myref.current.call('foo4', 'abc', 123),
+    //   myref.current.getConfig());
   }
 
   const myref2 = useRef(null);
   if (myref2.current) {
-    log.debug(myref2.current.call('foo', 'abc', 123),
-      myref2.current.getConfig());
+    // log.debug(myref2.current.call('foo', 'abc', 123),
+    //   myref2.current.getConfig());
   }
 
   const myref3 = useRef(null);
 
+  // log.debug({data});
+
+  let DynComp;
+  const {loaded, loadedModule} = useComponent({
+    capability: '@transitive-robotics/mock',
+    name: 'mock-device',
+    userId: 'cfritz',
+    deviceId: 'd_f5b1b62bd4',
+    testing: true,
+    jwt,
+  });
+  // log.debug({component});
+  // DynComp = component?.VideoWrapper;
+  // DynComp = component?.Video;
+
+  // component.useTest?.();
+
+  // log.debug({loaded, loadedModule});
+
   if (!mqttSync || !ready) {
     return <div>Connecting...</div>;
   }
-
-  // log.debug({data});
-
 
   return <div>
     <h1>utils/web testing</h1>
@@ -199,6 +227,7 @@ export default () => {
     </button>
 
     <Section title='testing error boundary'>
+      It should say "Something went wrong here":
       <ErrorBoundary>
         <Fail />
         test
@@ -224,6 +253,26 @@ export default () => {
       {show && <custom-component3 ref={myref3}/>}
       {show && <custom-component3/>}
     </Section>
+
+    {DynComp &&
+        <ErrorBoundary>
+          <DynComp />
+        </ErrorBoundary>
+    }
+
+    {OtherComponent &&
+        <ErrorBoundary>
+          <Suspense fallback={<div>Loading...</div>}>
+            <OtherComponent />
+          </Suspense>
+        </ErrorBoundary>
+    }
+
+
+    { loaded && <mock-device id="cfritz" host="homedesk.local" ssl="false"
+      jwt={jwt} />}
+
+    <TransitiveCapability jwt={jwt} testing={true} myconfig={123} />
   </div>;
 };
 

@@ -1,0 +1,25 @@
+{
+  "name": "@transitive-robotics/mock",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest --watch *.test.js",
+    "start": "./subScript",
+    "preinstall": "./subScript",
+    "install": "./subScript",
+    "postinstall": "./subScript",
+    "prepare": "transitiveDev web",
+    "prepack": "transitiveDev prepack",
+    "cloud": "npm --prefix cloud start",
+    "dev:start": "transitiveDev tmux",
+    "dev:install": "npm --prefix robot install"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@transitive-sdk/utils-caps": "file:../../../../../../caps",
+    "@transitive-sdk/utils-web": "file:../../../../.."
+  }
+}
