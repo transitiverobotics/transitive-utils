@@ -9,11 +9,21 @@ const log = getLogger('utils-web/hooks');
 log.setLevel('info');
 log.setLevel('debug'); // #DEBUG
 
-/** hook for using MqttSync in React */
+/** Hook for using MqttSync in React.
+ @returns {object} An object `{data, mqttSync, ready, StatusComponent, status}`
+where:
+ `data` is a reactive data source in React containing all the data received by
+mqttsync,
+ `mqttSync` is the MqttSync object itself,
+ `ready` indicates when mqttSync is ready to be used (connected and received
+ successfully subscribed to mqtt system heartbeats)
+ */
 export const useMqttSync = ({jwt, id, mqttUrl}) => {
   const [status, setStatus] = useState('connecting');
   const [mqttSync, setMqttSync] = useState();
   const [data, setData] = useState({});
+  // True once the subscription to the system heartbeat has been granted.
+  const [heartbeatGranted, setHeartbeatGranted] = useState(false);
 
   useEffect(() => {
       const payload = decodeJWT(jwt);
@@ -26,7 +36,8 @@ export const useMqttSync = ({jwt, id, mqttUrl}) => {
         log.debug('connected');
         const mqttSyncClient = new MqttSync({
           mqttClient: client,
-          ignoreRetain: true
+          ignoreRetain: true,
+          onHeartbeatGranted: () => setHeartbeatGranted(true)
         });
         setMqttSync(mqttSyncClient);
         setStatus('connected');
@@ -54,7 +65,8 @@ export const useMqttSync = ({jwt, id, mqttUrl}) => {
 
   return {
     status,
-    ready: status == 'connected',
+    // ready: status == 'connected',
+    ready: heartbeatGranted,
     StatusComponent: () => <div>{status}</div>,
     mqttSync, // Note: mqttSync.data is not reactive.
     data, // This is a reactive data-source (to use meteor terminology).
@@ -106,6 +118,12 @@ heartbeat and runningPackages, and
 export const useTopics = ({jwt, host = 'transitiverobotics.com', ssl = true,
     topics = []}) => {
 
+    // #TODO:
+    // Make sure this function is not invoked multiple times with different `topics`
+    // objects, like `useTopics({jwt, topics: ['/abc']})`. Instead make sure the
+    // variable passed to topics is strictly equal unless you actually want to change
+    // the content.
+
     const {device, id, capability} = decodeJWT(jwt);
     if (device == '_fleet') {
       log.warn('useTopics only works for device JWTs, not _fleet ones');
@@ -118,7 +136,7 @@ export const useTopics = ({jwt, host = 'transitiverobotics.com', ssl = true,
       useMqttSync({jwt, id, mqttUrl: `ws${ssl ? 's' : ''}://mqtt.${host}`});
 
     useEffect(() => {
-        if (mqttSync?.mqtt.connected) {
+        if (ready) {
           mqttSync.subscribe(agentPrefix, (err) => err && console.warn(err));
         }
       }, [mqttSync, ready]);
@@ -133,16 +151,18 @@ export const useTopics = ({jwt, host = 'transitiverobotics.com', ssl = true,
     const prefix = `/${id}/${device}/${capability}/${runningVersion}`;
 
     useEffect(() => {
+        log.debug('topics', topics);
         if (runningVersion) {
           topics.forEach(topic => {
+            log.debug(`subscribing to ${prefix}${topic}`);
             mqttSync.subscribe(`${prefix}${topic}`,
-              (err) => err && console.warn(err));
+              (err) => err && log.warn(err));
           });
         }
-      }, [data]);
+      }, [topics, runningVersion, mqttSync]);
 
     const topicData = _.get(data, topicToPath(prefix));
-    log.debug(data, agentStatus, topicData);
+    // log.debug(data, agentStatus, topicData);
 
     return {data: data?.[id]?.[device], mqttSync, agentStatus, topicData};
   };
@@ -154,7 +174,7 @@ element, this hook also returns any functions and objects the component exports.
 const loading = {};
 export const useComponent = ({
     capability, name, userId, deviceId,
-    host = 'transitiverobotics.com', secure = true,
+    host = 'transitiverobotics.com', ssl = true,
     testing = false
   }) => {
 
@@ -173,7 +193,7 @@ export const useComponent = ({
         loading[name] = 1;
 
         const baseUrl = testing ? '' : // for testing
-          `http${secure ? 's' : ''}://portal.${host}`;
+          `http${ssl ? 's' : ''}://portal.${host}`;
         const params = new URLSearchParams({userId, deviceId});
         // filename without extension as we'll try multiple
         const fileBasename = `${baseUrl}/running/${capability}/dist/${name}`;
