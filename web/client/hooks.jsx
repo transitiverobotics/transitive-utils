@@ -118,11 +118,10 @@ heartbeat and runningPackages, and
 export const useTopics = ({jwt, host = 'transitiverobotics.com', ssl = true,
     topics = []}) => {
 
-    // #TODO:
-    // Make sure this function is not invoked multiple times with different `topics`
-    // objects, like `useTopics({jwt, topics: ['/abc']})`. Instead make sure the
-    // variable passed to topics is strictly equal unless you actually want to change
-    // the content.
+    // We need to make sure we don't resubscribe (below) when this function
+    // is called with the same content of `topics` but a different object.
+    const [topicList, setTopicList] = useState();
+    !_.isEqual(topicList, topics) && setTopicList(topics);
 
     const {device, id, capability} = decodeJWT(jwt);
     if (device == '_fleet') {
@@ -159,7 +158,7 @@ export const useTopics = ({jwt, host = 'transitiverobotics.com', ssl = true,
               (err) => err && log.warn(err));
           });
         }
-      }, [topics, runningVersion, mqttSync]);
+      }, [topicList, runningVersion, mqttSync]);
 
     const topicData = _.get(data, topicToPath(prefix));
     // log.debug(data, agentStatus, topicData);

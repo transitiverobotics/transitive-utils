@@ -15,18 +15,16 @@ const styles = {
 const listeners = [];
 export const onData = (listener) => listeners.push(listener);
 
-const topics = [
-  '/data',
-];
-
 const Device = (props) => {
 
   const [clicked, setClicked] = useState(0);
+  const [topics, setTopics] = useState(['/data']);
 
   const {jwt, host, ssl} = props;
   const { agentStatus, topicData } = useTopics({
     jwt,
-    topics,
+    topics: ['/data'],
+    // topics,
     host,
     ssl: JSON.parse(ssl),
   });
@@ -45,7 +43,7 @@ const Device = (props) => {
     <pre>
       {JSON.stringify(props, true, 2)}
     </pre>
-    <button onClick={() => setClicked(c => c + 1)}>
+    <button onClick={() => { setClicked(c => c + 1); setTopics(['/data', '/more']);}}>
       clicked {clicked}
     </button>
   </div>;
