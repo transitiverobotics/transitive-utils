@@ -106,7 +106,7 @@ export const Timer = ({duration, onTimeout, onStart, setOnDisconnect, children})
 
 /** Dynamically load and use the Transitive web component specified in the JWT. */
 export const TransitiveCapability = ({jwt, ssl = true,
-    host = 'transitiverobotics.com', ...config}) => {
+    host = 'transitiverobotics.com', testing = false, ...config}) => {
 
     const {id, device, capability} = decodeJWT(jwt);
     const type = device == '_fleet' ? 'fleet' : 'device';
@@ -118,7 +118,9 @@ export const TransitiveCapability = ({jwt, ssl = true,
       name,
       userId: id,
       deviceId: device,
-      testing: config.testing,
+      testing,
+      host,
+      ssl
     });
 
     return loaded ? React.createElement(name, {id, jwt, host, ssl, ...config})

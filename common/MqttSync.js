@@ -96,7 +96,7 @@ class MqttSync {
   beforeDisconnectHooks = [];
 
   constructor({mqttClient, onChange, ignoreRetain, migrate, onReady,
-  sliceTopic }) {
+  sliceTopic, onHeartbeatGranted }) {
     this.mqtt = mqttClient;
 
     this.mqtt.on('message', (topic, payload, packet) => {
@@ -144,7 +144,10 @@ class MqttSync {
       }
     });
 
-    this.mqtt.subscribe(HEARTBEAT_TOPIC, {rap: true}, log.debug);
+    this.mqtt.subscribe(HEARTBEAT_TOPIC, {rap: true}, (err, granted) => {
+      log.debug(HEARTBEAT_TOPIC, {granted});
+      granted.length > 0 && onHeartbeatGranted?.();
+    });
 
     migrate?.length > 0 && this.migrate(migrate, () => {
       log.debug('done migrating', onReady);
@@ -343,6 +346,7 @@ class MqttSync {
   indicate success/failure, *not* a message on the topic. */
   subscribe(topic, callback = noop) {
     topic = ensureHashSuffix(topic);
+    log.debug('subscribing to', topic);
     if (this.subscribedPaths[topic]) {
       log.debug('already subscribed to', topic);
       callback();
