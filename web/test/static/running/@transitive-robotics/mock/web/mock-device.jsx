@@ -11,27 +11,45 @@ const [scope, capabilityName] = TR_PKG_NAME.split('/');
 const styles = {
 };
 
+
+const listeners = [];
+export const onData = (listener) => listeners.push(listener);
+
+const topics = [
+  '/data',
+];
+
 const Device = (props) => {
 
-  const {jwt} = props;
+  const [clicked, setClicked] = useState(0);
+
+  const {jwt, host, ssl} = props;
   const { agentStatus, topicData } = useTopics({
     jwt,
-    topics: [
-      '/test',
-      '/server'
-    ],
-    host: 'homedesk.local:8888',
-    ssl: false,
+    topics,
+    host,
+    ssl: JSON.parse(ssl),
   });
 
-  log.debug({agentStatus, topicData});
+  useEffect(() => {
+    listeners.forEach(l => l({topicData}));
+  }, [topicData]);
+
+  useEffect(() => {
+    listeners.forEach(l => l({clicked}));
+  }, [clicked]);
+
+  // log.debug({agentStatus, topicData});
 
   return <div>Mock-Device
     <pre>
       {JSON.stringify(props, true, 2)}
     </pre>
+    <button onClick={() => setClicked(c => c + 1)}>
+      clicked {clicked}
+    </button>
   </div>;
 };
 
 log.debug('creating component');
-createWebComponent(Device, `${capabilityName}-device`, ['jwt']);
+createWebComponent(Device, `${capabilityName}-device`, TR_PKG_VERSION);
