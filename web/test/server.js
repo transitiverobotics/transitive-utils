@@ -1,6 +1,7 @@
 const Aedes = require('aedes');
 const mqtt = require('mqtt');
 const express = require('express');
+const cors = require('cors');
 const http = require('http');
 const ws = require('websocket-stream');
 
@@ -28,7 +29,7 @@ const Spinner = class {
 
 /** fire up a small mqtt broker over websocket, using aedes, for testing */
 const startServer = () => {
-  console.log('starting server');
+  log.debug('starting server');
 
   const app = express();
   const httpServer = http.createServer(app);
@@ -38,18 +39,18 @@ const startServer = () => {
   ws.createServer({ server: httpServer }, aedes.handle);
 
   require('net').createServer(aedes.handle).listen(mqttPort, () =>
-    console.log('mqtt server started and listening on port ', port));
+    log.debug('mqtt server started and listening on port ', port));
 
   aedes.authorizeSubscribe = (client, sub, callback) => {
     // prohibited to subscribe '/forbidden'
-    console.log('sub', sub);
+    log.debug('sub', sub);
     callback(null, sub.topic.startsWith('/forbidden') ? null : sub)
   };
 
 
   // App routes
   app.use(express.static('test/dist'));
-  app.use(express.static('test/static'));
+  app.use(cors(), express.static('test/static'));
 
   app.get('/json1', (_, response) => {
     response.json({msg: 'json1'});
@@ -61,7 +62,7 @@ const startServer = () => {
 
   // Start listening
   httpServer.listen(port, function () {
-    console.log('websocket server listening on port ', port);
+    log.debug('websocket server listening on port ', port);
     // const client = mqtt.connect('ws://localhost:8888');
 
     const spinner = new Spinner();
@@ -81,24 +82,35 @@ const startServer = () => {
   // start mqttSync
   const mqttClient = mqtt.connect(mqttURL);
   mqttClient.on('connect', () => {
-    console.log('connected');
+    log.debug('connected');
     const client = new MqttSync({mqttClient: mqttClient, ignoreRetain: true});
     client.subscribe('/web');
     client.publish('/server');
 
-    const update = () =>
+    // pretend a mock capability is running:
+    client.publish('/mockUser');
+    client.data.update(
+      '/mockUser/d_mock/@transitive-robotics/_robot-agent/0.0.1/status/runningPackages/@transitive-robotics/mock/1.0.0',
+      '1.0.0');
+
+    const update = () => {
       client.data.update('/server/time', String(new Date()));
+      // publish some mock data for the mock capability
+      client.data.update('/mockUser/d_mock/@transitive-robotics/mock/1.0.0/data',
+        {some: 'object', with: {data: Date.now()}});
+    };
     update();
-    setTimeout(() => update(), 3000);
+    setInterval(() => update(), 3000);
 
     // publish a large amount of data for testing
     client.data.update('/server/large', Object.fromEntries(
       Array(1000).fill(1).map((ignore, i) => [`id${i}`, {i, randomData}])));
+
   });
   mqttClient.on('message', (topic, value) =>
-    console.log(topic, value == null ? null : value.toString().slice(0,80)));
+    log.debug(topic, value == null ? null : value.toString().slice(0,80)));
 
-  console.log(`open http://localhost:${port}`);
+  log.debug(`open http://localhost:${port}`);
 };
 
 module.exports = startServer;

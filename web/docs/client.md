@@ -101,6 +101,11 @@ get or post (if body given) json
 *   `callback` &#x20;
 *   `options`   (optional, default `{}`)
 
+## loading
+
+Hook to load and use a Transitive web component. Besides loading the custom
+element, this hook also returns any functions and objects the component exports.
+
 ## parseCookie
 
 parse document cookies
@@ -109,9 +114,23 @@ parse document cookies
 
 *   `str` &#x20;
 
+## TransitiveCapability
+
+Dynamically load and use the Transitive web component specified in the JWT.
+
+#### Parameters
+
+*   `$0` **[Object][1]**&#x20;
+
+    *   `$0.jwt` &#x20;
+    *   `$0.ssl`   (optional, default `true`)
+    *   `$0.host`   (optional, default `'transitiverobotics.com'`)
+    *   `$0.testing`   (optional, default `false`)
+    *   `$0.config` **...any**&#x20;
+
 ## useMqttSync
 
-hook for using MqttSync in React
+Hook for using MqttSync in React.
 
 #### Parameters
 
@@ -120,6 +139,14 @@ hook for using MqttSync in React
     *   `$0.jwt` &#x20;
     *   `$0.id` &#x20;
     *   `$0.mqttUrl` &#x20;
+
+Returns **[object][1]** An object `{data, mqttSync, ready, StatusComponent, status}`
+where:
+`data` is a reactive data source in React containing all the data received by
+mqttsync,
+`mqttSync` is the MqttSync object itself,
+`ready` indicates when mqttSync is ready to be used (connected and received
+successfully subscribed to mqtt system heartbeats)
 
 ## useTopics
 

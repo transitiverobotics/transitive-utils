@@ -4,11 +4,12 @@ import React, { useState, useEffect, useContext, useRef,
 
 import { Badge, Button, OverlayTrigger, Popover } from 'react-bootstrap';
 
-import { getLogger, fetchJson, useMqttSync, MqttSync, Timer, TimerContext,
+import { getLogger, loglevel, fetchJson, useMqttSync, MqttSync, Timer, TimerContext,
     ErrorBoundary, createWebComponent, useTransitive, useTopics, useComponent,
     TransitiveCapability } from '../../index';
 const log = getLogger('test/App');
 log.setLevel('debug');
+// loglevel.setAll('debug');
 
 // to verify the export works
 window.transitive = { MqttSync };
@@ -128,6 +129,8 @@ export default () => {
   const [show, setShow] = useState(true);
   const toggleShow = () => setShow(s => !s);
 
+  const [dynData, setDynData] = useState();
+
   // const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2UiOiJHYkdhMnlncXF6IiwiY2FwYWJpbGl0eSI6Il9yb2JvdC1hZ2VudCIsInVzZXJJZCI6InBvcnRhbFVzZXItcUVtWW41dGlib3ZLZ0d2U20iLCJ2YWxpZGl0eSI6NDMyMDAsImlhdCI6MTY0MzMzNDgxMn0.2eciKJ-tNGJmJbyZRr8lopELr73M5EK9lQqmsOsdXyA';
   const id = 'mockUser';
   const jwt = `ignore.${btoa(JSON.stringify({
@@ -135,17 +138,14 @@ export default () => {
     device: 'd_mock',
     capability: '@transitive-robotics/mock'
   }))}.ignore`;
-  const mqttUrl = 'ws://localhost:8888';
 
   const {mqttSync, data, status, ready, StatusComponent} =
-    // useMqttSync({jwt, id, mqttUrl});
     useTransitive({jwt, id, host: 'homedesk.local:8888', ssl: false,
       capability: '@transitive-robotics/web-test',
       versionNS: '0.1'});
 
   useEffect(() => {
       if (mqttSync && ready) {
-        console.log('using', {mqttUrl});
         mqttSync.subscribe('/test');
         mqttSync.subscribe('/server');
         mqttSync.publish('/web/atomic', {atomic: true});
@@ -185,14 +185,22 @@ export default () => {
     deviceId: 'd_f5b1b62bd4',
     testing: true,
     jwt,
+    host: 'homedesk.local:8888',
+    ssl: false,
   });
   // log.debug({component});
-  // DynComp = component?.VideoWrapper;
+  // DynComp = loadedModule?.Device;
   // DynComp = component?.Video;
+
+  useEffect(() => {
+      loadedModule?.onData((data) => setDynData(current => ({...current, ...data})));
+    }, [loadedModule]);
 
   // component.useTest?.();
 
   // log.debug({loaded, loadedModule});
+
+  useEffect(() => log.debug({dynData}), [dynData]);
 
   if (!mqttSync || !ready) {
     return <div>Connecting...</div>;
@@ -269,10 +277,24 @@ export default () => {
     }
 
 
-    { loaded && <mock-device id="cfritz" host="homedesk.local" ssl="false"
-      jwt={jwt} />}
+    {/* { loaded && <mock-device id="cfritz" host="homedesk.local:8888" ssl="false"
+      jwt={jwt} />} */}
 
-    <TransitiveCapability jwt={jwt} testing={true} myconfig={123} />
+    {/* { DynComp && <DynComp id="cfritz" host="homedesk.local:8888" ssl="false"
+      jwt={jwt} />} */}
+
+    <TransitiveCapability jwt={jwt} testing={true} myconfig={123}
+      host='homedesk.local:8888' ssl={false} />
+
+    {/* <TransitiveCapability jwt='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNmcml0eiIsImRldmljZSI6ImRfZjViMWI2MmJkNCIsImNhcGFiaWxpdHkiOiJAdHJhbnNpdGl2ZS1yb2JvdGljcy90ZXJtaW5hbCIsInZhbGlkaXR5Ijo4NjQwMCwiaWF0IjoxNzEzOTAyNDkzfQ.8_VHCpMFVaWLq_1xtyqumY0Lu1YCEP4yqVQXJ3kpC9Q'
+      host='homedesk.local' ssl={false} /> */}
+
+    {/* <TransitiveCapability
+      jwt='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNmcml0eiIsImRldmljZSI6ImRfZjViMWI2MmJkNCIsImNhcGFiaWxpdHkiOiJAdHJhbnNpdGl2ZS1yb2JvdGljcy9oZWFsdGgtbW9uaXRvcmluZyIsInZhbGlkaXR5Ijo4NjQwMCwiaWF0IjoxNzEzOTAyNjY0fQ.oHADWzN79l2DHRynrIRkN7xzjWzX_-ZX31_Z2-ln6wU'
+      host='homedesk.local' ssl={false} /> */}
+
+
+
   </div>;
 };
 
