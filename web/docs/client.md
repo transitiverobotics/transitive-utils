@@ -103,8 +103,9 @@ get or post (if body given) json
 
 ## loading
 
-Hook to load and use a Transitive web component. Besides loading the custom
-element, this hook also returns any functions and objects the component exports.
+Hook to load and use a Transitive capabvility's web component. Besides
+loading the custom element, this hook also returns any functions and objects
+the component exports.
 
 ## parseCookie
 

@@ -92,6 +92,8 @@ const startServer = () => {
     client.data.update(
       '/mockUser/d_mock/@transitive-robotics/_robot-agent/0.0.1/status/runningPackages/@transitive-robotics/mock/1.0.0',
       '1.0.0');
+    client.data.update('/mockUser/d_mock/@transitive-robotics/mock/1.0.0/more',
+      'some more data');
 
     const update = () => {
       client.data.update('/server/time', String(new Date()));

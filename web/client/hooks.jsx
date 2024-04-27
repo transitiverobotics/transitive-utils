@@ -167,29 +167,48 @@ export const useTopics = ({jwt, host = 'transitiverobotics.com', ssl = true,
   };
 
 
-/** Hook to load and use a Transitive web component. Besides loading the custom
-element, this hook also returns any functions and objects the component exports.
+const listeners = {};
+const loadedModules = {};
+/** Hook to load a Transitive capability. Besides loading the custom element,
+this hook also returns any functions and objects the component exports in
+`loadedModule`. Example:
+```js
+  const {loaded, loadedModule} = useCapability({
+    capability: '@transitive-robotics/terminal',
+    name: 'mock-device',
+    userId: 'user123',
+    deviceId: 'd_mydevice123',
+  });
+```
 */
-const loading = {};
-export const useComponent = ({
-    capability, name, userId, deviceId,
-    host = 'transitiverobotics.com', ssl = true,
-    testing = false
+export const useCapability = ({ capability, name, userId, deviceId,
+    host = 'transitiverobotics.com', ssl = true, testing = false
   }) => {
 
-    const [returns, setReturns] = useState({});
+    const [returns, setReturns] = useState({ loaded: false });
 
-    const done = (message, loadedModule = undefined) => {
+    // called when loaded
+    const done = (message, theModule) => {
       log.debug(`custom component ${name}: ${message}`);
-      setReturns(x => ({...x, loadedModule, loaded: true}));
+      loadedModules[name] = theModule;
+      setReturns(x => ({...x, loadedModule: theModule, loaded: !!theModule}));
     };
+
+    /** set the returns for all listeners */
+    const notifyListeners = (...args) => listeners[name].forEach(l => l(...args));
 
     useEffect(() => {
         log.debug(`loading custom component ${name}`);
 
-        if (customElements.get(name)) return done('already loaded');
-        if (loading[name]) return done('already loading');
-        loading[name] = 1;
+        if (loadedModules[name]) {
+          return done('already loaded', loadedModules[name]);
+        }
+        if (listeners[name]) {
+          log.debug('already loading');
+          // get notified when loading completes
+          return listeners[name].push(done);
+        }
+        listeners[name] = [done];
 
         const baseUrl = testing ? '' : // for testing
           `http${ssl ? 's' : ''}://portal.${host}`;
@@ -198,12 +217,12 @@ export const useComponent = ({
         const fileBasename = `${baseUrl}/running/${capability}/dist/${name}`;
 
         import(`${fileBasename}.esm.js?${params.toString()}`).then(
-          esm => done('loaded esm', esm),
+          esm => notifyListeners('loaded esm', esm),
           error => {
             log.warn(`No ESM module found for ${name}, loading iife`);
             import(`${fileBasename}.js?${params.toString()}`).then(
-              iife => done('loaded iife', iife),
-              error => log.warn(`Failed to load ${name} iife`, error));
+              iife => notifyListeners('loaded iife', iife),
+              error => log.error(`Failed to load ${name} iife`, error));
           });
       }, [capability, name, userId, deviceId]);
 
