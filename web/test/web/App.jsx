@@ -5,11 +5,16 @@ import React, { useState, useEffect, useContext, useRef,
 import { Badge, Button, OverlayTrigger, Popover } from 'react-bootstrap';
 
 import { getLogger, loglevel, fetchJson, useMqttSync, MqttSync, Timer, TimerContext,
-    ErrorBoundary, createWebComponent, useTransitive, useTopics, useComponent,
+    ErrorBoundary, createWebComponent, useTransitive, useTopics, useCapability,
     TransitiveCapability } from '../../index';
 const log = getLogger('test/App');
 log.setLevel('debug');
 // loglevel.setAll('debug');
+
+// const HOSTNAME = 'homedesk.local';
+const HOSTNAME = 'localhost';
+const PORT = 8888;
+const HOST = `${HOSTNAME}:${PORT}`;
 
 // to verify the export works
 window.transitive = { MqttSync };
@@ -119,10 +124,6 @@ createWebComponent(Comp3, 'custom-component3', '1.2.3', {
 
 /* ------------- */
 
-// const OtherComponent = React.lazy(() =>
-//   import('http://portal.localhost/caps/@transitive-robotics/webrtc-video/0.19.2/dist/webrtc-video-device.js'));
-const OtherComponent = null;
-
 
 export default () => {
   const [count, setCount] = useState(0);
@@ -130,6 +131,8 @@ export default () => {
   const toggleShow = () => setShow(s => !s);
 
   const [dynData, setDynData] = useState();
+  const [dynData2, setDynData2] = useState();
+  const [dynData3, setDynData3] = useState();
 
   // const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2UiOiJHYkdhMnlncXF6IiwiY2FwYWJpbGl0eSI6Il9yb2JvdC1hZ2VudCIsInVzZXJJZCI6InBvcnRhbFVzZXItcUVtWW41dGlib3ZLZ0d2U20iLCJ2YWxpZGl0eSI6NDMyMDAsImlhdCI6MTY0MzMzNDgxMn0.2eciKJ-tNGJmJbyZRr8lopELr73M5EK9lQqmsOsdXyA';
   const id = 'mockUser';
@@ -140,7 +143,7 @@ export default () => {
   }))}.ignore`;
 
   const {mqttSync, data, status, ready, StatusComponent} =
-    useTransitive({jwt, id, host: 'homedesk.local:8888', ssl: false,
+    useTransitive({jwt, id, host: HOST, ssl: false,
       capability: '@transitive-robotics/web-test',
       versionNS: '0.1'});
 
@@ -177,30 +180,17 @@ export default () => {
 
   // log.debug({data});
 
-  let DynComp;
-  const {loaded, loadedModule} = useComponent({
+  const {loaded, loadedModule} = useCapability({
     capability: '@transitive-robotics/mock',
     name: 'mock-device',
     userId: 'cfritz',
     deviceId: 'd_f5b1b62bd4',
     testing: true,
-    jwt,
-    host: 'homedesk.local:8888',
+    host: HOST,
     ssl: false,
   });
-  // log.debug({component});
-  // DynComp = loadedModule?.Device;
-  // DynComp = component?.Video;
 
-  useEffect(() => {
-      loadedModule?.onData((data) => setDynData(current => ({...current, ...data})));
-    }, [loadedModule]);
-
-  // component.useTest?.();
-
-  // log.debug({loaded, loadedModule});
-
-  useEffect(() => log.debug({dynData}), [dynData]);
+  loadedModule?.doSomething?.(1,2,3); // only works with ESM
 
   if (!mqttSync || !ready) {
     return <div>Connecting...</div>;
@@ -262,39 +252,46 @@ export default () => {
       {show && <custom-component3/>}
     </Section>
 
-    {DynComp &&
-        <ErrorBoundary>
-          <DynComp />
-        </ErrorBoundary>
-    }
 
-    {OtherComponent &&
-        <ErrorBoundary>
-          <Suspense fallback={<div>Loading...</div>}>
-            <OtherComponent />
-          </Suspense>
-        </ErrorBoundary>
-    }
+    <Section title="Dynamically loaded web components">
 
+      1, from web component:
+      { loaded && <mock-device id="cfritz" host={HOST} ssl="false"
+        jwt={jwt}
+        />}
 
-    {/* { loaded && <mock-device id="cfritz" host="homedesk.local:8888" ssl="false"
-      jwt={jwt} />} */}
+      2, TransitiveCapability:
+      <TransitiveCapability jwt={jwt} testing={true} myconfig={123}
+        host={HOST} ssl={false}
+        onclick2={() => { log.debug('clicked2!!!'); }}
+        onData={setDynData2}
+        />
+      {dynData2 && <pre>dynData2: {JSON.stringify(dynData2, true, 2)}</pre>}
 
-    {/* { DynComp && <DynComp id="cfritz" host="homedesk.local:8888" ssl="false"
-      jwt={jwt} />} */}
+      3, TransitiveCapability:
+      <TransitiveCapability jwt={jwt} testing={true} myconfig={123}
+        host={HOST} ssl={false}
+        onclick2={() => { log.debug('clicked3!!!'); }}
+        onData={setDynData3}
+        />
+      {dynData3 && <pre>dynData3: {JSON.stringify(dynData3, true, 2)}</pre>}
 
-    <TransitiveCapability jwt={jwt} testing={true} myconfig={123}
-      host='homedesk.local:8888' ssl={false} />
+      4, TransitiveCapability: click 3's button four time!
+      {dynData3?.clicked > 3 &&
+          <TransitiveCapability jwt={jwt} testing={true} myconfig={123}
+            host={HOST} ssl={false}
+            onclick2={() => { log.debug('clicked4!!!'); }}
+            />
+      }
 
-    {/* <TransitiveCapability jwt='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNmcml0eiIsImRldmljZSI6ImRfZjViMWI2MmJkNCIsImNhcGFiaWxpdHkiOiJAdHJhbnNpdGl2ZS1yb2JvdGljcy90ZXJtaW5hbCIsInZhbGlkaXR5Ijo4NjQwMCwiaWF0IjoxNzEzOTAyNDkzfQ.8_VHCpMFVaWLq_1xtyqumY0Lu1YCEP4yqVQXJ3kpC9Q'
-      host='homedesk.local' ssl={false} /> */}
+      {/* Terminal */
+      /* <TransitiveCapability
+        jwt='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNmcml0eiIsImRldmljZSI6ImRfZjViMWI2MmJkNCIsImNhcGFiaWxpdHkiOiJAdHJhbnNpdGl2ZS1yb2JvdGljcy90ZXJtaW5hbCIsInZhbGlkaXR5Ijo4NjQwMCwiaWF0IjoxNzE0MzIwODU3fQ.EcVVh-kepkLHrM5s5KtC83UDuSr7XLgwcedBycxYxLw'
+        host={HOSTNAME} ssl={false} /> */}
 
-    {/* <TransitiveCapability
-      jwt='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNmcml0eiIsImRldmljZSI6ImRfZjViMWI2MmJkNCIsImNhcGFiaWxpdHkiOiJAdHJhbnNpdGl2ZS1yb2JvdGljcy9oZWFsdGgtbW9uaXRvcmluZyIsInZhbGlkaXR5Ijo4NjQwMCwiaWF0IjoxNzEzOTAyNjY0fQ.oHADWzN79l2DHRynrIRkN7xzjWzX_-ZX31_Z2-ln6wU'
-      host='homedesk.local' ssl={false} /> */}
+    </Section>
 
-
-
+    The end
   </div>;
 };
 

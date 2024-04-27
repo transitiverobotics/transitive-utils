@@ -9,13 +9,19 @@ log.setLevel('debug');
 const [scope, capabilityName] = TR_PKG_NAME.split('/');
 
 const styles = {
+  wrapper: {
+    borderRadius: '8px',
+    backgroundColor: '#acf',
+    padding: '1em'
+  }
 };
 
+/** simple example exported function */
+export const doSomething = (...args) => {
+  log.debug('doing something', ...args);
+};
 
-const listeners = [];
-export const onData = (listener) => listeners.push(listener);
-
-const Device = (props) => {
+export const Device = (props) => {
 
   const [clicked, setClicked] = useState(0);
   const [topics, setTopics] = useState(['/data']);
@@ -23,31 +29,29 @@ const Device = (props) => {
   const {jwt, host, ssl} = props;
   const { agentStatus, topicData } = useTopics({
     jwt,
-    topics: ['/data'],
-    // topics,
+    // topics: ['/data'],
+    topics,
     host,
     ssl: JSON.parse(ssl),
   });
 
-  useEffect(() => {
-    listeners.forEach(l => l({topicData}));
-  }, [topicData]);
+  useEffect(() => props.onData?.({clicked, topicData}), [clicked, topicData]);
 
-  useEffect(() => {
-    listeners.forEach(l => l({clicked}));
-  }, [clicked]);
 
-  // log.debug({agentStatus, topicData});
-
-  return <div>Mock-Device
+  return <div style={styles.wrapper}>Mock-Device
     <pre>
       {JSON.stringify(props, true, 2)}
     </pre>
-    <button onClick={() => { setClicked(c => c + 1); setTopics(['/data', '/more']);}}>
+    <button onClick={() => {
+      setClicked(c => c + 1);
+      setTopics(['/data', '/more']);
+      props.onclick2?.();
+    }}>
       clicked {clicked}
     </button>
   </div>;
 };
 
 log.debug('creating component');
-createWebComponent(Device, `${capabilityName}-device`, TR_PKG_VERSION);
+export const proto =
+  createWebComponent(Device, `${capabilityName}-device`, TR_PKG_VERSION);

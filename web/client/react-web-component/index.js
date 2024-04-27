@@ -94,5 +94,7 @@ module.exports = {
     }
 
     customElements.define(tagName, proto);
+
+    return proto;
   },
 };

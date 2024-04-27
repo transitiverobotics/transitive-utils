@@ -4,7 +4,7 @@ import { Button, Accordion, AccordionContext, Card, Badge }
 import ReactWebComponent from './react-web-component';
 
 import { parseCookie, decodeJWT } from './client';
-import { useComponent } from './hooks';
+import { useCapability } from './hooks';
 
 const styles = {
   badge: {
@@ -104,27 +104,47 @@ export const Timer = ({duration, onTimeout, onStart, setOnDisconnect, children})
 };
 
 
-/** Dynamically load and use the Transitive web component specified in the JWT. */
+/** Dynamically load and use the Transitive web component specified in the JWT.
+ * Embedding Transitive components this way also enables the use of functional
+ * and object properties, which get lost when using the custom element (Web
+ * Component) because HTML attributes are strings.
+ * Example:
+ ```js
+   <TransitiveCapability jwt={jwt}
+     myconfig={{a: 1, b: 2}}
+     onData={(data) => setData(data)}
+     onclick={() => { console.log('custom click handler'); }}
+     />
+ ```
+*/
 export const TransitiveCapability = ({jwt, ssl = true,
-    host = 'transitiverobotics.com', testing = false, ...config}) => {
+    host = 'transitiverobotics.com', testing = false,
+    ...config }) => {
 
     const {id, device, capability} = decodeJWT(jwt);
     const type = device == '_fleet' ? 'fleet' : 'device';
     const capName = capability.split('/')[1];
     const name = `${capName}-${type}`;
 
-    const {loaded, module} = useComponent({
+    const { loaded } = useCapability({
       capability,
       name,
-      userId: id,
+      userId: id || config.userId, // accept both id and userId, see #492
       deviceId: device,
       testing,
       host,
       ssl
     });
 
-    return loaded ? React.createElement(name, {id, jwt, host, ssl, ...config})
-    : <div>Loading {name}</div>;
+    const ref = useRef();
+    // Attach functional and object properties to the component when ready
+    useEffect(() => {
+      ref.current?.instance?.setState(s =>
+          ({ ...s, id, jwt, host, ssl, ...config }));
+    }, [ref.current]);
+
+    if (!loaded) return <div>Loading {name}</div>;
+    return React.createElement(name, {id, jwt, host, ssl, ...config, ref});
   };
 
 
@@ -243,6 +263,6 @@ export const createWebComponent = (Component, name, version = '0.0.0',
       }
     };
 
-    ReactWebComponent.create(Wrapper, name, options.shadowDOM || false,
+    return ReactWebComponent.create(Wrapper, name, options.shadowDOM || false,
       compRef);
   };
