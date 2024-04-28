@@ -189,6 +189,7 @@ feature over the latter. Relies on retained messages in mqtt for persistence.
     *   `options.sliceTopic` **[number][5]?** a number indicating at what level to
         slice the topic, i.e., only use a suffix. Used in robot-capabilities to slice
         off the topic prefix (namespaces).
+    *   `options.onHeartbeatGranted` &#x20;
 
 ### beforeDisconnect
 

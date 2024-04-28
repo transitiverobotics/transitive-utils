@@ -101,11 +101,13 @@ get or post (if body given) json
 *   `callback` &#x20;
 *   `options`   (optional, default `{}`)
 
-## loading
+## notifyListeners
 
-Hook to load and use a Transitive capabvility's web component. Besides
-loading the custom element, this hook also returns any functions and objects
-the component exports.
+set the returns for all listeners
+
+#### Parameters
+
+*   `args` **...any**&#x20;
 
 ## parseCookie
 
@@ -118,6 +120,18 @@ parse document cookies
 ## TransitiveCapability
 
 Dynamically load and use the Transitive web component specified in the JWT.
+Embedding Transitive components this way also enables the use of functional
+and object properties, which get lost when using the custom element (Web
+Component) because HTML attributes are strings.
+Example:
+
+```js
+<TransitiveCapability jwt={jwt}
+myconfig={{a: 1, b: 2}}
+onData={(data) => setData(data)}
+onclick={() => { console.log('custom click handler'); }}
+/>
+```
 
 #### Parameters
 
@@ -128,6 +142,33 @@ Dynamically load and use the Transitive web component specified in the JWT.
     *   `$0.host`   (optional, default `'transitiverobotics.com'`)
     *   `$0.testing`   (optional, default `false`)
     *   `$0.config` **...any**&#x20;
+
+## useCapability
+
+Hook to load a Transitive capability. Besides loading the custom element,
+this hook also returns any functions and objects the component exports in
+`loadedModule`. Example:
+
+```js
+const {loaded, loadedModule} = useCapability({
+capability: '@transitive-robotics/terminal',
+name: 'mock-device',
+userId: 'user123',
+deviceId: 'd_mydevice123',
+});
+```
+
+#### Parameters
+
+*   `$0` **[Object][1]**&#x20;
+
+    *   `$0.capability` &#x20;
+    *   `$0.name` &#x20;
+    *   `$0.userId` &#x20;
+    *   `$0.deviceId` &#x20;
+    *   `$0.host`   (optional, default `'transitiverobotics.com'`)
+    *   `$0.ssl`   (optional, default `true`)
+    *   `$0.testing`   (optional, default `false`)
 
 ## useMqttSync
 
