@@ -176,7 +176,7 @@ class MqttSync {
     }
   }
 
-  /** Migrate a list of {topic, newVersion, transform}. The version number in
+  /** Migrate a list of `{topic, newVersion, transform}`. The version number in
   topic will be ignored, and all versions' values will be merged, applied in
   order, such that the latest version is applied last. */
   migrate(list, onReady = undefined) {

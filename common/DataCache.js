@@ -30,8 +30,8 @@ const unset = (obj, path) => {
   }
 };
 
-/** given a modifier {"a/b/c": "xyz"} update the object `obj` such that
-obj.a.b.c = "xyz" */
+/** Given a modifier `{"a/b/c": "xyz"}` update the object `obj` such that
+`obj.a.b.c = "xyz"`. */
 const updateObject = (obj, modifier) => {
   _.forEach( modifier, (value, topic) => {
     const path = topicToPath(topic);
@@ -44,9 +44,9 @@ const updateObject = (obj, modifier) => {
   return obj;
 };
 
-/** given an object and a path with wildcards (* and +), *modify* the object
+/** Given an object and a path with wildcards (`*` and `+`), *modify* the object
 to only contain elements matched by the path, e.g.,
-{a: {b: 1, c: 2}, d: 2} and ['a','+'] would give {a: {b: 1, c: 2}}
+`{a: {b: 1, c: 2}, d: 2}` and `['a','+']` would give `{a: {b: 1, c: 2}}`
 
 @param {object} obj - The object to select from
 @param {array} path - An array specifying the path to select, potentially

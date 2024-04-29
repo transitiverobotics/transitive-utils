@@ -73,7 +73,7 @@ walk up the directory tree until we find a file or directory called basename
 ## getPackageVersionNamespace
 
 Get from package info the version namespace we should use, e.g.,
-{version: '1.2.3', config.versionNamespace: 'minor'} => '1.2'
+`{version: '1.2.3', config.versionNamespace: 'minor'}` => '1.2'
 
 ## randomId
 

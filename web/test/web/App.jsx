@@ -11,7 +11,6 @@ const log = getLogger('test/App');
 log.setLevel('debug');
 // loglevel.setAll('debug');
 
-// const HOSTNAME = 'homedesk.local';
 const HOSTNAME = 'localhost';
 const PORT = 8888;
 const HOST = `${HOSTNAME}:${PORT}`;
@@ -123,6 +122,15 @@ createWebComponent(Comp3, 'custom-component3', '1.2.3', {
 });
 
 /* ------------- */
+
+const JWTs = [
+  // health-monitoring
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNmcml0eiIsImRldmljZSI6ImRfZjViMWI2MmJkNCIsImNhcGFiaWxpdHkiOiJAdHJhbnNpdGl2ZS1yb2JvdGljcy9oZWFsdGgtbW9uaXRvcmluZyIsInZhbGlkaXR5Ijo4NjQwMCwiaWF0IjoxNzE0MzI4NjA0fQ.SjPfv8WEIXdnjMGTVfbdmobZ_SBfCbiFvgyF7UNOnSg',
+  // testing invalid JWT
+  // 'invalid' // not yet handled gracefully
+  // webrtc-video
+  // 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNmcml0eiIsImRldmljZSI6ImRfZjViMWI2MmJkNCIsImNhcGFiaWxpdHkiOiJAdHJhbnNpdGl2ZS1yb2JvdGljcy93ZWJydGMtdmlkZW8iLCJ2YWxpZGl0eSI6ODY0MDAsImlhdCI6MTcxNDMyOTQwN30.cTRNGMg5KgEPInHy8lNRV0E6Ogm2AKzYPCBVUCRWYE8',
+];
 
 
 export default () => {
@@ -289,6 +297,14 @@ export default () => {
         jwt='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNmcml0eiIsImRldmljZSI6ImRfZjViMWI2MmJkNCIsImNhcGFiaWxpdHkiOiJAdHJhbnNpdGl2ZS1yb2JvdGljcy90ZXJtaW5hbCIsInZhbGlkaXR5Ijo4NjQwMCwiaWF0IjoxNzE0MzIwODU3fQ.EcVVh-kepkLHrM5s5KtC83UDuSr7XLgwcedBycxYxLw'
         host={HOSTNAME} ssl={false} /> */}
 
+      { /* Render all capabilities for which we have a JWT */
+        JWTs.map((jwt, i) =>
+          <TransitiveCapability key={i} jwt={jwt} host={HOSTNAME} ssl={false} />)
+      }
+    </Section>
+
+
+    <Section title="Production Capabilities">
     </Section>
 
     The end

@@ -239,7 +239,7 @@ check whether we are subscribed to the given topic
 
 ### migrate
 
-Migrate a list of {topic, newVersion, transform}. The version number in
+Migrate a list of `{topic, newVersion, transform}`. The version number in
 topic will be ignored, and all versions' values will be merged, applied in
 order, such that the latest version is applied last.
 
@@ -425,9 +425,9 @@ convert a path array to mqtt topic; reduces +id identifiers to +
 
 ## selectFromObject
 
-given an object and a path with wildcards (\* and +), *modify* the object
+Given an object and a path with wildcards (`*` and `+`), *modify* the object
 to only contain elements matched by the path, e.g.,
-{a: {b: 1, c: 2}, d: 2} and \['a','+'] would give {a: {b: 1, c: 2}}
+`{a: {b: 1, c: 2}, d: 2}` and `['a','+']` would give `{a: {b: 1, c: 2}}`
 
 #### Parameters
 
@@ -503,8 +503,8 @@ Return the path to the removed node.
 
 ## updateObject
 
-given a modifier {"a/b/c": "xyz"} update the object `obj` such that
-obj.a.b.c = "xyz"
+Given a modifier `{"a/b/c": "xyz"}` update the object `obj` such that
+`obj.a.b.c = "xyz"`.
 
 #### Parameters
 
