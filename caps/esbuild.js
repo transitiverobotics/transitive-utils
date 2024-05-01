@@ -2,7 +2,7 @@ const esbuild = require('esbuild');
 const fs = require('fs');
 const { execSync } = require('child_process');
 
-const { getPackageVersionNamespace, clone } = require('@transitive-sdk/utils');
+const { getPackageVersionNamespace } = require('@transitive-sdk/utils');
 
 if (!process.env.npm_package_version || !process.env.npm_package_name) {
   console.error('This build script must be run from npm.');
@@ -26,7 +26,7 @@ const config = {
   sourcemap: isDevelopment,
   outdir: 'dist',
   target: ['es2022'],
-  format: 'iife',
+  format: 'iife', // will be overwritten, see `formats` below
   // splitting: true,
   // external: ['react', 'react-dom'],
   define: {
