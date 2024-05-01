@@ -2,12 +2,17 @@ const esbuild = require('esbuild');
 const fs = require('fs');
 const { execSync } = require('child_process');
 
-const { getPackageVersionNamespace } = require('@transitive-sdk/utils');
+const { getLogger, getPackageVersionNamespace } = require('@transitive-sdk/utils');
 
 if (!process.env.npm_package_version || !process.env.npm_package_name) {
   console.error('This build script must be run from npm.');
   process.exit(1);
 }
+
+const capability =
+  `${process.env.npm_package_name}@${process.env.npm_package_version}`;
+const log = getLogger(capability);
+log.setLevel('info');
 
 const entryPoints = fs.readdirSync('./web', {withFileTypes: true})
     .filter(item => !item.isDirectory())
@@ -43,7 +48,7 @@ const config = {
     name: 'rebuild-notify',
     setup(build) {
       build.onEnd(result => {
-        console.log(new Date(), build.initialOptions.format,
+        log.info(build.initialOptions.format,
           `build ended with ${result.errors.length} errors`);
 
         const dir = `/tmp/caps/${process.env.npm_package_name}`;
