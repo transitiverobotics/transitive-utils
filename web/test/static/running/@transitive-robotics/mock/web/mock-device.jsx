@@ -29,14 +29,13 @@ export const Device = (props) => {
   const {jwt, host, ssl} = props;
   const { agentStatus, topicData } = useTopics({
     jwt,
-    // topics: ['/data'],
     topics,
     host,
     ssl: JSON.parse(ssl),
   });
 
   useEffect(() => props.onData?.({clicked, topicData}), [clicked, topicData]);
-
+  log.debug({props});
 
   return <div style={styles.wrapper}>Mock-Device
     <pre>

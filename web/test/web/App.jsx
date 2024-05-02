@@ -124,12 +124,7 @@ createWebComponent(Comp3, 'custom-component3', '1.2.3', {
 /* ------------- */
 
 const JWTs = [
-  // health-monitoring
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNmcml0eiIsImRldmljZSI6ImRfZjViMWI2MmJkNCIsImNhcGFiaWxpdHkiOiJAdHJhbnNpdGl2ZS1yb2JvdGljcy9oZWFsdGgtbW9uaXRvcmluZyIsInZhbGlkaXR5Ijo4NjQwMCwiaWF0IjoxNzE0MzI4NjA0fQ.SjPfv8WEIXdnjMGTVfbdmobZ_SBfCbiFvgyF7UNOnSg',
-  // testing invalid JWT
-  // 'invalid' // not yet handled gracefully
-  // webrtc-video
-  // 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNmcml0eiIsImRldmljZSI6ImRfZjViMWI2MmJkNCIsImNhcGFiaWxpdHkiOiJAdHJhbnNpdGl2ZS1yb2JvdGljcy93ZWJydGMtdmlkZW8iLCJ2YWxpZGl0eSI6ODY0MDAsImlhdCI6MTcxNDMyOTQwN30.cTRNGMg5KgEPInHy8lNRV0E6Ogm2AKzYPCBVUCRWYE8',
+  // put JWTs here to render using TransitiveCapability
 ];
 
 
@@ -193,7 +188,6 @@ export default () => {
     name: 'mock-device',
     userId: 'cfritz',
     deviceId: 'd_f5b1b62bd4',
-    testing: true,
     host: HOST,
     ssl: false,
   });
@@ -269,7 +263,7 @@ export default () => {
         />}
 
       2, TransitiveCapability:
-      <TransitiveCapability jwt={jwt} testing={true} myconfig={123}
+      <TransitiveCapability jwt={jwt} myconfig={123}
         host={HOST} ssl={false}
         onclick2={() => { log.debug('clicked2!!!'); }}
         onData={setDynData2}
@@ -277,7 +271,7 @@ export default () => {
       {dynData2 && <pre>dynData2: {JSON.stringify(dynData2, true, 2)}</pre>}
 
       3, TransitiveCapability:
-      <TransitiveCapability jwt={jwt} testing={true} myconfig={123}
+      <TransitiveCapability jwt={jwt} myconfig={123}
         host={HOST} ssl={false}
         onclick2={() => { log.debug('clicked3!!!'); }}
         onData={setDynData3}
@@ -286,16 +280,13 @@ export default () => {
 
       4, TransitiveCapability: click 3's button four time!
       {dynData3?.clicked > 3 &&
-          <TransitiveCapability jwt={jwt} testing={true} myconfig={123}
+          <TransitiveCapability jwt={jwt} myconfig={123}
             host={HOST} ssl={false}
             onclick2={() => { log.debug('clicked4!!!'); }}
+            someData={{a: 1, b: 2}}
+            anArray={[1,2,3,5,8,13,21]}
             />
       }
-
-      {/* Terminal */
-      /* <TransitiveCapability
-        jwt='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNmcml0eiIsImRldmljZSI6ImRfZjViMWI2MmJkNCIsImNhcGFiaWxpdHkiOiJAdHJhbnNpdGl2ZS1yb2JvdGljcy90ZXJtaW5hbCIsInZhbGlkaXR5Ijo4NjQwMCwiaWF0IjoxNzE0MzIwODU3fQ.EcVVh-kepkLHrM5s5KtC83UDuSr7XLgwcedBycxYxLw'
-        host={HOSTNAME} ssl={false} /> */}
 
       { /* Render all capabilities for which we have a JWT */
         JWTs.map((jwt, i) =>

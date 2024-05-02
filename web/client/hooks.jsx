@@ -182,7 +182,7 @@ this hook also returns any functions and objects the component exports in
 ```
 */
 export const useCapability = ({ capability, name, userId, deviceId,
-    host = 'transitiverobotics.com', ssl = true, testing = false
+    host = 'transitiverobotics.com', ssl = true
   }) => {
 
     const [returns, setReturns] = useState({ loaded: false });
@@ -210,8 +210,7 @@ export const useCapability = ({ capability, name, userId, deviceId,
         }
         listeners[name] = [done];
 
-        const baseUrl = testing ? '' : // for testing
-          `http${ssl ? 's' : ''}://portal.${host}`;
+        const baseUrl = `http${ssl ? 's' : ''}://portal.${host}`;
         const params = new URLSearchParams({userId, deviceId});
         // filename without extension as we'll try multiple
         const fileBasename = `${baseUrl}/running/${capability}/dist/${name}`;

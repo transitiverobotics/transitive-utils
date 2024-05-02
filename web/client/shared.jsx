@@ -117,9 +117,9 @@ export const Timer = ({duration, onTimeout, onStart, setOnDisconnect, children})
      />
  ```
 */
-export const TransitiveCapability = ({jwt, ssl = true,
-    host = 'transitiverobotics.com', testing = false,
-    ...config }) => {
+export const TransitiveCapability = ({
+    jwt, host = 'transitiverobotics.com', ssl = true, ...config
+  }) => {
 
     const {id, device, capability} = decodeJWT(jwt);
     const type = device == '_fleet' ? 'fleet' : 'device';
@@ -131,20 +131,25 @@ export const TransitiveCapability = ({jwt, ssl = true,
       name,
       userId: id || config.userId, // accept both id and userId, see #492
       deviceId: device,
-      testing,
       host,
       ssl
     });
 
     const ref = useRef();
-    // Attach functional and object properties to the component when ready
+    // Attach functional and object properties to the component when ready and
+    // on change
     useEffect(() => {
-      ref.current?.instance?.setState(s =>
+        ref.current?.instance?.setState(s =>
           ({ ...s, id, jwt, host, ssl, ...config }));
-    }, [ref.current]);
+      }, [ref.current, id, jwt, host, ssl, ...Object.values(config)]);
+
+    // Disrupt the reactive chain of the MutationObserver to the customElement,
+    // so we are not competing with it for updating the props.
+    const propClone = useMemo(() => ({id, jwt, host, ssl, ...config}), []);
 
     if (!loaded) return <div>Loading {name}</div>;
-    return React.createElement(name, {id, jwt, host, ssl, ...config, ref});
+    // return React.createElement(name, {id, jwt, host, ssl, ...config, ref});
+    return React.createElement(name, {...propClone, ref});
   };
 
 
@@ -211,12 +216,12 @@ export const createWebComponent = (Component, name, version = '0.0.0',
       webComponentConstructed(instance) {
         // Observe all changes to attributes and update React state from it
         const observer = new MutationObserver((mutationRecords) => {
-          const update = {};
-          mutationRecords.forEach(({attributeName}) => {
-            update[attributeName] = instance.getAttribute(attributeName);
-          });
-          this.setState(old => ({...old, ...update}));
-        }).observe(instance, { attributes: true });
+            const update = {};
+            mutationRecords.forEach(({attributeName}) => {
+              update[attributeName] = instance.getAttribute(attributeName);
+            });
+            this.setState(old => ({...old, ...update}));
+          }).observe(instance, { attributes: true });
       }
 
       webComponentDisconnected() {
