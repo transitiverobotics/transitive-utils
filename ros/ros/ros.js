@@ -54,7 +54,7 @@ class ROS {
     return topics;
   }
 
-  /** Get all topic of a given type or all topics ifno type is specified */
+  /** Get all topic of a given type or all topics if no type is specified */
   async getTopics(type = undefined) {
     const topics = await this.getTopicsWithTypes(type);
     return topics.map(t => t.name);

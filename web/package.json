@@ -19,7 +19,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "browser": "dist/utils-web.js",
+  "main": "dist/utils-web.js",
   "scripts": {
     "prepare": "node esbuild.js && cd css && npx cleancss -o bootstrap_transitive-bs-root.min.css bootstrap_transitive-bs-root.css",
     "prepack": "cat ../docs.js | node --input-type=module - client",
