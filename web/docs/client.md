@@ -138,9 +138,8 @@ onclick={() => { console.log('custom click handler'); }}
 *   `$0` **[Object][1]**&#x20;
 
     *   `$0.jwt` &#x20;
-    *   `$0.ssl`   (optional, default `true`)
     *   `$0.host`   (optional, default `'transitiverobotics.com'`)
-    *   `$0.testing`   (optional, default `false`)
+    *   `$0.ssl`   (optional, default `true`)
     *   `$0.config` **...any**&#x20;
 
 ## useCapability
@@ -168,7 +167,6 @@ deviceId: 'd_mydevice123',
     *   `$0.deviceId` &#x20;
     *   `$0.host`   (optional, default `'transitiverobotics.com'`)
     *   `$0.ssl`   (optional, default `true`)
-    *   `$0.testing`   (optional, default `false`)
 
 ## useMqttSync
 
