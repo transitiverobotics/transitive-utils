@@ -35,7 +35,7 @@ export const Device = (props) => {
   });
 
   useEffect(() => props.onData?.({clicked, topicData}), [clicked, topicData]);
-  log.debug({props});
+  // log.debug({props});
 
   return <div style={styles.wrapper}>Mock-Device
     <pre>

@@ -146,7 +146,7 @@ class MqttSync {
 
     this.mqtt.subscribe(HEARTBEAT_TOPIC, {rap: true}, (err, granted) => {
       log.debug(HEARTBEAT_TOPIC, {granted});
-      granted.length > 0 && onHeartbeatGranted?.();
+      granted && granted.length > 0 && onHeartbeatGranted?.();
     });
 
     migrate?.length > 0 && this.migrate(migrate, () => {
