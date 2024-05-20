@@ -10,15 +10,17 @@ log.setLevel('info');
 log.setLevel('debug'); // #DEBUG
 
 /** Hook for using MqttSync in React.
- @returns {object} An object `{data, mqttSync, ready, StatusComponent, status}`
-where:
- `data` is a reactive data source in React containing all the data received by
-mqttsync,
- `mqttSync` is the MqttSync object itself,
- `ready` indicates when mqttSync is ready to be used (connected and received
- successfully subscribed to mqtt system heartbeats)
- */
-export const useMqttSync = ({jwt, id, mqttUrl}) => {
+* @returns {object} An object `{data, mqttSync, ready, StatusComponent, status}`
+* where:
+* `data` is a reactive data source in React containing all the data received by
+* mqttsync,
+* `mqttSync` is the MqttSync object itself,
+* `ready` indicates when mqttSync is ready to be used (connected and received
+* successfully subscribed to mqtt system heartbeats)
+*/
+export const useMqttSync = ({jwt, id, mqttUrl, appReact}) => {
+  const { useState, useRef, useEffect } = appReact || React;
+
   const [status, setStatus] = useState('connecting');
   const [mqttSync, setMqttSync] = useState();
   const [data, setData] = useState({});
@@ -74,49 +76,53 @@ export const useMqttSync = ({jwt, id, mqttUrl}) => {
 };
 
 /** Hook for using Transitive in React. Connects to MQTT, establishes sync, and
-exposes reactive `data` state variable. */
-export const useTransitive = ({jwt, id, host, ssl, capability, versionNS}) => {
+* exposes reactive `data` state variable. */
+export const useTransitive =
+  ({jwt, id, host, ssl, capability, versionNS, appReact}) => {
 
-  const [scope, capabilityName] = capability.split('/');
+    const [scope, capabilityName] = capability.split('/');
 
-  const { device } = decodeJWT(jwt);
-  const prefixPath = [id, device, scope, capabilityName];
-  const prefix = pathToTopic(prefixPath);
-  const prefixPathVersion = [...prefixPath, versionNS];
-  const prefixVersion = pathToTopic(prefixPathVersion);
+    const { device } = decodeJWT(jwt);
+    const prefixPath = [id, device, scope, capabilityName];
+    const prefix = pathToTopic(prefixPath);
+    const prefixPathVersion = [...prefixPath, versionNS];
+    const prefixVersion = pathToTopic(prefixPathVersion);
 
-  const mqttUrl = `${ssl && JSON.parse(ssl) ? 'wss' : 'ws'}://mqtt.${host}`;
-  const fromMqttSync = useMqttSync({ jwt, id, mqttUrl });
+    const mqttUrl = `${ssl && JSON.parse(ssl) ? 'wss' : 'ws'}://mqtt.${host}`;
+    const fromMqttSync = useMqttSync({ jwt, id, mqttUrl, appReact });
 
-  return {...fromMqttSync, device, prefixPath, prefix, prefixPathVersion,
-    prefixVersion};
-};
+    return {...fromMqttSync, device, prefixPath, prefix, prefixPathVersion,
+      prefixVersion};
+  };
 
 
 /** Subscribe to MqttSync topics using the provided JWT. This will
-automatically find which version of the capability named in the JWT is running
-on the device of the JWT and get the data for that version.
-
-Example usage (with webrtc-video):
-
-```js
-  const { agentStatus, topicData } = useTopics({ jwt, topics: [
-    '/options/videoSource',
-    '/stats/+/log/'
-  ]});
-```
-
-@param {object} options An object containing:
-`JWT`: A list of subtopics of the capability named in the JWT.
- `topics`: A list of subtopics of the capability named in the JWT.
-@returns {object} An object `{data, mqttSync, ready, agentStatus, topicData}`
-where:
- * `agentStatus` is the `status` field of the running robot agent, including
-heartbeat and runningPackages, and
- * `topicData` is the data for the selected topics of the capability
+* automatically find which version of the capability named in the JWT is running
+* on the device of the JWT and get the data for that version.
+*
+* Example usage (with webrtc-video):
+*
+* ```js
+*   const { agentStatus, topicData } = useTopics({ jwt, topics: [
+*     '/options/videoSource',
+*     '/stats/+/log/'
+*   ]});
+* ```
+*
+* @param {object} options An object containing:
+* `JWT`: A list of subtopics of the capability named in the JWT.
+*  `topics`: A list of subtopics of the capability named in the JWT.
+* @returns {object} An object `{data, mqttSync, ready, agentStatus, topicData}`
+* where:
+*  `agentStatus` is the `status` field of the running robot agent, including
+* heartbeat and runningPackages, and
+*  `topicData` is the data for the selected topics of the capability
 */
 export const useTopics = ({jwt, host = 'transitiverobotics.com', ssl = true,
-    topics = []}) => {
+    topics = [], appReact}) => {
+
+    log.debug({appReact});
+    const { useState, useEffect } = appReact || React;
 
     // We need to make sure we don't resubscribe (below) when this function
     // is called with the same content of `topics` but a different object.
@@ -132,7 +138,7 @@ export const useTopics = ({jwt, host = 'transitiverobotics.com', ssl = true,
     const agentPrefix = `/${id}/${device}/@transitive-robotics/_robot-agent/+/status`;
 
     const {mqttSync, data, status, ready, StatusComponent} =
-      useMqttSync({jwt, id, mqttUrl: `ws${ssl ? 's' : ''}://mqtt.${host}`});
+      useMqttSync({jwt, id, mqttUrl: `ws${ssl ? 's' : ''}://mqtt.${host}`, appReact});
 
     useEffect(() => {
         if (ready) {
@@ -170,20 +176,21 @@ export const useTopics = ({jwt, host = 'transitiverobotics.com', ssl = true,
 const listeners = {};
 const loadedModules = {};
 /** Hook to load a Transitive capability. Besides loading the custom element,
-this hook also returns any functions and objects the component exports in
-`loadedModule`. Example:
-```js
-  const {loaded, loadedModule} = useCapability({
-    capability: '@transitive-robotics/terminal',
-    name: 'mock-device',
-    userId: 'user123',
-    deviceId: 'd_mydevice123',
-  });
-```
+* this hook also returns any functions and objects the component exports in
+* `loadedModule`. Example:
+* ```js
+*   const {loaded, loadedModule} = useCapability({
+*     capability: '@transitive-robotics/terminal',
+*     name: 'mock-device',
+*     userId: 'user123',
+*     deviceId: 'd_mydevice123',
+*   });
+* ```
 */
 export const useCapability = ({ capability, name, userId, deviceId,
-    host = 'transitiverobotics.com', ssl = true
+    host = 'transitiverobotics.com', ssl = true, appReact
   }) => {
+    const { useState, useEffect } = appReact || React;
 
     const [returns, setReturns] = useState({ loaded: false });
 
@@ -206,7 +213,8 @@ export const useCapability = ({ capability, name, userId, deviceId,
         if (listeners[name]) {
           log.debug('already loading');
           // get notified when loading completes
-          return listeners[name].push(done);
+          listeners[name].push(done);
+          return;
         }
         listeners[name] = [done];
 
@@ -215,15 +223,22 @@ export const useCapability = ({ capability, name, userId, deviceId,
         // filename without extension as we'll try multiple
         const fileBasename = `${baseUrl}/running/${capability}/dist/${name}`;
 
-        import(`${fileBasename}.esm.js?${params.toString()}`).then(
-          esm => notifyListeners('loaded esm', esm),
-          error => {
-            log.warn(`No ESM module found for ${name}, loading iife`);
-            import(`${fileBasename}.js?${params.toString()}`).then(
-              iife => notifyListeners('loaded iife', iife),
-              error => log.error(`Failed to load ${name} iife`, error));
-          });
+        /* Since some users use webpack and webpack is stupid, we need to use
+        this magic comment for it to ignore these (remote) requests, see:
+        https://webpack.js.org/api/module-methods/#webpackignore. */
+        import(/* webpackIgnore: true */
+          `${fileBasename}.esm.js?${params.toString()}`).then(
+            esm => notifyListeners('loaded esm', esm),
+            error => {
+              log.warn(`No ESM module found for ${name}, loading iife`, error);
+              import(/* webpackIgnore: true */
+                `${fileBasename}.js?${params.toString()}`).then(
+                  iife => notifyListeners('loaded iife', iife),
+                  error => log.error(`Failed to load ${name} iife`, error));
+            });
       }, [capability, name, userId, deviceId]);
 
     return returns;
   };
+
+

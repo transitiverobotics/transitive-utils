@@ -56,14 +56,51 @@ createWebComponent(Device, `${capabilityName}-device`, ['jwt']);
 A simple error boundary. Usage:
 
 ```jsx
-<ErrorBoundary message="Something went wrong">
-<SomeFlakyComponent />
-</ErrorBoundary>
+ <ErrorBoundary message="Something went wrong">
+   <SomeFlakyComponent />
+ </ErrorBoundary>
 ```
 
 #### Parameters
 
 *   `props` &#x20;
+
+## CapabilityContextProvider
+
+Context provider for capabilities. Use this to access the front-end API
+provided by some capabilities. Example:
+
+```jsx
+ <CapabilityContextProvider jwt={jwt}>
+   <MyROSComponent />
+ </CapabilityContextProvider>
+```
+
+where `jwt` is a JWT for a capability that exposes a front-end API. Then use
+`useContext` in `MyROSComponent` to get the exposed data and functions, e.g.:
+
+```jsx
+const MyROSComponent = () => {
+  const { ready, subscribe, data } = useContext(CapabilityContext);
+  // When ready, subscribe to the `/odom` topic in ROS1
+  useEffect(() => { ready && subscribe(1, '/odom'); }, [ready]);
+  return <pre>{JSON.stringify(data, true, 2)}</pre>;
+}
+```
+
+Where `ready`, `subscribe`, and `data` are reactive variables and functions
+exposed by the capability of the provided JWT. In this example, the latest
+message from the subscribed ROS topics will be available in the capabilities
+namespace in `data`.
+
+#### Parameters
+
+*   `props` **[object][1]**&#x20;
+
+    *   `props.children` &#x20;
+    *   `props.jwt` &#x20;
+    *   `props.host`   (optional, default `undefined`)
+    *   `props.ssl`   (optional, default `undefined`)
 
 ## Code
 
@@ -125,12 +162,12 @@ and object properties, which get lost when using the custom element (Web
 Component) because HTML attributes are strings.
 Example:
 
-```js
-<TransitiveCapability jwt={jwt}
-myconfig={{a: 1, b: 2}}
-onData={(data) => setData(data)}
-onclick={() => { console.log('custom click handler'); }}
-/>
+```jsx
+  <TransitiveCapability jwt={jwt}
+    myconfig={{a: 1, b: 2}}
+    onData={(data) => setData(data)}
+    onclick={() => { console.log('custom click handler'); }}
+  />
 ```
 
 #### Parameters
@@ -149,12 +186,12 @@ this hook also returns any functions and objects the component exports in
 `loadedModule`. Example:
 
 ```js
-const {loaded, loadedModule} = useCapability({
-capability: '@transitive-robotics/terminal',
-name: 'mock-device',
-userId: 'user123',
-deviceId: 'd_mydevice123',
-});
+  const {loaded, loadedModule} = useCapability({
+    capability: '@transitive-robotics/terminal',
+    name: 'mock-device',
+    userId: 'user123',
+    deviceId: 'd_mydevice123',
+  });
 ```
 
 #### Parameters
@@ -167,6 +204,7 @@ deviceId: 'd_mydevice123',
     *   `$0.deviceId` &#x20;
     *   `$0.host`   (optional, default `'transitiverobotics.com'`)
     *   `$0.ssl`   (optional, default `true`)
+    *   `$0.appReact` &#x20;
 
 ## useMqttSync
 
@@ -179,6 +217,7 @@ Hook for using MqttSync in React.
     *   `$0.jwt` &#x20;
     *   `$0.id` &#x20;
     *   `$0.mqttUrl` &#x20;
+    *   `$0.appReact` &#x20;
 
 Returns **[object][1]** An object `{data, mqttSync, ready, StatusComponent, status}`
 where:
@@ -197,10 +236,10 @@ on the device of the JWT and get the data for that version.
 Example usage (with webrtc-video):
 
 ```js
-const { agentStatus, topicData } = useTopics({ jwt, topics: [
-'/options/videoSource',
-'/stats/+/log/'
-]});
+  const { agentStatus, topicData } = useTopics({ jwt, topics: [
+    '/options/videoSource',
+    '/stats/+/log/'
+  ]});
 ```
 
 #### Parameters
@@ -213,6 +252,7 @@ const { agentStatus, topicData } = useTopics({ jwt, topics: [
     *   `options.host`   (optional, default `'transitiverobotics.com'`)
     *   `options.ssl`   (optional, default `true`)
     *   `options.topics`   (optional, default `[]`)
+    *   `options.appReact` &#x20;
 
 Returns **[object][1]** An object `{data, mqttSync, ready, agentStatus, topicData}`
 where:
@@ -235,5 +275,6 @@ exposes reactive `data` state variable.
     *   `$0.ssl` &#x20;
     *   `$0.capability` &#x20;
     *   `$0.versionNS` &#x20;
+    *   `$0.appReact` &#x20;
 
 [1]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object

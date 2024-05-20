@@ -105,17 +105,17 @@ export const Timer = ({duration, onTimeout, onStart, setOnDisconnect, children})
 
 
 /** Dynamically load and use the Transitive web component specified in the JWT.
- * Embedding Transitive components this way also enables the use of functional
- * and object properties, which get lost when using the custom element (Web
- * Component) because HTML attributes are strings.
- * Example:
- ```js
-   <TransitiveCapability jwt={jwt}
-     myconfig={{a: 1, b: 2}}
-     onData={(data) => setData(data)}
-     onclick={() => { console.log('custom click handler'); }}
-     />
- ```
+* Embedding Transitive components this way also enables the use of functional
+* and object properties, which get lost when using the custom element (Web
+* Component) because HTML attributes are strings.
+* Example:
+* ```jsx
+*   <TransitiveCapability jwt={jwt}
+*     myconfig={{a: 1, b: 2}}
+*     onData={(data) => setData(data)}
+*     onclick={() => { console.log('custom click handler'); }}
+*   />
+* ```
 */
 export const TransitiveCapability = ({
     jwt, host = 'transitiverobotics.com', ssl = true, ...config
@@ -154,11 +154,11 @@ export const TransitiveCapability = ({
 
 
 /** A simple error boundary. Usage:
-```jsx
- <ErrorBoundary message="Something went wrong">
-   <SomeFlakyComponent />
- </ErrorBoundary>
-```
+* ```jsx
+*  <ErrorBoundary message="Something went wrong">
+*    <SomeFlakyComponent />
+*  </ErrorBoundary>
+* ```
 */
 export class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -182,6 +182,70 @@ export class ErrorBoundary extends React.Component {
 };
 
 
+export const CapabilityContext = React.createContext({});
+
+/* Only used internally: the actual context provider, given the loaded module */
+const LoadedCapabilityContextProvider = (props) => {
+  const {children, jwt, id, host, ssl, loadedModule} = props;
+
+  const context = loadedModule.provideContext?.({
+    jwt, id, host, ssl, appReact: React
+  });
+
+  return <CapabilityContext.Provider value={{ ...context }}>
+    {children}
+  </CapabilityContext.Provider>;
+};
+
+/**
+* Context provider for capabilities. Use this to access the front-end API
+* provided by some capabilities. Example:
+* ```jsx
+*  <CapabilityContextProvider jwt={jwt}>
+*    <MyROSComponent />
+*  </CapabilityContextProvider>
+* ```
+* where `jwt` is a JWT for a capability that exposes a front-end API. Then use
+* `useContext` in `MyROSComponent` to get the exposed data and functions, e.g.:
+* ```jsx
+* const MyROSComponent = () => {
+*   const { ready, subscribe, data } = useContext(CapabilityContext);
+*   // When ready, subscribe to the `/odom` topic in ROS1
+*   useEffect(() => { ready && subscribe(1, '/odom'); }, [ready]);
+*   return <pre>{JSON.stringify(data, true, 2)}</pre>;
+* }
+* ```
+* Where `ready`, `subscribe`, and `data` are reactive variables and functions
+* exposed by the capability of the provided JWT. In this example, the latest
+* message from the subscribed ROS topics will be available in the capabilities
+* namespace in `data`.
+* @param {object} props
+*/
+export const CapabilityContextProvider =
+  ({children, jwt, host = undefined, ssl = undefined}) => {
+
+    const {id, device, capability} = decodeJWT(jwt);
+    const type = device == '_fleet' ? 'fleet' : 'device';
+    const capName = capability.split('/')[1];
+    const name = `${capName}-${type}`;
+
+    const {loaded, loadedModule} = useCapability({
+      capability,
+      name,
+      userId: id,
+      deviceId: device,
+      appReact: React,
+      host,
+      ssl
+    });
+
+    if (!loadedModule) return <div>Loading {capability}</div>;
+    return <LoadedCapabilityContextProvider {...{jwt, id, host, ssl, loadedModule}}>
+      {children}
+    </LoadedCapabilityContextProvider>;
+  };
+
+
 /* whether or not the given react component allows refs, i.e., is either
  * a functional component wrapped with forwardRef or a class component */
 const componentPermitsRefs = (Component) =>
@@ -190,10 +254,10 @@ const componentPermitsRefs = (Component) =>
 
 
 /** Create a WebComponent from the given react component and name that is
-    reactive to all attributes. Used in web capabilities. Example:
-```js
-    createWebComponent(Diagnostics, 'health-monitoring-device', TR_PKG_VERSION);
-```
+* reactive to all attributes. Used in web capabilities. Example:
+* ```js
+* createWebComponent(Diagnostics, 'health-monitoring-device', TR_PKG_VERSION);
+* ```
 */
 export const createWebComponent = (Component, name, version = '0.0.0',
     options = {}) => {

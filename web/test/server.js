@@ -109,8 +109,8 @@ const startServer = () => {
       Array(1000).fill(1).map((ignore, i) => [`id${i}`, {i, randomData}])));
 
   });
-  mqttClient.on('message', (topic, value) =>
-    log.debug(topic, value == null ? null : value.toString().slice(0,80)));
+  // mqttClient.on('message', (topic, value) =>
+  //   log.debug(topic, value == null ? null : value.toString().slice(0,80)));
 
   log.debug(`open http://localhost:${port}`);
 };

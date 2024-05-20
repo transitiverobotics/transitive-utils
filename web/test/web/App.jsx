@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useContext, useRef,
     forwardRef, useImperativeHandle, Suspense }
   from 'react';
+// window.React = React;
+import ReactDOM from 'react-dom';
 
 import { Badge, Button, OverlayTrigger, Popover } from 'react-bootstrap';
 
@@ -121,12 +123,32 @@ createWebComponent(Comp3, 'custom-component3', '1.2.3', {
   shadowDOM: true
 });
 
+
+
 /* ------------- */
 
 const JWTs = [
   // put JWTs here to render using TransitiveCapability
 ];
 
+const SimpleFunctional = () => {
+  const [clicked, setClicked] = useState(0);
+  return <div>
+    SimpleFunctional
+    <button onClick={() => setClicked(c => c+1)}>
+      clicked {clicked}
+    </button>
+  </div>;
+}
+
+const ClassWithFunctional = class extends React.Component {
+  render() {
+    return <div>
+      RFunction2
+      <SimpleFunctional />
+    </div>;
+  }
+};
 
 export default () => {
   const [count, setCount] = useState(0);
@@ -193,6 +215,11 @@ export default () => {
   });
 
   loadedModule?.doSomething?.(1,2,3); // only works with ESM
+  const RClass = loadedModule?.RClass;
+  const RFunction = loadedModule?.RFunction;
+  const Device = loadedModule?.default;
+
+  // log.debug({loadedModule});
 
   if (!mqttSync || !ready) {
     return <div>Connecting...</div>;
@@ -292,6 +319,20 @@ export default () => {
         JWTs.map((jwt, i) =>
           <TransitiveCapability key={i} jwt={jwt} host={HOSTNAME} ssl={false} />)
       }
+
+      { RClass && <RClass /> }
+      { RFunction && <RFunction myReact={React} /> }
+      { ClassWithFunctional && <ClassWithFunctional /> }
+      { Device && <Device appReact={React}
+          jwt={jwt}
+          myconfig={'default123'}
+          host={HOST}
+          ssl={false}
+          onclick2={() => { log.debug('clicked Device!!!'); }}
+          someData={{a: 1, b: 2}}
+          anArray={[1,2,3,5,8,13,21]}
+          /> }
+
     </Section>
 
 

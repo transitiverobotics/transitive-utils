@@ -19,9 +19,57 @@ const styles = {
 /** simple example exported function */
 export const doSomething = (...args) => {
   log.debug('doing something', ...args);
+  // NOTE: cannot use hooks here! This doesn't work, will through Invalid hook
+  // call error
+  // const [state, setState] = useState(123);
+  // setState(s => s + 1);
 };
 
-export const Device = (props) => {
+/** This works!! No "Invalid Hook call" error from using this */
+export class RClass extends React.Component {
+
+  state = {counter: 0};
+
+  componentDidMount() {
+    this.setState({counter: 100});
+  }
+
+  doit() {
+    this.setState(s => ({...s, counter: s.counter + 1}));
+  }
+
+  render() {
+    return <div>
+      RClass
+      <button onClick={this.doit.bind(this)}>clicked {this.state.counter}</button>
+    </div>;
+  }
+};
+
+/* Crazy way to make hooks work in functional components like this that are
+dynamically imported into a different React application: give React (hook
+functions) to it dynamically. This "hydrates" the used React functions with
+the ones provided by the using application. */
+export function RFunction({myReact}) {
+  const { useState, useRef, useEffect } = myReact;
+
+  const [clicked, setClicked] = useState(0);
+  useEffect(() => {
+      setClicked(200);
+    }, []);
+
+  return <div>
+    RFunction
+    <button onClick={() => setClicked(c => c+1)}>
+      clicked {clicked}
+    </button>
+  </div>;
+};
+
+
+const Device = (props) => {
+  const appReact = props.appReact || React;
+  const { useState, useRef, useEffect } = appReact;
 
   const [clicked, setClicked] = useState(0);
   const [topics, setTopics] = useState(['/data']);
@@ -32,6 +80,7 @@ export const Device = (props) => {
     topics,
     host,
     ssl: JSON.parse(ssl),
+    appReact
   });
 
   useEffect(() => props.onData?.({clicked, topicData}), [clicked, topicData]);
@@ -39,10 +88,12 @@ export const Device = (props) => {
 
   return <div style={styles.wrapper}>Mock-Device
     <pre>
-      {JSON.stringify(props, true, 2)}
+      {/* {JSON.stringify(props, true, 2)} */}
+      {JSON.stringify(topicData, true, 2)}
     </pre>
     <button onClick={() => {
       setClicked(c => c + 1);
+      // dynamically change subscriptions
       setTopics(['/data', '/more']);
       props.onclick2?.();
     }}>
@@ -52,5 +103,6 @@ export const Device = (props) => {
 };
 
 log.debug('creating component');
-export const proto =
-  createWebComponent(Device, `${capabilityName}-device`, TR_PKG_VERSION);
+createWebComponent(Device, `${capabilityName}-device`, TR_PKG_VERSION);
+
+export default Device;

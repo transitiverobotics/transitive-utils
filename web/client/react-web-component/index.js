@@ -1,5 +1,6 @@
 const React = require('react');
 const ReactDOM = require('react-dom');
+// const { createRoot } = require('react-dom/client'); // react 18; wip
 const retargetEvents = require('react-shadow-dom-retarget-events');
 const getStyleElementsFromReactWebComponentStyleLoader = require('./getStyleElementsFromReactWebComponentStyleLoader');
 const extractAttributes = require('./extractAttributes');
@@ -69,6 +70,17 @@ module.exports = {
             self.callConstructorHook();
             self.callLifeCycleHook('connectedCallback');
           });
+
+        // WIP: trying to upgrade to react 18, which lacks a render callback
+        // --> See https://github.com/reactwg/react-18/discussions/5 on how to
+        // do this in react 18
+        // createRoot(mountPoint).render(
+        //   // This is where we instantiate the actual component (in its wrapper)
+        //   React.createElement(wrapper, extractAttributes(self)),
+        // );
+        // self.instance = this;
+        // self.callConstructorHook();
+        // self.callLifeCycleHook('connectedCallback');
       }
 
       disconnectedCallback() {

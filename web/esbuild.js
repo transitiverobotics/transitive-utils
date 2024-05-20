@@ -8,10 +8,10 @@ const config = {
   bundle: true,
   format: 'cjs',
   preserveSymlinks: true, // this allows us to use symlinks
-  minify: !isDevelopment,
+  // Do *NOT* minify, it would remove "magic webpack comments" that are required
+  // by users that use webpack for bundling.
+  // minify: !isDevelopment,
   sourcemap: isDevelopment,
-  // minify: true,
-  // sourcemap: false,
   target: ['chrome110', 'firefox110', 'safari15', 'edge110'],
   // target: ['es2022'],
   packages: 'external',
