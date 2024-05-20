@@ -45,24 +45,33 @@ const config = {
     // '.css': 'local-css',
   },
   plugins: [{
-    name: 'rebuild-notify',
-    setup(build) {
-      build.onEnd(result => {
-        log.info(build.initialOptions.format,
-          `build ended with ${result.errors.length} errors`);
+      /* Plugin to run tailwind and @scope the result */
+      name: 'tailwind-and-postprocess',
+      setup(build) {
+        build.onStart(() => {
+          execSync(`if (npm ls tailwindcss); then npx tailwindcss -o /tmp/tmp.css &&
+            (echo "@scope {"; cat /tmp/tmp.css; echo "}") > web/local.css; fi`);
+        })
+      }
+    }, {
+      name: 'rebuild-notify',
+      setup(build) {
+        build.onEnd(result => {
+          log.info(build.initialOptions.format,
+            `build ended with ${result.errors.length} errors`);
 
-        const dir = `/tmp/caps/${process.env.npm_package_name}`;
-        isDevelopment &&
-          execSync(`mkdir -p ${dir} && cp -r package.json dist ${dir}`);
+          const dir = `/tmp/caps/${process.env.npm_package_name}`;
+          isDevelopment &&
+            execSync(`mkdir -p ${dir} && cp -r package.json dist ${dir}`);
 
-        const metaName = [process.env.npm_package_name.replace(/\//, '-'),
-            isDevelopment ? 'dev' : 'prod'
-          ].join('.');
-        fs.writeFileSync(`/tmp/${metaName}.meta.json`,
-          JSON.stringify(result.metafile));
-      })
-    },
-  }],
+          const metaName = [process.env.npm_package_name.replace(/\//, '-'),
+              isDevelopment ? 'dev' : 'prod'
+            ].join('.');
+          fs.writeFileSync(`/tmp/${metaName}.meta.json`,
+            JSON.stringify(result.metafile));
+        })
+      },
+    }],
 };
 
 
