@@ -247,7 +247,7 @@ class MqttSync {
               this.publishAtLevel(newTopic, transformed, level);
             }
 
-            this.unsubscribe(subTopic); // TODO: ensure hash?
+            this.unsubscribe(subTopic);
             this.waitForHeartbeatOnce(() => {
               // now clear this suffix in the old version space
               const oldVersions = Object.keys(all).filter(v =>
@@ -307,7 +307,7 @@ class MqttSync {
 
     this.waitForHeartbeatOnce(() => {
       this.mqtt.removeListener('message', collectToDelete);
-      prefixes.forEach(prefix => this.mqtt.unsubscribe(`${prefix}/#`));
+      prefixes.forEach(prefix => this.mqtt.unsubscribe(prefix));
 
       const count = toDelete.length;
       log.debug(`clearing ${count} retained messages from ${prefixes}`);
@@ -367,6 +367,7 @@ class MqttSync {
   }
 
   unsubscribe(topic) {
+    topic = ensureHashSuffix(topic);
     if (this.subscribedPaths[topic]) {
       this.mqtt.unsubscribe(topic);
       delete this.subscribedPaths[topic];
