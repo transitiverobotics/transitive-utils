@@ -566,8 +566,13 @@ describe('DataCache', function() {
       });
     });
 
+    it('should not visit non-matches', function() {
+      let count = 0;
+      d.forMatch('/+first/b/c/#', (value, topic, {first}) => {
+        assert(topic[1] == 'b');
+      });
+    });
   });
-
 });
 
 
