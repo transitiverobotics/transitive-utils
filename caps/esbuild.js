@@ -57,18 +57,22 @@ const config = {
       name: 'rebuild-notify',
       setup(build) {
         build.onEnd(result => {
-          log.info(build.initialOptions.format,
-            `build ended with ${result.errors.length} errors`);
+          if (result.errors.length == 0) {
+            log.info(build.initialOptions.format, `build ended without errors`);
 
-          const dir = `/tmp/caps/${process.env.npm_package_name}`;
-          isDevelopment &&
-            execSync(`mkdir -p ${dir} && cp -r package.json dist ${dir}`);
+            const dir = `/tmp/caps/${process.env.npm_package_name}`;
+            isDevelopment &&
+              execSync(`mkdir -p ${dir} && cp -r package.json dist ${dir}`);
 
-          const metaName = [process.env.npm_package_name.replace(/\//, '-'),
-              isDevelopment ? 'dev' : 'prod'
-            ].join('.');
-          fs.writeFileSync(`/tmp/${metaName}.meta.json`,
-            JSON.stringify(result.metafile));
+            const metaName = [process.env.npm_package_name.replace(/\//, '-'),
+                isDevelopment ? 'dev' : 'prod'
+              ].join('.');
+            fs.writeFileSync(`/tmp/${metaName}.meta.json`,
+              JSON.stringify(result.metafile));
+          } else {
+            log.warn(build.initialOptions.format,
+              `build ended with ${result.errors.length} errors`);
+          }
         })
       },
     }],

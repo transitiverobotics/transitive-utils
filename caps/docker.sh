@@ -31,7 +31,7 @@ MAX_PORT=$((30080 + $OFFSET * 100))
 echo "using port offset $OFFSET, i.e., port $PORT and port range $MIN_PORT-$MAX_PORT"
 
 CAP_NAME=$(npm pkg get name)
-VERSION=$(npm pkg get version)
+VERSION=$(node -e "console.log(require('@transitive-sdk/utils').getPackageVersionNamespace())")
 FULL_NAME=${CAP_NAME/\//.}.${VERSION}
 FULL_NAME2=${FULL_NAME//\"/}
 CONTAINER_NAME=${FULL_NAME2//@/}
