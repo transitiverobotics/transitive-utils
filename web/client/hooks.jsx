@@ -35,6 +35,10 @@ export const useMqttSync = ({jwt, id, mqttUrl, appReact}) => {
       });
 
       client.on('connect', () => {
+        // if (mqttSync) {  // #WIP
+        //   log.debug('reconnected');
+        //   return;
+        // }
         log.debug('connected');
         const mqttSyncClient = new MqttSync({
           mqttClient: client,
@@ -78,7 +82,8 @@ export const useMqttSync = ({jwt, id, mqttUrl, appReact}) => {
 /** Hook for using Transitive in React. Connects to MQTT, establishes sync, and
 * exposes reactive `data` state variable. */
 export const useTransitive =
-  ({jwt, id, host, ssl, capability, versionNS, appReact}) => {
+  ({jwt, id, capability, versionNS, appReact,
+    host = 'transitiverobotics.com', ssl = true }) => {
 
     const [scope, capabilityName] = capability.split('/');
 
