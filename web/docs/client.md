@@ -271,10 +271,10 @@ exposes reactive `data` state variable.
 
     *   `$0.jwt` &#x20;
     *   `$0.id` &#x20;
-    *   `$0.host` &#x20;
-    *   `$0.ssl` &#x20;
     *   `$0.capability` &#x20;
     *   `$0.versionNS` &#x20;
     *   `$0.appReact` &#x20;
+    *   `$0.host`   (optional, default `'transitiverobotics.com'`)
+    *   `$0.ssl`   (optional, default `true`)
 
 [1]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object
