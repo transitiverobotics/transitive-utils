@@ -12,7 +12,6 @@ const log = getLogger('MqttSync');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 const specialKey = '$_'; // special key to reify "value" in publishedMessages
-const RPC_PREFIX = '_RPCv1_'; // sub topic for RPC topics
 
 const noop = () => {};
 
@@ -130,8 +129,11 @@ class MqttSync {
         }
 
         const json = mqttParsePayload(payload);
-        if (path[0] == RPC_PREFIX) {
-          this.handleRPC(path.slice(1), json);
+        if (this.rpcHandlers[topic]) {
+          this.handleRPCRequest(topic, json);
+
+        } else if (this.rpcCallbacks[topic]) {
+          this.handleRPCResponse(topic, json);
 
         } else if (this.isPublished(topic)) {
           // store plain messages, still stored in a structure, but values are
@@ -615,38 +617,24 @@ class MqttSync {
   *  Remote Procedure Calls (RPC)
   */
 
-  /* Handle RPC requests anmd responses  */
-  handleRPC(path, json) {
-    const type = path[0];
+  /* Handle RPC requests  */
+  handleRPCRequest(topic, json) {
+    log.debug('handling RPC request for', topic, json);
+    const handler = this.rpcHandlers[topic];
+    const result = handler(json.args);
 
-    if (type == 'request') {
-      const command = pathToTopic(path.slice(1));
-      log.debug('handling RPC request for', command, json);
+    const responseTopic = `${topic.replace('/request', '/response')}/${json.id}`;
+    this.mqtt.publish(responseTopic,
+      JSON.stringify({ id: json.id, result }),
+      {retain: false, qos: 2});
+  }
 
-      const handler = this.rpcHandlers[command];
-      if (!handler) {
-        log.warn('Received unknown RPC request', command);
-        return;
-      }
-      const result = handler(json.args);
-
-      const responseTopic = `/${RPC_PREFIX}/response/${json.id}`;
-      this.mqtt.publish(responseTopic,
-        JSON.stringify({ id: json.id, command, result }),
-        {retain: false, qos: 2});
-
-    } else if (type == 'response') {
-
-      const requestId = path[1];
-      log.debug('handle RPC response', requestId, json);
-      this.rpcCallbacks[requestId]?.(json.result);
-
-      delete this.rpcCallbacks[requestId];
-      this.mqtt.unsubscribe(`/${RPC_PREFIX}/response/${requestId}`);
-
-    } else {
-      log.warn('Unknown RPC type', path);
-    }
+  /* Handle RPC response  */
+  handleRPCResponse(topic, json) {
+    log.debug('handle RPC response', topic, json);
+    this.rpcCallbacks[topic](json.result);
+    delete this.rpcCallbacks[topic];
+    this.mqtt.unsubscribe(topic);
   }
 
   /** Register an RPC request handler. Example:
@@ -665,9 +653,9 @@ class MqttSync {
    */
   register(command, handler) {
     log.debug('registering RPC handler for', command);
-    this.rpcHandlers[command] = handler;
+    const requestTopic = `${command}/request`;
 
-    const requestTopic = `/${RPC_PREFIX}/request${command}`;
+    this.rpcHandlers[requestTopic] = handler;
     this.mqtt.subscribe(requestTopic, {rap: true, qos: 2}, (err, granted) => {
       if (err) {
         log.warn(`Error subscribing to RPC topic ${requestTopic}`, err);
@@ -693,7 +681,7 @@ class MqttSync {
   call(command, args, callback = undefined) {
     const id = crypto.randomUUID();
 
-    const responseTopic = `/${RPC_PREFIX}/response/${id}`;
+    const responseTopic = `${command}/response/${id}`;
     this.mqtt.subscribe(responseTopic, {rap: true, qos: 2}, (err, granted) => {
       if (err) {
         log.warn(`Error subscribing to RPC response topic ${responseTopic}`, err);
@@ -702,16 +690,16 @@ class MqttSync {
       }
     });
 
-    const requestTopic = `/${RPC_PREFIX}/request${command}`
+    const requestTopic = `${command}/request`
     log.debug('calling RPC', requestTopic);
     this.mqtt.publish(requestTopic, JSON.stringify({ id, args }),
       {retain: false, qos: 2});
 
     if (callback) {
-      this.rpcCallbacks[id] = callback;
+      this.rpcCallbacks[responseTopic] = callback;
     } else {
       return new Promise((resolve, reject) => {
-        this.rpcCallbacks[id] = resolve;
+        this.rpcCallbacks[responseTopic] = resolve;
       });
     }
   }

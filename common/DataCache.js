@@ -73,17 +73,17 @@ const selectFromObject = (obj, path) => {
 * you probably won't need to create instances of it directly. Instead use
 * the mqttSync.data instance which holds the locally stored data
 * subscribed/published from/to MQTTSync.
-For example on the robot:
-```js
-// update/publish our status:
-mqttSync.data.update('status', {changed: Date.now(), msg: 'OK'});
-// subscribe to new user requests (e.g., from UI):
-mqttSync.data.subscribePath('+user/request', (request, key, {user}) => {
-  log.debug(`user ${user} made request`, request);
-});
-```
-In the cloud or in a web component you would need to use the full topic including
-org, device, scope, cap-name, and version.
+* For example on the robot:
+* ```js
+* // update/publish our status:
+* mqttSync.data.update('status', {changed: Date.now(), msg: 'OK'});
+* // subscribe to new user requests (e.g., from UI):
+* mqttSync.data.subscribePath('+user/request', (request, key, {user}) => {
+*   log.debug(`user ${user} made request`, request);
+* });
+* ```
+* In the cloud or in a web component you would need to use the full topic including
+* org, device, scope, cap-name, and version.
 */
 class DataCache {
 
