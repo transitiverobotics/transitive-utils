@@ -297,6 +297,19 @@ const mqttClearRetained = (mqttClient, prefixes, callback, delay = 1000) => {
     }, delay);
 };
 
+
+// WIP: a cleaner, more explicit way to serialize/deserialize mqtt payloads
+// /** Serialize a message for transport via MQTT */
+// const mqttSerialize = (message) => {
+//   return value == null ? null : JSON.stringify(message);
+// };
+
+// /** Deserialize a message from MQTT */
+// const mqttDeserialize = (payload) => {
+//   return payload.length == 0 ? null : JSON.parse(payload.toString('utf-8'));
+// };
+
+
 // -------------------------------------------------------------------------
 
 const getRandomId = () => Math.random().toString(36).slice(2);

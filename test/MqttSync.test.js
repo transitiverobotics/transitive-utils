@@ -11,7 +11,7 @@ const loglevel = require('loglevel');
 // log.getLogger('MqttSync.js').setLevel('debug');
 const log = getLogger('test');
 // loglevel.setAll('debug');
-loglevel.setAll('info');
+// loglevel.setAll('info');
 log.setLevel('debug');
 
 const port = 9900;
@@ -910,5 +910,46 @@ describe('MqttSync', function() {
         }, 100);
       // inSync(clientA, clientB, done);
     });
+  });
+
+  describe('RPCs', function() {
+    const command = '/command1';
+    const command2 = '/commands/subcom1/mycommand2';
+
+    it('send simple RPC', function(done) {
+      clientA.register(command, arg => arg * arg);
+
+      setTimeout(() => {
+          clientB.call(command, 11, (result) => {
+            assert.equal(result, 121);
+            done();
+          })
+        }, 10);
+    });
+
+    it('send simple RPC, await', async function() {
+      clientA.register(command, arg => arg * arg * arg);
+
+      await wait(10);
+      const result = await clientB.call(command, 3);
+      assert.equal(result, 27);
+    });
+
+    it('send multiple RPCs, await', async function() {
+      clientA.register(command, arg => arg * arg * arg);
+      await wait(10);
+
+      assert.equal(await clientB.call(command, 2), 8);
+      assert.equal(await clientB.call(command, 3), 27);
+      assert.equal(await clientB.call(command, 4), 64);
+    });
+
+    it('send complex path RPC, await', async function() {
+      clientA.register(command2, arg => arg * arg);
+
+      await wait(10);
+      assert.equal(await clientB.call(command2, 2), 4);
+    });
+
   });
 });

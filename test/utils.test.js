@@ -906,23 +906,25 @@ describe('Mongo', function() {
 
 /* just visually check */
 describe('logger', function() {
-  log.setLevel('trace');
-  log.error('this is error');
-  log.warn('this is warn');
-  log.info('this is info');
-  log.debug('this is debug');
-  log.trace('this is trace');
-  log.setLevel('info');
+  it('prints logger output', function() {
+    log.setLevel('trace');
+    log.error('this is error');
+    log.warn('this is warn');
+    log.info('this is info');
+    log.debug('this is debug');
+    log.trace('this is trace');
+    log.setLevel('info');
 
-  const log2 = getLogger('logger2');
-  log2.setLevel('debug');
-  log2.error('this is error');
-  log2.warn('this is warn');
-  log2.info('this is info');
-  log2.debug('this is debug');
-  log2.setLevel('info');
+    const log2 = getLogger('logger2');
+    log2.setLevel('debug');
+    log2.error('this is error');
+    log2.warn('this is warn');
+    log2.info('this is info');
+    log2.debug('this is debug');
+    log2.setLevel('info');
 
-  log.info('done');
+    log.info('done');
+  });
 });
 
 describe('fetchURL', function() {
