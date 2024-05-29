@@ -618,15 +618,22 @@ class MqttSync {
   */
 
   /* Handle RPC requests  */
-  handleRPCRequest(topic, json) {
+  async handleRPCRequest(topic, json) {
     log.debug('handling RPC request for', topic, json);
     const handler = this.rpcHandlers[topic];
     const result = handler(json.args);
 
     const responseTopic = `${topic.replace('/request', '/response')}/${json.id}`;
-    this.mqtt.publish(responseTopic,
-      JSON.stringify({ id: json.id, result }),
-      {retain: false, qos: 2});
+
+    if (result instanceof Promise) {
+      result.then( resultValue => this.mqtt.publish(responseTopic,
+        JSON.stringify({ id: json.id, result: resultValue }),
+        {retain: false, qos: 2}));
+    } else {
+      this.mqtt.publish(responseTopic,
+        JSON.stringify({ id: json.id, result }),
+        {retain: false, qos: 2});
+    }
   }
 
   /* Handle RPC response  */
@@ -639,8 +646,8 @@ class MqttSync {
 
   /** Register an RPC request handler. Example:
    * ```js
-   * mqttSync.register('/mycommand', arg => {
-   *   log.debug('running /mycommand with args', arg);
+   * mqttSync.register('/mySquare', arg => {
+   *   log.debug('running /mySquare with args', arg);
    *   return arg * arg;
    * });
    * ```
@@ -650,6 +657,11 @@ class MqttSync {
    * topics in their respective namespace. In the cloud and on the web you will
    * need to use the respective namespace, i.e.,
    * `/orgId/deviceId/@scope/capName/capVersion/`.
+   *
+   * #### Async/Await
+   * Yes, you can make the handler `async` and use `await` inside of it. This
+   * will be handled correctly, i.e., MqttSync will await the result of the
+   * handler before responding to the RPC request client.
    */
   register(command, handler) {
     log.debug('registering RPC handler for', command);
@@ -667,14 +679,14 @@ class MqttSync {
 
   /** Make an RPC request. Example:
   * ```js
-  * mqttSync.call('/mycommand', 11, result => {
-  *   log.debug(`Called /mycommand with arg 11 and got ${result}`);
+  * mqttSync.call('/mySquare', 11, result => {
+  *   log.debug(`Called /mySquare with arg 11 and got ${result}`);
   * });
   * ```
   * Alternative you can omit the callback and use async/await:
   * ```js
-  * const result = await mqttSync.call('/mycommand', 11);
-  * log.debug(`Called /mycommand with arg 11 and got ${result}`);
+  * const result = await mqttSync.call('/mySquare', 11);
+  * log.debug(`Called /mySquare with arg 11 and got ${result}`);
   * ```
   * See the note about namespaces in `register`.
   */

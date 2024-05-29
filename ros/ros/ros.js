@@ -127,28 +127,23 @@ class ROS {
 
   /** Call the given service of the given type with the given body, unless
   * type is "std_srvs/Empty". */
-  _WIP_callService(service, type, requestBody = undefined) {
+  async callService(service, type, requestBody = undefined) {
     const serviceClient = this.rn.serviceClient(service, type);
-    this.rn.waitForService(serviceClient.getService(), 2000).then(
-      (available) => {
-        if (!available) {
-          log.info(`Service not available: ${service}`);
-          return
-        }
+    const available =
+      await this.rn.waitForService(serviceClient.getService(), 2000);
 
-        const [srvPackage, srvType] = type.split('/');
-        const SrvClass = rosnodejs.require(srvPackage).srv[srvType];
-        const srvInstance = new SrvClass(requestBody);
+    if (!available) {
+      log.info(`Service not available: ${service}`);
+      return
+    }
 
-        serviceClient.call(request).then((resp) => {
-            log.debug('Service response', resp);
-          }, log.warn);
-      },
-      () => {
-        log.info(`Timeout waiting for service: ${service}`);
-      });
-  }
+    const [srvPackage, srvType] = type.split('/');
+    const SrvClass = rosnodejs.require(srvPackage).srv[srvType];
+    const srvInstance = new SrvClass(requestBody);
 
+    const response = await serviceClient.call(request);
+    log.debug('Service response', response);
+    return response;
 };
 
 const instance = new ROS();

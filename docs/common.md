@@ -16,7 +16,7 @@ For example on the robot:
 mqttSync.data.update('status', {changed: Date.now(), msg: 'OK'});
 // subscribe to new user requests (e.g., from UI):
 mqttSync.data.subscribePath('+user/request', (request, key, {user}) => {
-log.debug(`user ${user} made request`, request);
+  log.debug(`user ${user} made request`, request);
 });
 ```
 

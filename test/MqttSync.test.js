@@ -944,11 +944,36 @@ describe('MqttSync', function() {
       assert.equal(await clientB.call(command, 4), 64);
     });
 
+    it('parallel RPCs, await', async function() {
+      let counter = 0;
+      clientA.register(command, arg => counter++);
+      await wait(10);
+
+      await Promise.all([
+        clientB.call(command, 2),
+        clientB.call(command, 3),
+        clientB.call(command, 4),
+      ]);
+
+      assert.equal(counter, 3);
+    });
+
     it('send complex path RPC, await', async function() {
       clientA.register(command2, arg => arg * arg);
 
       await wait(10);
       assert.equal(await clientB.call(command2, 2), 4);
+    });
+
+    it('RPC: async handler', async function() {
+      clientA.register(command, async arg => {
+        await wait(10);
+        return arg * arg * arg;
+      });
+
+      await wait(10);
+      const result = await clientB.call(command, 3);
+      assert.equal(result, 27);
     });
 
   });
