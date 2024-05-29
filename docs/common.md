@@ -200,16 +200,16 @@ Run all registered hooks before disconnecting
 Make an RPC request. Example:
 
 ```js
-mqttSync.call('/mycommand', 11, result => {
-  log.debug(`Called /mycommand with arg 11 and got ${result}`);
+mqttSync.call('/mySquare', 11, result => {
+  log.debug(`Called /mySquare with arg 11 and got ${result}`);
 });
 ```
 
 Alternative you can omit the callback and use async/await:
 
 ```js
-const result = await mqttSync.call('/mycommand', 11);
-log.debug(`Called /mycommand with arg 11 and got ${result}`);
+const result = await mqttSync.call('/mySquare', 11);
+log.debug(`Called /mySquare with arg 11 and got ${result}`);
 ```
 
 See the note about namespaces in `register`.
@@ -314,8 +314,8 @@ TODO: Is this OK, or do we need to go through this.publish?
 Register an RPC request handler. Example:
 
 ```js
-mqttSync.register('/mycommand', arg => {
-  log.debug('running /mycommand with args', arg);
+mqttSync.register('/mySquare', arg => {
+  log.debug('running /mySquare with args', arg);
   return arg * arg;
 });
 ```
@@ -326,6 +326,12 @@ because the local mqtt bridge operated by the robot agent will place all
 topics in their respective namespace. In the cloud and on the web you will
 need to use the respective namespace, i.e.,
 `/orgId/deviceId/@scope/capName/capVersion/`.
+
+#### Async/Await
+
+Yes, you can make the handler `async` and use `await` inside of it. This
+will be handled correctly, i.e., MqttSync will await the result of the
+handler before responding to the RPC request client.
 
 ##### Parameters
 
