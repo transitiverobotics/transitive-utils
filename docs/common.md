@@ -195,6 +195,31 @@ feature over the latter. Relies on retained messages in mqtt for persistence.
 
 Run all registered hooks before disconnecting
 
+### call
+
+Make an RPC request. Example:
+
+```js
+mqttSync.call('/mycommand', 11, result => {
+  log.debug(`Called /mycommand with arg 11 and got ${result}`);
+});
+```
+
+Alternative you can omit the callback and use async/await:
+
+```js
+const result = await mqttSync.call('/mycommand', 11);
+log.debug(`Called /mycommand with arg 11 and got ${result}`);
+```
+
+See the note about namespaces in `register`.
+
+##### Parameters
+
+*   `command` &#x20;
+*   `args` &#x20;
+*   `callback`   (optional, default `undefined`)
+
 ### clear
 
 Delete all retained messages in a certain topic prefix, waiting for
@@ -250,7 +275,7 @@ order, such that the latest version is applied last.
 
 ### onBeforeDisconnect
 
-register a new hook to be called before disconnecting
+Register a new hook to be called before disconnecting
 
 ##### Parameters
 
@@ -283,6 +308,29 @@ TODO: Is this OK, or do we need to go through this.publish?
 *   `topic` &#x20;
 *   `value` &#x20;
 *   `level` &#x20;
+
+### register
+
+Register an RPC request handler. Example:
+
+```js
+mqttSync.register('/mycommand', arg => {
+  log.debug('running /mycommand with args', arg);
+  return arg * arg;
+});
+```
+
+Note that the command topic needs to be in the capabilities namespace like
+any other topic. In robot capabilities, as usual, these can start in `/`
+because the local mqtt bridge operated by the robot agent will place all
+topics in their respective namespace. In the cloud and on the web you will
+need to use the respective namespace, i.e.,
+`/orgId/deviceId/@scope/capName/capVersion/`.
+
+##### Parameters
+
+*   `command` &#x20;
+*   `handler` &#x20;
 
 ### setThrottle
 
