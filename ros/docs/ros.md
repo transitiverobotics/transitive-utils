@@ -42,6 +42,17 @@ demo(2); // run demo using ROS2
 Small convenient singleton class for interfacing with ROS, including some
 auxiliary functions that come in handy in capabilities. Based on rosnodejs.
 
+### callService
+
+Call the given service of the given type with the given body, unless
+type is "std\_srvs/Empty".
+
+##### Parameters
+
+*   `service` &#x20;
+*   `type` &#x20;
+*   `requestBody`   (optional, default `undefined`)
+
 ### createHeader
 
 create a std\_msgs/Header for the given frame\_id and date
@@ -61,7 +72,7 @@ Get topics that have subscribers
 
 ### getTopics
 
-Get all topic of a given type or all topics ifno type is specified
+Get all topic of a given type or all topics if no type is specified
 
 ##### Parameters
 

@@ -125,25 +125,43 @@ class ROS {
     });
   }
 
-  /** Call the given service of the given type with the given body, unless
-  * type is "std_srvs/Empty". */
-  async callService(service, type, requestBody = undefined) {
-    const serviceClient = this.rn.serviceClient(service, type);
-    const available =
-      await this.rn.waitForService(serviceClient.getService(), 2000);
+  /** Call the given service of the given type with the given body (not required
+  * when type is "std_srvs/Empty"). */
+  async callService(serviceName, type, requestBody = undefined) {
+
+    let serviceClient;
+    try {
+      serviceClient = this.rn.serviceClient(serviceName, type);
+    } catch (e) {
+      const error = `Unable to get service: "${e}"`;
+      log.warn(`callService: ${error}`);
+      return {success: false, error};
+    }
+
+    const available = await this.rn.waitForService(serviceClient.getService(), 2000);
 
     if (!available) {
-      log.info(`Service not available: ${service}`);
-      return
+      const error = `service not available "${service}"`;
+      log.warn(`callService: ${error}`);
+      return {success: false, error};
     }
 
     const [srvPackage, srvType] = type.split('/');
     const SrvClass = rosnodejs.require(srvPackage).srv[srvType];
-    const srvInstance = new SrvClass(requestBody);
-
-    const response = await serviceClient.call(request);
-    log.debug('Service response', response);
-    return response;
+    if (!SrvClass) {
+      const error = `unknown service type "${type}"`;
+      log.warn(`callService: ${error}`);
+      return {success: false, error};
+    }
+    const request = new SrvClass.Request(requestBody);
+    try {
+      const response = await serviceClient.call(request);
+      log.debug('Service response', response);
+      return {success: true, response};
+    } catch (error) {
+      return {success: false, error};
+    }
+  }
 };
 
 const instance = new ROS();
