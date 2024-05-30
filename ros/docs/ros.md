@@ -44,12 +44,12 @@ auxiliary functions that come in handy in capabilities. Based on rosnodejs.
 
 ### callService
 
-Call the given service of the given type with the given body, unless
-type is "std\_srvs/Empty".
+Call the given service of the given type with the given body (not required
+when type is "std\_srvs/Empty").
 
 ##### Parameters
 
-*   `service` &#x20;
+*   `serviceName` &#x20;
 *   `type` &#x20;
 *   `requestBody`   (optional, default `undefined`)
 
@@ -123,6 +123,17 @@ Unsubscribe from topic
 
 Small convenient singleton class for interfacing with ROS2, including some
 auxiliary functions that come in handy in capabilities. Based on rclnodejs.
+
+### callService
+
+Call the given service of the given type with the given body (not required
+when type is "std\_srvs/srv/Empty").
+
+##### Parameters
+
+*   `serviceName` &#x20;
+*   `type` &#x20;
+*   `request`   (optional, default `undefined`)
 
 ### createHeader
 
