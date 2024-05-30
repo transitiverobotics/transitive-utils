@@ -31,7 +31,7 @@ if (releases[1]) {
     const ros = require('./ros');
     ROSs.push(ros);
   } catch (e) {
-    log.warn('Unable to load rosnodejs (ros1).');
+    log.warn('Unable to load rosnodejs (ros1).', e.message);
   }
 }
 
@@ -41,7 +41,7 @@ if (releases[2]) {
     const ros = require('./ros2');
     ROSs.push(ros);
   } catch (e) {
-    log.warn('Unable to load rclnodejs (ros2).');
+    log.warn('Unable to load rclnodejs (ros2):', e.message);
   }
 }
 

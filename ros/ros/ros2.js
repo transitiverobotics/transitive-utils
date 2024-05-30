@@ -127,6 +127,36 @@ class ROS2 {
       frame_id
     };
   }
+
+
+  /** Call the given service of the given type with the given body (not required
+  * when type is "std_srvs/srv/Empty"). */
+  async callService(serviceName, type, request = undefined) {
+
+    let serviceClient;
+    try {
+      serviceClient = this.node.createClient(type, serviceName);
+    } catch (e) {
+      const error = `Unable to get service: "${e}"`;
+      log.warn(`callService: ${error}`);
+      return {success: false, error};
+    }
+
+    const available = await serviceClient.waitForService(2000);
+
+    if (!available) {
+      const error = `service not available "${service}"`;
+      log.warn(`callService: ${error}`);
+      return {success: false, error};
+    }
+
+    return new Promise((resolve, reject) => {
+      serviceClient.sendRequest(request, response => {
+        log.debug('Service response', response);
+        resolve({success: true, response});
+      });
+    });
+  }
 };
 
 const instance = new ROS2();
