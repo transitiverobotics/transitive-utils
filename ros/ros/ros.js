@@ -1,6 +1,6 @@
 const rosnodejs = require('rosnodejs');
 
-const { getLogger } = require('@transitive-sdk/utils');
+const { getLogger, wait } = require('@transitive-sdk/utils');
 const log = getLogger('ROS1');
 log.setLevel('info');
 
@@ -90,13 +90,17 @@ class ROS {
 
   /** Publish the given message (json) on the names topic of type. Will
   advertise the topic if not yet advertised. */
-  publish(topic, type, message, latching = true) {
+  async publish(topic, type, message, latching = true) {
     if (!this.publishers[topic]) {
       this.publishers[topic] = this.rn.advertise(topic, type, {
         queueSize: 1,
         latching,
         throttleMs: -1
       });
+      // Ugly but seems necessary and I don't see a better signal to wait for.
+      // Without this, the first published message doesn't go through, presumably
+      // because we are not yet registered as a publisher with the master.
+      await wait(100);
     }
 
     const pub = this.publishers[topic];
