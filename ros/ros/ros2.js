@@ -19,6 +19,11 @@ class ROS2 {
 
   rosVersion = 2;
 
+  async generateMessages() {
+    log.info('Generating messages for ROS 2');
+    await rclnodejs.regenerateAll();
+  }
+
   /** Initialize ROS node. This needs to be called first. */
   async init(suffix = '') {
 

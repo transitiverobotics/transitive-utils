@@ -1,3 +1,5 @@
+
+process.env.CMAKE_PREFIX_PATH += `:${process.env.PWD}/var/ros1`;
 const rosnodejs = require('rosnodejs');
 
 const { getLogger, wait } = require('@transitive-sdk/utils');
@@ -13,6 +15,12 @@ class ROS {
   publishers = {};
 
   rosVersion = 1;
+
+  async generateMessages() {
+    log.info('Generating messages for ROS 1');
+    await rosnodejs.loadAllPackages(
+      `${process.env.PWD}/var/ros1/share/gennodejs/ros`);
+  }
 
   /** Initialize ROS node. This needs to be called first. */
   async init(suffix = '') {
