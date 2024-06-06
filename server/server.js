@@ -4,14 +4,13 @@ const path = require('path');
 
 const assert = require('assert');
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
 const http = require('http');
 const https = require('https');
 
 const Mongo = require('./mongo');
+const { getRandomId } = require('../common/common');
 
-/** Generate a random id (base64) */
-const randomId = (bytes = 16) => crypto.randomBytes(bytes).toString('base64');
+const randomId = getRandomId;
 
 // moved to common
 // const decodeJWT = (token) => JSON.parse(Buffer.from(token.split('.')[1], 'base64'));

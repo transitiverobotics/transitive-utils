@@ -125,7 +125,7 @@ describe('MqttSync', function() {
   it('truncates huge messages in log', function(done) {
     clientA.publish('/a/#');
     clientB.subscribe('/a/#');
-    clientA.data.update('a', {b: randomId(1000000)});
+    clientA.data.update('a', {b: randomId(10000)});
     inSync(clientA, clientB, done);
   });
 

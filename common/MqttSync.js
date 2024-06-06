@@ -4,7 +4,8 @@ const _ = require('lodash');
 
 const { mqttParsePayload, topicMatch, topicToPath, pathToTopic,
 toFlatObject, getLogger, mergeVersions, parseMQTTTopic, isSubTopicOf,
-versionCompare, encodeTopicElement, visitAncestor } = require('./common');
+versionCompare, encodeTopicElement, visitAncestor, getRandomId }
+  = require('./common');
 const { DataCache } = require('./DataCache');
 
 
@@ -691,7 +692,7 @@ class MqttSync {
   * See the note about namespaces in `register`.
   */
   call(command, args, callback = undefined) {
-    const id = crypto.randomUUID();
+    const id = getRandomId();
 
     const responseTopic = `${command}/response/${id}`;
     this.mqtt.subscribe(responseTopic, {rap: true, qos: 2}, (err, granted) => {

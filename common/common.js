@@ -312,7 +312,12 @@ const mqttClearRetained = (mqttClient, prefixes, callback, delay = 1000) => {
 
 // -------------------------------------------------------------------------
 
-const getRandomId = () => Math.random().toString(36).slice(2);
+/** Generate a random id (base36) */
+const getRandomId = (bytes = 6) => {
+  const buffer = new Uint8Array(bytes);
+  crypto.getRandomValues(buffer);
+  return buffer.reduce((memo, i) => memo + i.toString(36), '');
+};
 
 // -------------------------------------------------------------------------
 
