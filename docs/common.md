@@ -411,6 +411,14 @@ Get a new loglevel logger; call with a name, e.g., `module.id`. The returned
 logger has methods trace, debug, info, warn, error. See
 [https://www.npmjs.com/package/loglevel][7] for details.
 
+## getRandomId
+
+Generate a random id (base36)
+
+#### Parameters
+
+*   `bytes`   (optional, default `6`)
+
 ## isPrefixOf
 
 prefixArray is a prefix of the array

@@ -37,8 +37,8 @@ const inSync = (a, b, done, delay = 50) => {
 describe('MqttSync', function() {
 
   let server;
-  let mqttClientA, mqttClientB;
-  let clientA, clientB;
+  let mqttClientA, mqttClientB, mqttClientRobot;
+  let clientA, clientB, clientRobot;
   let interval;
   let aedes;
 
@@ -75,12 +75,21 @@ describe('MqttSync', function() {
 
       mqttClientA = mqtt.connect(mqttURL);
       mqttClientB = mqtt.connect(mqttURL);
-      mqttClientA.on('connect', () => mqttClientB.on('connect', () => {
-        !clientA &&
-          (clientA = new MqttSync({mqttClient: mqttClientA, ignoreRetain: true}));
-        clientB = new MqttSync({mqttClient: mqttClientB, ignoreRetain: true});
-        done();
-      }));
+      mqttClientRobot = mqtt.connect(mqttURL);
+
+      const initAll = () => {
+        if (mqttClientA.connected && mqttClientB.connected &&
+          mqttClientRobot.connected && !clientA && !clientB && !clientRobot) {
+          clientA = new MqttSync({mqttClient: mqttClientA, ignoreRetain: true});
+          clientB = new MqttSync({mqttClient: mqttClientB, ignoreRetain: true});
+          clientRobot = new MqttSync({mqttClient: mqttClientRobot});
+          done();
+        }
+      }
+
+      mqttClientA.on('connect', initAll);
+      mqttClientB.on('connect', initAll);
+      mqttClientRobot.on('connect', initAll);
 
       // Aedes doesn't by itself send these, so we will, like mosquitto does
       const start = Date.now();
@@ -95,10 +104,13 @@ describe('MqttSync', function() {
     clearInterval(interval);
     mqttClientA.end();
     mqttClientB.end();
+    mqttClientRobot.end();
     mqttClientA = null;
     mqttClientB = null;
+    mqttClientRobot = null;
     clientA = null;
     clientB = null;
+    clientRobot = null;
 
     // console.log('shutting down mqtt server');
     server && server.listening && server.close(done);
@@ -974,6 +986,18 @@ describe('MqttSync', function() {
       await wait(10);
       const result = await clientB.call(command, 3);
       assert.equal(result, 27);
+    });
+
+    it('register RPC without ignoreRetained', async function() {
+      clientRobot.register(command, arg => arg * arg * arg * arg);
+      await wait(10);
+      assert.equal(await clientB.call(command, 2), 16);
+    });
+
+    it('calling RPC without ignoreRetained', async function() {
+      clientA.register(command, arg => arg * arg * arg * arg * arg);
+      await wait(10);
+      assert.equal(await clientRobot.call(command, 2), 32);
     });
 
   });

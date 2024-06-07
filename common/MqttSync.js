@@ -121,7 +121,8 @@ class MqttSync {
         if (this.heartbeats == 1 && !migrate && onReady) onReady();
         this.heartbeats++;
 
-      } else if (packet.retain || ignoreRetain) {
+      } else {
+        const json = mqttParsePayload(payload);
         let path = topicToPath(topic);
         log.debug('processing message', topic, path);
         if (sliceTopic) {
@@ -129,31 +130,34 @@ class MqttSync {
           topic = pathToTopic(path);
         }
 
-        const json = mqttParsePayload(payload);
         if (this.rpcHandlers[topic]) {
           this.handleRPCRequest(topic, json);
 
         } else if (this.rpcCallbacks[topic]) {
           this.handleRPCResponse(topic, json);
 
-        } else if (this.isPublished(topic)) {
-          // store plain messages, still stored in a structure, but values are
-          // not interpreted; we just store them to undo them if necessary, e.g.,
-          // for switching between atomic and non-atomic subdocuments
-          // log.trace('setting publishedMessages', topic);
-          this.publishedMessages.updateFromArray([...path, specialKey], json);
+        } else if (packet.retain || ignoreRetain) {
 
-          // this.pubData.update(topic, json);
-          // Still need to update the data so that we can detect changes we make
-          // and publish them. But we need to break the reaction-chain to avoid
-          // loops, so tag this update with 'published' and then ignore those
-          // updates in this.publish.
-          this.data.update(topic, json, {external: true});
+          if (this.isPublished(topic)) {
+            // store plain messages, still stored in a structure, but values are
+            // not interpreted; we just store them to undo them if necessary, e.g.,
+            // for switching between atomic and non-atomic subdocuments
+            // log.trace('setting publishedMessages', topic);
+            this.publishedMessages.updateFromArray([...path, specialKey], json);
 
-        } else if (this.isSubscribed(topic)) {
-          log.debug('applying received update', topic);
-          const changes = this.data.update(topic, json);
-          onChange && Object.keys(changes).length > 0 && onChange(changes);
+            // this.pubData.update(topic, json);
+            // Still need to update the data so that we can detect changes we make
+            // and publish them. But we need to break the reaction-chain to avoid
+            // loops, so tag this update with 'published' and then ignore those
+            // updates in this.publish.
+            this.data.update(topic, json, {external: true});
+
+          } else if (this.isSubscribed(topic)) {
+
+            log.debug('applying received update', topic);
+            const changes = this.data.update(topic, json);
+            onChange && Object.keys(changes).length > 0 && onChange(changes);
+          }
         }
       }
     });

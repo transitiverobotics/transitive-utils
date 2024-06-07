@@ -75,14 +75,6 @@ walk up the directory tree until we find a file or directory called basename
 Get from package info the version namespace we should use, e.g.,
 `{version: '1.2.3', config.versionNamespace: 'minor'}` => '1.2'
 
-## randomId
-
-Generate a random id (base64)
-
-#### Parameters
-
-*   `bytes`   (optional, default `16`)
-
 ## setTerminalTitle
 
 set the title of the terminal we are running in
