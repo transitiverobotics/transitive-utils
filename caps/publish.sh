@@ -52,7 +52,7 @@ npm run prepare
 
 npm install --no-save javascript-obfuscator@4.0.0
 
-FILES=$(find . -name "*.js" -not -path "**/hi-perf/*" -not -path "**/node_modules/*" -not -path "./dist/*")
+FILES=$(find . -name "*.js" -not -path "**/hi-perf/*" -not -path "**/node_modules/*" -not -path "./dist/*" -not -path "**/var/*")
 for f in $FILES; do
    npx javascript-obfuscator --split-strings true --split-strings-chunk-length 8 --string-array-encoding base64 --ignore-imports true --output $f $f
    # Maybe add later: --self-defending true
