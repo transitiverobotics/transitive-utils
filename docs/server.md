@@ -75,6 +75,39 @@ walk up the directory tree until we find a file or directory called basename
 Get from package info the version namespace we should use, e.g.,
 `{version: '1.2.3', config.versionNamespace: 'minor'}` => '1.2'
 
+## importCapability
+
+Allows you to dynamically import a capability in node.js to use its API there.
+
+Example:
+
+```js
+import { importCapability } from '@transitive-sdk/utils';
+
+const run = async () => {
+  const rosTool = await importCapability({
+    jwt: 'A_VALID_JWT_FOR_THE_ROS-TOOL_CAPABILITY',
+  });
+
+  // Use ros-tool to subscribe to the ROS /odom topic on the device of the JWT.
+  // Here "subscribe" is a function exported by the ros-tool capability.
+  rosTool.subscribe(1, '/odom');
+
+  // print data as it changes in the local cache:
+  rosTool.onData(() =>
+    console.log(JSON.stringify(
+      rosTool.deviceData.ros?.[1]?.messages?.odom?.pose?.pose, true, 2)),
+    'ros/1/messages/odom/pose/pose'
+  );
+};
+
+run();
+```
+
+#### Parameters
+
+*   `args` &#x20;
+
 ## setTerminalTitle
 
 set the title of the terminal we are running in
