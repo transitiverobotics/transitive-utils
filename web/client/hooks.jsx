@@ -224,7 +224,7 @@ export const useCapability = ({ capability, name, userId, deviceId,
         listeners[name] = [done];
 
         const baseUrl = `http${ssl ? 's' : ''}://portal.${host}`;
-        const params = new URLSearchParams({userId, deviceId});
+        const params = new URLSearchParams({ userId, deviceId });
         // filename without extension as we'll try multiple
         const fileBasename = `${baseUrl}/running/${capability}/dist/${name}`;
 

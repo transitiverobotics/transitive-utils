@@ -8,7 +8,7 @@ const http = require('http');
 const https = require('https');
 
 const Mongo = require('./mongo');
-const { getRandomId } = require('../common/common');
+const { getRandomId, decodeJWT } = require('../common/common');
 
 const randomId = getRandomId;
 
@@ -74,8 +74,58 @@ const getPackageVersionNamespace = () => {
       .slice(0, versionScope + 1).join('.');
 };
 
+/** Allows you to dynamically import a capability in node.js to use its API there.
+ *
+ * Example:
+ * ```js
+ * import { importCapability } from '@transitive-sdk/utils';
+ *
+ * const run = async () => {
+ *   const rosTool = await importCapability({
+ *     jwt: 'A_VALID_JWT_FOR_THE_ROS-TOOL_CAPABILITY',
+ *   });
+ *
+ *   // Use ros-tool to subscribe to the ROS /odom topic on the device of the JWT.
+ *   // Here "subscribe" is a function exported by the ros-tool capability.
+ *   rosTool.subscribe(1, '/odom');
+ *
+ *   // print data as it changes in the local cache:
+ *   rosTool.onData(() =>
+ *     console.log(JSON.stringify(
+ *       rosTool.deviceData.ros?.[1]?.messages?.odom?.pose?.pose, true, 2)),
+ *     'ros/1/messages/odom/pose/pose'
+ *   );
+ * };
+ *
+ * run();
+*/
+const importCapability = async (args) => {
+  const { jwt, host = 'transitiverobotics.com', ssl = true } = args;
+
+  const {id, device, capability} = decodeJWT(jwt);
+  const capName = capability.split('/')[1];
+
+  const baseUrl = `http${ssl ? 's' : ''}://portal.${host}`;
+  const params = new URLSearchParams({ userId: id, deviceId: device });
+  // filename without extension as we'll try multiple
+  const fileBasename = `${baseUrl}/running/${capability}/dist/${capName}-node`;
+
+  // Note: this doesn't work with the .ems.js file, even when renaming to .mjs
+  const url = `${fileBasename}.js?${params.toString()}`
+  // maybe: check cache (tmp folder), send if-modified-since header
+  const cjs = await fetch(url);
+
+  const buffer = await cjs.arrayBuffer();
+  const tmp = fs.mkdtempSync('/tmp/trCapImport-');
+  const fileName = `${tmp}/${capName}-node.js`;
+  fs.writeFileSync(fileName, Buffer.from(buffer));
+
+  const capModule = await import(fileName);
+  return await capModule.default.default({jwt, host, ssl});
+};
+
 module.exports = Object.assign({}, {
   findPath, getPackageVersionNamespace,
   randomId, setTerminalTitle, fetchURL,
-  Mongo
+  Mongo, importCapability
 });
