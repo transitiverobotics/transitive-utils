@@ -1,6 +1,7 @@
 
 process.env.CMAKE_PREFIX_PATH += `:${process.env.PWD}/var/ros1`;
 const rosnodejs = require('rosnodejs');
+const _ = require('lodash');
 
 const { getLogger, wait } = require('@transitive-sdk/utils');
 const log = getLogger('ROS1');
@@ -13,6 +14,7 @@ const ROS_MASTER_URI = process.env.ROS_MASTER_URI || 'http://localhost:11311';
 class ROS {
 
   publishers = {};
+  isShutdown = false;
 
   rosVersion = 1;
 
@@ -99,6 +101,7 @@ class ROS {
   /** Publish the given message (json) on the names topic of type. Will
   advertise the topic if not yet advertised. */
   async publish(topic, type, message, latching = true) {
+    this.requireInit();
     if (!this.publishers[topic]) {
       this.publishers[topic] = this.rn.advertise(topic, type, {
         queueSize: 1,
@@ -109,6 +112,12 @@ class ROS {
       // Without this, the first published message doesn't go through, presumably
       // because we are not yet registered as a publisher with the master.
       await wait(100);
+    }
+
+    if (this.isShutdown) {
+      // since we may have waited, we need to verify that we are not shut down
+      log.debug('We are shut down, not publishing to', topic);
+      return;
     }
 
     const pub = this.publishers[topic];
@@ -132,6 +141,7 @@ class ROS {
   }
 
   shutdown() {
+    this.isShutdown = true;
     Object.values(this.publishers).forEach(pub => {
       pub.shutdown();
     });
@@ -173,6 +183,20 @@ class ROS {
     } catch (error) {
       return {success: false, error};
     }
+  }
+
+  /** Get all known message and service types, grouped by package. */
+  getAvailableTypes() {
+    const packages = rosnodejs.getAvailableMessagePackages();
+    const types = {};
+    _.forEach(packages, (value, pkgName) => {
+      const pkg = rosnodejs.require(pkgName);
+      types[pkgName] = {
+        msg: pkg.msg ? Object.keys(pkg.msg) : [],
+        srv: pkg.srv ? Object.keys(pkg.srv) : []
+      };
+    });
+    return types;
   }
 };
 

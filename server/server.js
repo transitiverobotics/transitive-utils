@@ -98,6 +98,7 @@ const getPackageVersionNamespace = () => {
  * };
  *
  * run();
+ * ```
 */
 const importCapability = async (args) => {
   const { jwt, host = 'transitiverobotics.com', ssl = true } = args;

@@ -62,6 +62,10 @@ create a std\_msgs/Header for the given frame\_id and date
 *   `frame_id`   (optional, default `''`)
 *   `date`   (optional, default `new Date()`)
 
+### getAvailableTypes
+
+Get all known message and service types, grouped by package.
+
 ### getSubscribedTopics
 
 Get topics that have subscribers
@@ -143,6 +147,10 @@ create a std\_msgs/Header for the given frame\_id and date
 
 *   `frame_id`   (optional, default `''`)
 *   `date`   (optional, default `new Date()`)
+
+### getAvailableTypes
+
+Get all known message, service, and action types, grouped by package.
 
 ### getSubscribedTopics
 

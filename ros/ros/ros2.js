@@ -1,4 +1,7 @@
+const fs = require('fs');
+const path = require('path');
 const rclnodejs = require('rclnodejs');
+const _ = require('lodash');
 
 const { getLogger } = require('@transitive-sdk/utils');
 const log = getLogger('ROS2');
@@ -161,6 +164,29 @@ class ROS2 {
         resolve({success: true, response});
       });
     });
+  }
+
+  /** Get all known message, service, and action types, grouped by package. */
+  getAvailableTypes() {
+    const packagePath = path.dirname(require.resolve('rclnodejs/package.json'));
+    const messageDir = path.join(packagePath, 'generated');
+    const packages = fs.readdirSync(messageDir, {withFileTypes: true})
+        .filter(item => item.isDirectory())
+        .map(({name}) => name);
+
+    const types = {};
+    _.forEach(packages, (pkgName) => {
+      const content = fs.readdirSync(path.join(messageDir, pkgName));
+      const parsed = content.map(fileName =>
+        fileName.replace('.js', '').split('__').slice(1,3));
+      const grouped = _.groupBy(parsed, type => type[0]);
+      types[pkgName] = {
+        msg: grouped.msg?.map(type => type[1]) || [],
+        srv: grouped.srv?.map(type => type[1]) || [],
+        action: grouped.action?.map(type => type[1]) || [],
+      };
+    });
+    return types;
   }
 };
 

@@ -63,6 +63,9 @@ test('loads', () => {
       });
     });
 
+    test('can get types', () => {
+      const types = ros.getAvailableTypes();
+      assert(types.std_msgs.msg.includes('String'));
+    });
   });
-
-  });
+});
