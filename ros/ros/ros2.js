@@ -188,6 +188,19 @@ class ROS2 {
     });
     return types;
   }
+
+  /** Given a package, category, and type, e.g., 'std_msgs', 'msg', and 'String',
+  * return a plain object representing that type, which can be used as a
+  * template for creating messages. */
+  getTypeTemplate(pkg, category, type) {
+    if (category != 'msg' && category != 'srv') {
+      throw new Error(`Unknown type category ${category} (must be msg or srv).`);
+    }
+
+    const TypeClass = rclnodejs.require(`${pkg}/${category}/${type}`)
+    const instance = new TypeClass();
+    return instance.toPlainObject();
+  }
 };
 
 const instance = new ROS2();

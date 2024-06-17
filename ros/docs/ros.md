@@ -82,6 +82,18 @@ Get all topic of a given type or all topics if no type is specified
 
 *   `type`   (optional, default `undefined`)
 
+### getTypeTemplate
+
+Given a package, category, and type, e.g., 'std\_msgs', 'msg', and 'String',
+return a plain object representing that type, which can be used as a
+template for creating messages.
+
+##### Parameters
+
+*   `pkg` &#x20;
+*   `category` &#x20;
+*   `type` &#x20;
+
 ### init
 
 Initialize ROS node. This needs to be called first.
@@ -167,6 +179,18 @@ Get all topic of a given type or all topics ifno type is specified
 ##### Parameters
 
 *   `type`   (optional, default `undefined`)
+
+### getTypeTemplate
+
+Given a package, category, and type, e.g., 'std\_msgs', 'msg', and 'String',
+return a plain object representing that type, which can be used as a
+template for creating messages.
+
+##### Parameters
+
+*   `pkg` &#x20;
+*   `category` &#x20;
+*   `type` &#x20;
 
 ### init
 

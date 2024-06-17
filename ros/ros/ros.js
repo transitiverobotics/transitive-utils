@@ -198,6 +198,17 @@ class ROS {
     });
     return types;
   }
+
+  /** Given a package, category, and type, e.g., 'std_msgs', 'msg', and 'String',
+  * return a plain object representing that type, which can be used as a
+  * template for creating messages. */
+  getTypeTemplate(pkg, category, type) {
+    if (category != 'msg' && category != 'srv') {
+      throw new Error(`Unknown type category ${category} (must be msg or srv).`);
+    }
+    const TypeClass = rosnodejs.require(pkg)[category][type];
+    return new TypeClass();
+  }
 };
 
 const instance = new ROS();
