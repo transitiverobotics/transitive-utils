@@ -10,6 +10,37 @@ log.setLevel('info');
 qos = new rclnodejs.QoS();
 qos.reliability = rclnodejs.QoS.ReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
 
+
+const primitiveDefaults = {
+  bool: true,
+  byte: 0,
+  char: '',
+  float32: 0.0,
+  float64: 0.0,
+  int16: 0,
+  int32: 0,
+  int64: 0,
+  int8: 0,
+  string: '',
+  uint16: 0,
+  uint32: 0,
+  uint64: 0,
+  uint8: 0,
+};
+
+const getPrimitiveDefault = ({isArray, type}) =>
+  isArray ? [] : primitiveDefaults[type];
+
+const generateTemplate = (TypeClass) => {
+  const rtv = {};
+  TypeClass.ROSMessageDef.fields.forEach(({name, type}) => {
+    rtv[name] = type.isPrimitiveType ? getPrimitiveDefault(type)
+      : generateTemplate(rclnodejs.require(`${type.pkgName}/msg/${type.type}`));
+  });
+  return rtv;
+};
+
+
 /** Small convenient singleton class for interfacing with ROS2, including some
   auxiliary functions that come in handy in capabilities. Based on rclnodejs. */
 class ROS2 {
@@ -198,8 +229,7 @@ class ROS2 {
     }
 
     const TypeClass = rclnodejs.require(`${pkg}/${category}/${type}`)
-    const instance = new TypeClass();
-    return instance.toPlainObject();
+    return generateTemplate(TypeClass);
   }
 };
 

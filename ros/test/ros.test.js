@@ -71,9 +71,9 @@ test('loads', () => {
     test('can get type templates', () => {
       const template = ros.getTypeTemplate('nav_msgs', 'msg', 'OccupancyGrid');
       // check a few fields
-      assert(Object.hasOwn(template.info.origin, 'position'));
-      assert(Object.hasOwn(template.info.origin, 'orientation'));
-      assert(Object.hasOwn(template.header, 'frame_id'));
+      assert.equal(typeof template.info.origin.position.x, 'number');
+      assert.equal(typeof template.info.origin.orientation.x, 'number');
+      assert.equal(typeof template.header.frame_id, 'string');
     });
   });
 });
