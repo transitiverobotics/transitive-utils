@@ -43,9 +43,9 @@ test('loads', () => {
       let first = true;
       const sub = ros.subscribe(topic, type, (msg) => {
         first && expect(Number(msg.data) > 0).toBeTruthy();
-        first && done();
         ros.unsubscribe(topic);
         sub.shutdown();
+        first && done();
         first = false;
       });
     });
@@ -63,6 +63,13 @@ test('loads', () => {
       });
     });
 
+    test('can publish messages with typed arrays', () => {
+      const topic = '/test_nav';
+      const typeList = `nav_msgs/${version == 1 ? '' : 'msg/'}GridCells`;
+      ros.publish(topic, type,
+        ros.getTypeTemplate('nav_msgs', 'msg', 'GridCells'));
+    });
+
     test('can get types', () => {
       const types = ros.getAvailableTypes();
       assert(types.std_msgs.msg.includes('String'));
@@ -74,6 +81,14 @@ test('loads', () => {
       assert.equal(typeof template.info.origin.position.x, 'number');
       assert.equal(typeof template.info.origin.orientation.x, 'number');
       assert.equal(typeof template.header.frame_id, 'string');
+      assert(template.data instanceof Array);
+    });
+
+    test('can get type templates with non-primitive arrays', () => {
+      const template = ros.getTypeTemplate('nav_msgs', 'msg', 'GridCells');
+      // check a few fields
+      assert.equal(typeof template.cell_width, 'number');
+      assert(template.cells instanceof Array);
     });
   });
 });

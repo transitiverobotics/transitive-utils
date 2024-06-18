@@ -15,8 +15,8 @@ const primitiveDefaults = {
   bool: true,
   byte: 0,
   char: '',
-  float32: 0.0,
-  float64: 0.0,
+  float32: 1.0001,
+  float64: 1.0001,
   int16: 0,
   int32: 0,
   int64: 0,
@@ -28,14 +28,17 @@ const primitiveDefaults = {
   uint8: 0,
 };
 
-const getPrimitiveDefault = ({isArray, type}) =>
-  isArray ? [] : primitiveDefaults[type];
-
+/* Generate a template of the given type class with default values for all
+* fields. */
 const generateTemplate = (TypeClass) => {
   const rtv = {};
+
+  const get = (type) => type.isArray ? [get({...type, isArray: false})] :
+    type.isPrimitiveType ? primitiveDefaults[type.type] :
+    generateTemplate(rclnodejs.require(`${type.pkgName}/msg/${type.type}`));
+
   TypeClass.ROSMessageDef.fields.forEach(({name, type}) => {
-    rtv[name] = type.isPrimitiveType ? getPrimitiveDefault(type)
-      : generateTemplate(rclnodejs.require(`${type.pkgName}/msg/${type.type}`));
+    rtv[name] = get(type);
   });
   return rtv;
 };
@@ -230,6 +233,7 @@ class ROS2 {
 
     const TypeClass = rclnodejs.require(`${pkg}/${category}/${type}`)
     return generateTemplate(TypeClass);
+    // return generateTemplate(pkg, category, type);
   }
 };
 
