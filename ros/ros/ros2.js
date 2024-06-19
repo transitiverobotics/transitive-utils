@@ -30,12 +30,14 @@ const primitiveDefaults = {
 
 /* Generate a template of the given type class with default values for all
 * fields. */
-const generateTemplate = (TypeClass) => {
+const generateTemplate = (TypeClass, category = 'msg') => {
   const rtv = {};
 
   const get = (type) => type.isArray ? [get({...type, isArray: false})] :
     type.isPrimitiveType ? primitiveDefaults[type.type] :
-    generateTemplate(rclnodejs.require(`${type.pkgName}/msg/${type.type}`));
+    generateTemplate(
+      rclnodejs.require(`${type.pkgName}/${category}/${type.type}`),
+      category);
 
   TypeClass.ROSMessageDef.fields.forEach(({name, type}) => {
     rtv[name] = get(type);
@@ -226,14 +228,21 @@ class ROS2 {
   /** Given a package, category, and type, e.g., 'std_msgs', 'msg', and 'String',
   * return a plain object representing that type, which can be used as a
   * template for creating messages. */
-  getTypeTemplate(pkg, category, type) {
+  getTypeTemplate(pkg, category, type, response = false) {
     if (category != 'msg' && category != 'srv') {
       throw new Error(`Unknown type category ${category} (must be msg or srv).`);
     }
 
-    const TypeClass = rclnodejs.require(`${pkg}/${category}/${type}`)
-    return generateTemplate(TypeClass);
-    // return generateTemplate(pkg, category, type);
+    const TypeClass = rclnodejs.require(`${pkg}/${category}/${type}`);
+    return (category == 'msg' ? generateTemplate(TypeClass, category) :
+      generateTemplate(TypeClass[response ? 'Response' : 'Request'], category));
+  }
+
+  async getServices() {
+    const list = await this.node.getServiceNamesAndTypes();
+    const services = {};
+    list.forEach(({name, types}) => services[name] = {type: types[0]});
+    return services;
   }
 };
 

@@ -1,4 +1,5 @@
 const assert = require('assert');
+const _ = require('lodash');
 
 const { ROSs, getForVersion } = require('../index');
 
@@ -90,5 +91,25 @@ test('loads', () => {
       assert.equal(typeof template.cell_width, 'number');
       assert(template.cells instanceof Array);
     });
+
+    test('can get type template for service', () => {
+      const template = ros.getTypeTemplate('turtlesim', 'srv', 'Spawn');
+      // check a few fields
+      assert.equal(typeof template.x, 'number');
+      assert.equal(typeof template.name, 'string');
+    });
+
+    test('get services', async () => {
+      const services = await ros.getServices();
+      // check some known services that should always be present
+      if (ros.rosVersion == 1) {
+        assert.equal(services['/rosout/get_loggers'].type, 'roscpp/GetLoggers');
+      } else {
+        const key = _.findKey(services, (o, key) => key.endsWith('/get_parameters'));
+        assert(key);
+        assert.equal(services[key].type, 'rcl_interfaces/srv/GetParameters');
+      }
+    });
+
   });
 });

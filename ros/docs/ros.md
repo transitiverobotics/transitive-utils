@@ -66,6 +66,33 @@ create a std\_msgs/Header for the given frame\_id and date
 
 Get all known message and service types, grouped by package.
 
+### getServices
+
+Get available services. Returns an object where keys are service names,
+and the values are objects with the header information for the topic.
+
+Example:
+
+```json
+[{
+   '/rosout/get_loggers': {
+     callerid: '/rosout',
+     md5sum: '32e97e85527d4678a8f9279894bb64b0',
+     request_type: 'roscpp/GetLoggersRequest',
+     response_type: 'roscpp/GetLoggersResponse',
+     type: 'roscpp/GetLoggers'
+   }
+}]
+```
+
+### getServiceType
+
+Get service type.
+
+##### Parameters
+
+*   `service` &#x20;
+
 ### getSubscribedTopics
 
 Get topics that have subscribers
@@ -93,6 +120,7 @@ template for creating messages.
 *   `pkg` &#x20;
 *   `category` &#x20;
 *   `type` &#x20;
+*   `response`   (optional, default `false`)
 
 ### init
 
@@ -191,6 +219,7 @@ template for creating messages.
 *   `pkg` &#x20;
 *   `category` &#x20;
 *   `type` &#x20;
+*   `response`   (optional, default `false`)
 
 ### init
 

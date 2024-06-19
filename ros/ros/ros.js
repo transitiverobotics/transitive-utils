@@ -82,6 +82,39 @@ class ROS {
     ).map(topic => topic.name); // we only want the name
   }
 
+  /** Get available services. Returns an object where keys are service names,
+  * and the values are objects with the header information for the topic.
+  *
+  * Example:
+  * ```json
+  * [{
+  *    '/rosout/get_loggers': {
+  *      callerid: '/rosout',
+  *      md5sum: '32e97e85527d4678a8f9279894bb64b0',
+  *      request_type: 'roscpp/GetLoggersRequest',
+  *      response_type: 'roscpp/GetLoggersResponse',
+  *      type: 'roscpp/GetLoggers'
+  *    }
+  * }]
+  * ```
+  */
+  async getServices() {
+    this.requireInit();
+
+    let {services} = await this.rn._node.getSystemState();
+    for (let name in services) {
+      services[name] = await this.rn.getServiceHeader(name);
+    }
+    return services;
+  }
+
+  /** Get service type. */
+  async getServiceType(service) {
+    this.requireInit();
+    // return await this.rn._node._masterApi.lookupService(service);
+    // return await this.rn._node.lookupService(service);
+  }
+
   /** Subscribe to the named topic of the named type. Each time a new message
   * is received the provided callback is called. Here `options` is an optional
   * object: `{ "throttleMs": throttle-in-milliseconds }`.
@@ -202,12 +235,14 @@ class ROS {
   /** Given a package, category, and type, e.g., 'std_msgs', 'msg', and 'String',
   * return a plain object representing that type, which can be used as a
   * template for creating messages. */
-  getTypeTemplate(pkg, category, type) {
+  getTypeTemplate(pkg, category, type, response = false) {
     if (category != 'msg' && category != 'srv') {
       throw new Error(`Unknown type category ${category} (must be msg or srv).`);
     }
-    const TypeClass = rosnodejs.require(pkg)[category][type];
-    return new TypeClass();
+
+    const Type = rosnodejs.require(pkg)[category][type];
+    return (category == 'msg' ? new Type() :
+      new Type[response ? 'Response' : 'Request']());
   }
 };
 
