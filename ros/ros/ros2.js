@@ -3,7 +3,7 @@ const path = require('path');
 const rclnodejs = require('rclnodejs');
 const _ = require('lodash');
 
-const { getLogger } = require('@transitive-sdk/utils');
+const { getLogger, wait } = require('@transitive-sdk/utils');
 const log = getLogger('ROS2');
 log.setLevel('info');
 
@@ -187,17 +187,26 @@ class ROS2 {
     const available = await serviceClient.waitForService(2000);
 
     if (!available) {
-      const error = `service not available "${service}"`;
+      const error = `service not available "${serviceName}"`;
       log.warn(`callService: ${error}`);
       return {success: false, error};
     }
 
-    return new Promise((resolve, reject) => {
-      serviceClient.sendRequest(request, response => {
-        log.debug('Service response', response);
-        resolve({success: true, response});
-      });
-    });
+    log.debug(`calling ${serviceName}`);
+    return Promise.race([
+      new Promise((resolve, reject) => {
+        serviceClient.sendRequest(request, response => {
+          log.debug('Service response', response);
+          resolve({success: true, response});
+        });
+      }),
+      (async () => { // adding a timeout
+        await wait(2000);
+        const error = `Timeout calling service: "${serviceName}"`;
+        log.warn(`callService: ${error}`);
+        return {success: false, error};
+      })()
+    ]);
   }
 
   /** Get all known message, service, and action types, grouped by package. */

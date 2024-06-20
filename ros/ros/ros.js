@@ -212,13 +212,14 @@ class ROS {
       log.warn(`callService: ${error}`);
       return {success: false, error};
     }
+
     const request = new SrvClass.Request(requestBody);
     try {
       const response = await serviceClient.call(request);
       log.debug('Service response', response);
       return {success: true, response};
     } catch (error) {
-      return {success: false, error};
+      return {success: false, error: error.code};
     }
   }
 
