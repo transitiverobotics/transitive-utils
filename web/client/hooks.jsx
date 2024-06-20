@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import _ from 'lodash';
-import mqtt from 'mqtt-browser';
+import mqtt from 'mqtt/dist/mqtt.min';
+
 import { decodeJWT, getLogger, clone, pathToTopic, mergeVersions, topicToPath }
   from './client';
 const MqttSync = require('../../common/MqttSync');
 
 const log = getLogger('utils-web/hooks');
 log.setLevel('info');
-log.setLevel('debug'); // #DEBUG
 
 /** Hook for using MqttSync in React.
 * @returns {object} An object `{data, mqttSync, ready, StatusComponent, status}`
@@ -29,17 +29,14 @@ export const useMqttSync = ({jwt, id, mqttUrl, appReact}) => {
 
   useEffect(() => {
       const payload = decodeJWT(jwt);
+      log.debug('re-create mqtt client');
       const client = mqtt.connect(mqttUrl, {
         username: JSON.stringify({id, payload}),
         password: jwt
       });
 
-      client.on('connect', () => {
-        // if (mqttSync) {  // #WIP
-        //   log.debug('reconnected');
-        //   return;
-        // }
-        log.debug('connected');
+      client.once('connect', () => {
+        log.debug('MQTT connected');
         const mqttSyncClient = new MqttSync({
           mqttClient: client,
           ignoreRetain: true,
@@ -126,7 +123,6 @@ export const useTransitive =
 export const useTopics = ({jwt, host = 'transitiverobotics.com', ssl = true,
     topics = [], appReact}) => {
 
-    log.debug({appReact});
     const { useState, useEffect } = appReact || React;
 
     // We need to make sure we don't resubscribe (below) when this function

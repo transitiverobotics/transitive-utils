@@ -31,7 +31,7 @@
     "jsonwebtoken": "^8.5.1",
     "lodash": "^4.17.21",
     "loglevel": "^1.8.0",
-    "mqtt-browser": "^4.2.7",
+    "mqtt": "^5.7.2",
     "react-bootstrap": "^2.9.1",
     "react-shadow-dom-retarget-events": "^1.0.8",
     "react-web-component-style-loader": "^0.1.4-alpha",

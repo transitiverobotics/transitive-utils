@@ -10,6 +10,7 @@ const { DataCache } = require('./DataCache');
 
 
 const log = getLogger('MqttSync');
+log.setLevel('info');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 const specialKey = '$_'; // special key to reify "value" in publishedMessages
