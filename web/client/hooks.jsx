@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import _ from 'lodash';
-import mqtt from 'mqtt/dist/mqtt.min';
+import mqtt from 'mqtt/dist/mqtt.esm'
 
 import { decodeJWT, getLogger, clone, pathToTopic, mergeVersions, topicToPath }
   from './client';
@@ -8,6 +8,7 @@ const MqttSync = require('../../common/MqttSync');
 
 const log = getLogger('utils-web/hooks');
 log.setLevel('info');
+
 
 /** Hook for using MqttSync in React.
 * @returns {object} An object `{data, mqttSync, ready, StatusComponent, status}`
