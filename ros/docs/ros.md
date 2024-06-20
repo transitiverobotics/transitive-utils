@@ -85,14 +85,6 @@ Example:
 }]
 ```
 
-### getServiceType
-
-Get service type.
-
-##### Parameters
-
-*   `service` &#x20;
-
 ### getSubscribedTopics
 
 Get topics that have subscribers

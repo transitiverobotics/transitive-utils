@@ -102,17 +102,21 @@ class ROS {
     this.requireInit();
 
     let {services} = await this.rn._node.getSystemState();
-    for (let name in services) {
-      services[name] = await this.rn.getServiceHeader(name);
-    }
-    return services;
-  }
 
-  /** Get service type. */
-  async getServiceType(service) {
-    this.requireInit();
-    // return await this.rn._node._masterApi.lookupService(service);
-    // return await this.rn._node.lookupService(service);
+    await Promise.all(_.map(services, async (nodes, name) => {
+      /* getServiceHeader connects to the service provider itself, which fails
+      when it is not running (e.g., ctrl-z'ed), just like
+      `rosservice info servicename` actually. Adding a timeout. */
+      const header =
+        await Promise.race([ this.rn.getServiceHeader(name), wait(1000) ]);
+      if (header) {
+        services[name] = header;
+      } else {
+        log.warn(`Timeout waiting for service: ${name}`);
+      }
+    }));
+
+    return services;
   }
 
   /** Subscribe to the named topic of the named type. Each time a new message

@@ -30,14 +30,12 @@ const primitiveDefaults = {
 
 /* Generate a template of the given type class with default values for all
 * fields. */
-const generateTemplate = (TypeClass, category = 'msg') => {
+const generateTemplate = (TypeClass) => {
   const rtv = {};
 
   const get = (type) => type.isArray ? [get({...type, isArray: false})] :
     type.isPrimitiveType ? primitiveDefaults[type.type] :
-    generateTemplate(
-      rclnodejs.require(`${type.pkgName}/${category}/${type.type}`),
-      category);
+    generateTemplate(rclnodejs.require(`${type.pkgName}/msg/${type.type}`));
 
   TypeClass.ROSMessageDef.fields.forEach(({name, type}) => {
     rtv[name] = get(type);
@@ -235,7 +233,7 @@ class ROS2 {
 
     const TypeClass = rclnodejs.require(`${pkg}/${category}/${type}`);
     return (category == 'msg' ? generateTemplate(TypeClass, category) :
-      generateTemplate(TypeClass[response ? 'Response' : 'Request'], category));
+      generateTemplate(TypeClass[response ? 'Response' : 'Request']));
   }
 
   async getServices() {

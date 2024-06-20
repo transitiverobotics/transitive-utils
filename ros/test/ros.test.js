@@ -99,9 +99,17 @@ test('loads', () => {
       assert.equal(typeof template.name, 'string');
     });
 
+    test('can get type template for service with msg field', () => {
+      const template = ros.rosVersion == 2 ?
+        ros.getTypeTemplate('rcl_interfaces', 'srv', 'SetParameters') :
+        ros.getTypeTemplate('sensor_msgs', 'srv', 'SetCameraInfo');
+      // console.log(template);
+    });
+
     test('get services', async () => {
       const services = await ros.getServices();
       // check some known services that should always be present
+      console.log('services', ros.rosVersion, services);
       if (ros.rosVersion == 1) {
         assert.equal(services['/rosout/get_loggers'].type, 'roscpp/GetLoggers');
       } else {
