@@ -68,22 +68,15 @@ Get all known message and service types, grouped by package.
 
 ### getServices
 
-Get available services. Returns an object where keys are service names,
-and the values are objects with the header information for the topic.
+Get available services (list of names).
 
-Example:
+### getServiceType
 
-```json
-[{
-   '/rosout/get_loggers': {
-     callerid: '/rosout',
-     md5sum: '32e97e85527d4678a8f9279894bb64b0',
-     request_type: 'roscpp/GetLoggersRequest',
-     response_type: 'roscpp/GetLoggersResponse',
-     type: 'roscpp/GetLoggers'
-   }
-}]
-```
+Get type of a given service.
+
+##### Parameters
+
+*   `service` &#x20;
 
 ### getSubscribedTopics
 
@@ -183,6 +176,18 @@ create a std\_msgs/Header for the given frame\_id and date
 ### getAvailableTypes
 
 Get all known message, service, and action types, grouped by package.
+
+### getServices
+
+Get list of available services (list of names).
+
+### getServiceType
+
+Get type of a given service.
+
+##### Parameters
+
+*   `service` &#x20;
 
 ### getSubscribedTopics
 

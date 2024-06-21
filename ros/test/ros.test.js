@@ -111,11 +111,21 @@ test('loads', () => {
       // check some known services that should always be present
       console.log('services', ros.rosVersion, services);
       if (ros.rosVersion == 1) {
-        assert.equal(services['/rosout/get_loggers'].type, 'roscpp/GetLoggers');
+        assert(services.includes('/rosout/get_loggers'));
       } else {
-        const key = _.findKey(services, (o, key) => key.endsWith('/get_parameters'));
-        assert(key);
-        assert.equal(services[key].type, 'rcl_interfaces/srv/GetParameters');
+        assert(services.find(s => s.endsWith('/get_parameters')));
+      }
+    });
+
+    test('get service types', async () => {
+      if (ros.rosVersion == 1) {
+        assert.equal(await ros.getServiceType('/rosout/get_loggers'),
+          'roscpp/GetLoggers');
+      } else {
+        const services = await ros.getServices();
+        const service = services.find(s => s.endsWith('/get_parameters'));
+        assert.equal(await ros.getServiceType(service),
+          'rcl_interfaces/srv/GetParameters');
       }
     });
 

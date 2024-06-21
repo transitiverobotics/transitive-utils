@@ -82,41 +82,22 @@ class ROS {
     ).map(topic => topic.name); // we only want the name
   }
 
-  /** Get available services. Returns an object where keys are service names,
-  * and the values are objects with the header information for the topic.
-  *
-  * Example:
-  * ```json
-  * [{
-  *    '/rosout/get_loggers': {
-  *      callerid: '/rosout',
-  *      md5sum: '32e97e85527d4678a8f9279894bb64b0',
-  *      request_type: 'roscpp/GetLoggersRequest',
-  *      response_type: 'roscpp/GetLoggersResponse',
-  *      type: 'roscpp/GetLoggers'
-  *    }
-  * }]
-  * ```
-  */
+  /** Get available services (list of names). */
   async getServices() {
     this.requireInit();
-
     let {services} = await this.rn._node.getSystemState();
+    return Object.keys(services);
+  }
 
-    await Promise.all(_.map(services, async (nodes, name) => {
-      /* getServiceHeader connects to the service provider itself, which fails
-      when it is not running (e.g., ctrl-z'ed), just like
-      `rosservice info servicename` actually. Adding a timeout. */
-      const header =
-        await Promise.race([ this.rn.getServiceHeader(name), wait(1000) ]);
-      if (header) {
-        services[name] = header;
-      } else {
-        log.warn(`Timeout waiting for service: ${name}`);
-      }
-    }));
-
-    return services;
+  /** Get type of a given service. */
+  async getServiceType(service) {
+    const header =
+      await Promise.race([ this.rn.getServiceHeader(service), wait(1000) ]);
+    if (!header) {
+      log.warn(`Timeout waiting for service: ${service}`);
+      return null;
+    }
+    return header.type;
   }
 
   /** Subscribe to the named topic of the named type. Each time a new message

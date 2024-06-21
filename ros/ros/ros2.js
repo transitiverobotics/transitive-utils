@@ -112,6 +112,18 @@ class ROS2 {
     return subscribedTopics;
   }
 
+  /** Get list of available services (list of names). */
+  async getServices() {
+    const list = await this.node.getServiceNamesAndTypes();
+    return list.map(({name}) => name);
+  }
+
+  /** Get type of a given service. */
+  async getServiceType(service) {
+    const list = await this.node.getServiceNamesAndTypes();
+    return list.find(({name}) => name == service)?.types[0];
+  }
+
   /** Subscribe to the named topic of the named type. Each time a new message
   * is received the provided callback is called. For available options see
   * https://robotwebtools.github.io/rclnodejs/docs/0.22.3/Node.html#createSubscription.
@@ -243,13 +255,6 @@ class ROS2 {
     const TypeClass = rclnodejs.require(`${pkg}/${category}/${type}`);
     return (category == 'msg' ? generateTemplate(TypeClass, category) :
       generateTemplate(TypeClass[response ? 'Response' : 'Request']));
-  }
-
-  async getServices() {
-    const list = await this.node.getServiceNamesAndTypes();
-    const services = {};
-    list.forEach(({name, types}) => services[name] = {type: types[0]});
-    return services;
   }
 };
 
