@@ -58,6 +58,7 @@ const clone = (obj) => JSON.parse(JSON.stringify(obj));
 
 /** Parse JWT and return the decoded payload (JSON). */
 const decodeJWT = (jwt) => JSON.parse(atob(jwt.split('.')[1]));
+// TODO: make this robust against bad JWTs (throw a more readable error)
 
 /** Try parsing JSON, return null if unsuccessful */
 const tryJSONParse = (string) => {

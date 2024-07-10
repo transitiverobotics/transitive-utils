@@ -40,11 +40,12 @@ class Capability {
     this.mqtt = mqttClient;
 
     log.info('connecting');
-    mqttClient.on('connect', () => {
-      log.info('(re-)connected');
+    mqttClient.once('connect', () => {
+      log.info('connected');
       this.mqttSync ||= new MqttSync({mqttClient});
       onReady && onReady();
     });
+    mqttClient.on('connect', () => log.info('(re-)connected'));
 
     mqttClient.on('error', log.error.bind(log));
     mqttClient.on('disconnect', log.warn.bind(log));

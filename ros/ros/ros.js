@@ -89,7 +89,9 @@ class ROS {
     return Object.keys(services);
   }
 
-  /** Get type of a given service. */
+  /** Get type of a given service. Note that in ROS 1 this requires connecting
+  * to the service provider directly, and we don't want to poll all of them. So
+  * only use this on-demand. */
   async getServiceType(service) {
     const header =
       await Promise.race([ this.rn.getServiceHeader(service), wait(1000) ]);

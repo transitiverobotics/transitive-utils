@@ -254,7 +254,7 @@ export default () => {
     </button>
 
     <Section title='testing error boundary'>
-      It should say "Something went wrong here":
+      It should show an Error:
       <ErrorBoundary>
         <Fail />
         test
@@ -338,6 +338,22 @@ export default () => {
 
     <Section title="Production Capabilities">
     </Section>
+
+    <Section title="Failures">
+      Test with bad JWTs
+      <ErrorBoundary>
+        <TransitiveCapability
+          jwt={`xx.${btoa(JSON.stringify({ id: 'id1', device: 'd_mock' }))}.xx`}
+          />
+        <TransitiveCapability
+          jwt={`xx.${btoa(JSON.stringify({ device: 'd_mock', capability: 'a/b' }))}.xx`}
+          />
+        <TransitiveCapability
+          jwt={`xx.${btoa(JSON.stringify({ id: 'id1', capability: 'a/b' }))}.xx`}
+          />
+      </ErrorBoundary>
+    </Section>
+
 
     The end
   </div>;

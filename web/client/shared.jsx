@@ -121,7 +121,16 @@ export const TransitiveCapability = ({
     jwt, host = 'transitiverobotics.com', ssl = true, ...config
   }) => {
 
+    const assertPresent = (value, name) => {
+      if (!value) throw new Error(`JWT is missing ${name}`);
+    };
+
     const {id, device, capability} = decodeJWT(jwt);
+    // Throw an error when any of the above payload is missing
+    assertPresent(id, 'id');
+    assertPresent(device, 'device');
+    assertPresent(capability, 'capability');
+
     const type = device == '_fleet' ? 'fleet' : 'device';
     const capName = capability.split('/')[1];
     const name = `${capName}-${type}`;
@@ -163,7 +172,10 @@ export const TransitiveCapability = ({
 export class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = {
+      hasError: false,
+      messages: [],
+    };
   }
 
   static getDerivedStateFromError(error) {
@@ -172,12 +184,15 @@ export class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.warn('ErrorBoundary caught:', error, errorInfo);
+    this.setState(({messages}) => ({messages: [...messages, error.message]}));
   }
 
   render() {
-    return (this.state.hasError ?
-      <div>{this.props.message || 'Something went wrong here.'}</div> :
-      this.props.children);
+    return (this.state.hasError ? <div>
+        Error: {this.props.message || this.state.messages?.join(', ')
+          || 'Something went wrong here.'}
+      </div>
+      : this.props.children);
   }
 };
 
