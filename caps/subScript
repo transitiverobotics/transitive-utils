@@ -36,6 +36,9 @@ fi;
 
 if [[ $SUBSCRIPT == "start" ]]; then
   # ensure dependencies are installed
+  if [[ $SUBPROJECT ]]; then
+    rm -rf $SUBPROJECT/node_modules/.*-* $SUBPROJECT/node_modules/@*/.*-*
+  fi;
   npm $PREFIX ls || npm $PREFIX update
 fi;
 
