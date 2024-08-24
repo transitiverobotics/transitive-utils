@@ -91,6 +91,10 @@ class MqttSync {
   remembers insertion order of keys. */
   publishQueue = new Map();
 
+  /* We need to keep a record of all received topics (not messages) so far in
+  case we want to clear any of them. */
+  receivedTopics = new Set();
+
   /* List of callbacks waiting for next heartbeat, gets purged with each
   heartbeat */
   heartbeatWaitersOnce = [];
@@ -123,6 +127,8 @@ class MqttSync {
         this.heartbeats++;
 
       } else {
+        this.receivedTopics.add(topic);
+
         const json = mqttParsePayload(payload);
         let path = topicToPath(topic);
         log.debug('processing message', topic, path);
@@ -320,9 +326,11 @@ class MqttSync {
         log.warn('Ignoring', prefix, 'since it is not a string.');
       }
       // add the topics we already know off:
-      const current = this.data.getByTopic(prefix);
-      _.forEach(toFlatObject(current), (value, topic) => {
-        toDelete.push(topic);
+      this.receivedTopics.forEach(topic => {
+        if (topic.startsWith(prefix)) {
+          log.debug('marking for deletion', `${prefix}${topic}`);
+          toDelete.push(topic);
+        }
       });
     });
 
@@ -334,7 +342,7 @@ class MqttSync {
       prefixes.forEach(prefix => this.mqtt.unsubscribe(prefix));
 
       const count = toDelete.length;
-      log.debug(`clearing ${count} retained messages from ${prefixes}`);
+      log.info(`clearing ${count} retained messages from ${prefixes}`);
       toDelete.forEach(topic => {
         this.mqtt.publish(topic, nullValue, {retain: true});
       });

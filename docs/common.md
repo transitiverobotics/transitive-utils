@@ -214,6 +214,9 @@ log.debug(`Called /mySquare with arg 11 and got ${result}`);
 
 See the note about namespaces in `register`.
 
+Note: It is your responsibility to only call methods that exist (have been
+registered). Calling a non-existent command just hangs.
+
 ##### Parameters
 
 *   `command` &#x20;
