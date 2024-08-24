@@ -310,7 +310,7 @@ class MqttSync {
       );
     }
     this.mqtt.on('message', collectToDelete);
-    // TODO: this only works if we haven't already gotten these messages before!
+    // this only collects new topics, not those we've already received
 
     // subscribe to all
     prefixes.forEach(prefix => {
@@ -319,6 +319,11 @@ class MqttSync {
       } else {
         log.warn('Ignoring', prefix, 'since it is not a string.');
       }
+      // add the topics we already know off:
+      const current = this.data.getByTopic(prefix);
+      _.forEach(toFlatObject(current), (value, topic) => {
+        toDelete.push(topic);
+      });
     });
 
     // value to use to clear, depending on node.js vs. browser
@@ -695,6 +700,9 @@ class MqttSync {
   * log.debug(`Called /mySquare with arg 11 and got ${result}`);
   * ```
   * See the note about namespaces in `register`.
+  *
+  * Note: It is your responsibility to only call methods that exist (have been
+  * registered). Calling a non-existent command just hangs.
   */
   call(command, args, callback = undefined) {
     const id = getRandomId();

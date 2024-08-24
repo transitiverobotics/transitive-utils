@@ -833,7 +833,9 @@ describe('MqttSync', function() {
       });
     });
 
-
+    /* Note that the aedes mqtt broker seems to behave slightly differently here
+    than mosquitto: In mosquitto, it seems we do not receive the already
+    subscribed topics again when we call clear, while in aedes we do. */
     it('clears already known sub-topics', function(done) {
       clientA.publish('/#');
       clientB.subscribe('/#');
@@ -846,6 +848,23 @@ describe('MqttSync', function() {
             setTimeout(() => {
                 assert.deepEqual(clientA.data.getByTopic('/uId/dId/@scope/capname/'),
                   {'1.1.0': {b: {c: 2}}}, 'a');
+                done();
+              }, 200);
+          });
+        }, 400);
+    });
+
+    it('clears already known parent topics', function(done) {
+      clientA.publish('/#');
+      clientB.subscribe('/#');
+      clientA.data.update('/uId/dId/@scope/capname/1.0.0/a', {d: 1});
+      clientA.data.update('/uId/dId/@scope/capname/1.0.0/b', {c: 1});
+      clientA.data.update('/uId/dId/@scope/capname/1.1.0/b', {c: 2});
+      setTimeout(() => {
+          console.log('clearing');
+          clientB.clear(['/uId/dId'], () => {
+            setTimeout(() => {
+                assert.deepEqual(clientB.data.get(), {});
                 done();
               }, 200);
           });
