@@ -79,7 +79,7 @@ class ROS2 {
     }
 
     this.node = rclnodejs.createNode(
-      `${nodeName}${suffix.replace(/[^a-zA-Z0-9\_]/g, '_')}`);
+      `${nodeName}${suffix.replace(/[^a-zA-Z0-9\_]/g, '_')}`, 'transitive');
     rclnodejs.spin(this.node);
     log.info('done initializing');
   }
