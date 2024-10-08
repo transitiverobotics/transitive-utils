@@ -20,6 +20,11 @@
     "access": "public"
   },
   "main": "dist/utils-web.js",
+  "NOT_USED-module": "./dist/utils-web.esm.mjs",
+  "NOT_USED-exports": {
+    "import": "./dist/utils-web.esm.mjs",
+    "default": "./dist/utils-web.js"
+  },
   "scripts": {
     "prepare": "node esbuild.js && cd css && npx cleancss -o bootstrap_transitive-bs-root.min.css bootstrap_transitive-bs-root.css",
     "prepack": "cat ../docs.js | node --input-type=module - client",
@@ -31,7 +36,7 @@
     "jsonwebtoken": "^8.5.1",
     "lodash": "^4.17.21",
     "loglevel": "^1.8.0",
-    "mqtt": "^5.7.2",
+    "mqtt": "^5.10.1",
     "react-bootstrap": "^2.9.1",
     "react-shadow-dom-retarget-events": "^1.0.8",
     "react-web-component-style-loader": "^0.1.4-alpha",

@@ -13,7 +13,6 @@ const config = {
   // minify: !isDevelopment,
   sourcemap: isDevelopment,
   target: ['chrome110', 'firefox110', 'safari15', 'edge110'],
-  // target: ['es2022'],
   packages: 'external',
   outdir: 'dist',
   loader: {
@@ -42,6 +41,17 @@ const run = async () => {
     await ctx.rebuild();
     process.exit(0);
   }
+
+  // const formats = [
+  //   { format: 'cjs' },
+  //   { format: 'esm', outExtension: {'.js': '.esm.mjs'}}
+  // ];
+
+  // for (let overwrites of formats) {
+  //   const ctx = await esbuild.context({...config, ...overwrites});
+  //   isDevelopment ? ctx.watch() : await ctx.rebuild();
+  // }
+  // !isDevelopment && process.exit(0);
 };
 
 run();

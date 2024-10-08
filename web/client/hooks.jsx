@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import _ from 'lodash';
-import mqtt from 'mqtt';
+// import mqtt1 from 'mqtt';
+import mqtt from 'mqtt/dist/mqtt.esm';
 
 import { decodeJWT, getLogger, clone, pathToTopic, mergeVersions, topicToPath }
   from './client';
