@@ -211,11 +211,15 @@ class ROS {
     const packages = rosnodejs.getAvailableMessagePackages();
     const types = {};
     _.forEach(packages, (value, pkgName) => {
-      const pkg = rosnodejs.require(pkgName);
-      types[pkgName] = {
-        msg: pkg.msg ? Object.keys(pkg.msg) : [],
-        srv: pkg.srv ? Object.keys(pkg.srv) : []
-      };
+      try {
+        const pkg = rosnodejs.require(pkgName);
+        types[pkgName] = {
+          msg: pkg.msg ? Object.keys(pkg.msg) : [],
+          srv: pkg.srv ? Object.keys(pkg.srv) : []
+        };
+      } catch (e) {
+        log.warn(`Failed to load package ${pkgName}`, e);
+      }
     });
     return types;
   }
