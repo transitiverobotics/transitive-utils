@@ -150,6 +150,13 @@ const ClassWithFunctional = class extends React.Component {
   }
 };
 
+const mockJWT = (id, count) =>
+  `ignore.${btoa(JSON.stringify({
+    id,
+    device: `d_mock_${count}`,
+    capability: '@transitive-robotics/mock'
+  }))}.ignore`;
+
 export default () => {
   const [count, setCount] = useState(0);
   const [show, setShow] = useState(true);
@@ -159,13 +166,16 @@ export default () => {
   const [dynData2, setDynData2] = useState();
   const [dynData3, setDynData3] = useState();
 
-  // const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2UiOiJHYkdhMnlncXF6IiwiY2FwYWJpbGl0eSI6Il9yb2JvdC1hZ2VudCIsInVzZXJJZCI6InBvcnRhbFVzZXItcUVtWW41dGlib3ZLZ0d2U20iLCJ2YWxpZGl0eSI6NDMyMDAsImlhdCI6MTY0MzMzNDgxMn0.2eciKJ-tNGJmJbyZRr8lopELr73M5EK9lQqmsOsdXyA';
-  const id = 'mockUser';
-  const jwt = `ignore.${btoa(JSON.stringify({
-    id,
-    device: 'd_mock',
-    capability: '@transitive-robotics/mock'
-  }))}.ignore`;
+  const [id, setId] = useState('mockUser');
+  const [jwt, setJwt] = useState(mockJWT('mockUser', 0));
+
+  useEffect(() => {
+      setId(`mockUser_${count}`);
+    }, [count]);
+
+  useEffect(() => {
+      setJwt(mockJWT(id, count));
+    }, [id]);
 
   const {mqttSync, data, status, ready, StatusComponent} =
     useTransitive({jwt, id, host: HOST, ssl: false,
