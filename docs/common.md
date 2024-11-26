@@ -45,7 +45,7 @@ Filter the object using topic with wildcards
 
 ### forMatch
 
-For each topic match, invoke the callback with the value, topic, and match
+For each topic match, invoke the callback with the value, path, and match
 just like subscribePath, but on the current data rather than future changes.
 
 ##### Parameters
@@ -55,7 +55,7 @@ just like subscribePath, but on the current data rather than future changes.
 
 ### forPathMatch
 
-For each path match, invoke the callback with the value, topic, and match
+For each path match, invoke the callback with the value, path, and match
 just like subscribePath
 
 ##### Parameters
@@ -269,7 +269,14 @@ check whether we are subscribed to the given topic
 
 Migrate a list of `{topic, newVersion, transform}`. The version number in
 topic will be ignored, and all versions' values will be merged, applied in
-order, such that the latest version is applied last.
+order, such that the latest version is applied last. `topic` may include
+wildcards in the part before the version number but not after.
+
+Example:
+
+```js
+mqttSync.migrate([{topic: '/+/dId/@scope/capname/+/b', newVersion: '1.2.0'}]
+```
 
 ##### Parameters
 
