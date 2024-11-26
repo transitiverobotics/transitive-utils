@@ -375,6 +375,31 @@ describe('MqttSync', function() {
         }, 100);
     });
 
+    it('migrates nothing when nothing applies', function(done) {
+      clientA.publish('/uId/dId/@scope/capname/1.0.0');
+      clientA.subscribe('/#');
+      clientA.data.update('/uId/dId/@scope/capname/1.0.0/b', {c: 1, d: 1});
+      setTimeout(() => {
+          let mqttClientC = mqtt.connect(mqttURL);
+          let clientC = new MqttSync({
+            mqttClient: mqttClientC,
+            migrate: [{topic: '/uDifferent/dId/@scope/capname/+/b', newVersion: '1.2.0'}],
+            onReady: () => {
+              log.debug('onReady');
+              setTimeout(() => {
+                  assert.deepEqual(
+                    clientA.data.getByTopic('/uId/dId/@scope/capname/1.0.0/b'),
+                    {c: 1, d: 1});
+                  mqttClientC.end();
+                  mqttClientC = null;
+                  clientC = null;
+                  done();
+                }, 300);
+            }
+          });
+        }, 100);
+    });
+
     it('migrates single topic with transform', function(done) {
       clientA.publish('/uId/dId/@scope/capname/1.0.0');
       clientA.publish('/uId/dId/@scope/capname/1.1.0');
@@ -612,11 +637,6 @@ describe('MqttSync', function() {
     });
 
     it('does not fail on empty data', function(done) {
-      // clientA.publish('/uId/dId/@scope/capname/1.0.0');
-      // clientA.publish('/uId/dId/@scope/capname/1.1.0');
-      // clientA.subscribe('/uId/dId/@scope/capname/1.2.0/b/#');
-      // clientA.data.update('/uId/dId/@scope/capname/1.0.0/b', {c: 1, d: 1});
-      // clientA.data.update('/uId/dId/@scope/capname/1.1.0/b', {c: 2, e: 3});
       setTimeout(() => {
           let mqttClientC = mqtt.connect(mqttURL);
           let clientC = new MqttSync({
@@ -632,6 +652,187 @@ describe('MqttSync', function() {
           });
         }, 100);
     });
+
+
+    it('migrates topics with wildcards', function(done) {
+      clientA.publish('/+/dId/@scope/capname/+');
+      clientA.subscribe('/#'); // result
+      clientA.data.update('/uId1/dId/@scope/capname/1.0.0/b', {c: 1, d: 1});
+      clientA.data.update('/uId1/dId/@scope/capname/1.0.0/d', {keep: true});
+      clientA.data.update('/uId1/dId/@scope/capname/1.1.0/b', {c: 2, e: 3});
+      clientA.data.update('/uId2/dId/@scope/capname/1.0.0/b', {c: 1, d: 1});
+      clientA.data.update('/uId2/dId/@scope/capname/1.1.0/b', {c: 2, e: 3});
+      setTimeout(() => {
+          let mqttClientC = mqtt.connect(mqttURL);
+          // new client which does the migration
+          let clientC = new MqttSync({
+            mqttClient: mqttClientC,
+            migrate: [{topic: '/+/dId/@scope/capname/+/b', newVersion: '1.2.0'}],
+            onReady: () => {
+              log.debug('onReady');
+              setTimeout(() => {
+                  // log.debug(JSON.stringify(clientA.data.get(), true, 2));
+                  // verify migration result:
+                  assert.deepEqual(
+                    clientA.data.getByTopic('/uId1/dId/@scope/capname/1.2.0/b'),
+                    {c: 2, d: 1, e: 3});
+                  assert.deepEqual(
+                    clientA.data.getByTopic('/uId2/dId/@scope/capname/1.2.0/b'),
+                    {c: 2, d: 1, e: 3});
+                  // verify old data has been cleared:
+                  assert.deepEqual(
+                    clientA.data.getByTopic('/uId1/dId/@scope/capname/1.0.0'),
+                    {d: {keep: true}});
+                  assert.equal(
+                    clientA.data.getByTopic('/uId1/dId/@scope/capname/1.1.0'),
+                    null);
+                  assert.equal(
+                    clientA.data.getByTopic('/uId2/dId/@scope/capname/1.0.0'),
+                    null);
+                  assert.equal(
+                    clientA.data.getByTopic('/uId2/dId/@scope/capname/1.1.0'),
+                    null);
+
+                  mqttClientC.end();
+                  mqttClientC = null;
+                  clientC = null;
+                  done();
+                }, 300);
+            }
+          });
+        }, 100);
+    });
+
+    it('migrates topics with wildcards, flat', function(done) {
+      clientA.publish('/+/dId/@scope/capname/+');
+      clientA.subscribe('/+/dId/@scope/capname/1.2.0/b/#'); // result
+      clientA.data.update('/uId1/dId/@scope/capname/1.0.0/b', {c: 1, d: 1});
+      clientA.data.update('/uId1/dId/@scope/capname/1.0.0/d', {keep: true});
+      clientA.data.update('/uId1/dId/@scope/capname/1.1.0/b', {c: 2, e: 3});
+      clientA.data.update('/uId2/dId/@scope/capname/1.0.0/b', {c: 1, d: 1});
+      clientA.data.update('/uId2/dId/@scope/capname/1.1.0/b', {c: 2, e: 3});
+      setTimeout(() => {
+          let mqttClientC = mqtt.connect(mqttURL);
+          let clientC = new MqttSync({
+            mqttClient: mqttClientC,
+            migrate: [{topic: '/+/dId/@scope/capname/+/b', newVersion: '1.2.0', flat: true}],
+            onReady: () => {
+              log.debug('onReady');
+              setTimeout(() => {
+                  // log.debug(clientA.data.get());
+                  assert.deepEqual(
+                    clientA.data.getByTopic('/uId1/dId/@scope/capname/1.2.0/b'),
+                    {c: 2, d: 1, e: 3});
+                  assert.deepEqual(
+                    clientA.data.getByTopic('/uId2/dId/@scope/capname/1.2.0/b'),
+                    {c: 2, d: 1, e: 3});
+                  assert.deepEqual(
+                    clientA.data.getByTopic('/uId1/dId/@scope/capname/1.0.0'),
+                    {d: {keep: true}});
+                  mqttClientC.end();
+                  mqttClientC = null;
+                  clientC = null;
+                  done();
+                }, 300);
+            }
+          });
+        }, 100);
+    });
+  });
+
+  it('migrates topics with multiple wildcards', function(done) {
+    clientA.publish('/+/+/@scope/capname/+');
+    clientA.subscribe('/#'); // result
+    clientA.data.update('/uId1/dId1/@scope/capname/1.0.0/b', {c: 1, d: 1});
+    clientA.data.update('/uId1/dId1/@scope/capname/1.0.0/d', {keep: true});
+    clientA.data.update('/uId1/dId1/@scope/capname/1.1.0/b', {c: 2, e: 3});
+    clientA.data.update('/uId2/dId2/@scope/capname/1.0.0/b', {c: 1, d: 1});
+    clientA.data.update('/uId2/dId2/@scope/capname/1.1.0/b', {c: 2, e: 3});
+    setTimeout(() => {
+        let mqttClientC = mqtt.connect(mqttURL);
+        // new client which does the migration
+        let clientC = new MqttSync({
+          mqttClient: mqttClientC,
+          migrate: [{topic: '/+/+/@scope/capname/+/b', newVersion: '1.2.0'}],
+          onReady: () => {
+            log.debug('onReady');
+            setTimeout(() => {
+                // log.debug(JSON.stringify(clientA.data.get(), true, 2));
+                // verify migration result:
+                assert.deepEqual(
+                  clientA.data.getByTopic('/uId1/dId1/@scope/capname/1.2.0/b'),
+                  {c: 2, d: 1, e: 3});
+                assert.deepEqual(
+                  clientA.data.getByTopic('/uId2/dId2/@scope/capname/1.2.0/b'),
+                  {c: 2, d: 1, e: 3});
+                // verify old data has been cleared:
+                assert.deepEqual(
+                  clientA.data.getByTopic('/uId1/dId1/@scope/capname/1.0.0'),
+                  {d: {keep: true}});
+                assert.equal(
+                  clientA.data.getByTopic('/uId1/dId1/@scope/capname/1.1.0'),
+                  null);
+                assert.equal(
+                  clientA.data.getByTopic('/uId2/dId2/@scope/capname/1.0.0'),
+                  null);
+                assert.equal(
+                  clientA.data.getByTopic('/uId2/dId2/@scope/capname/1.1.0'),
+                  null);
+
+                mqttClientC.end();
+                mqttClientC = null;
+                clientC = null;
+                done();
+              }, 300);
+          }
+        });
+      }, 100);
+  });
+
+  it('migrates topics with wildcards and empty sets', function(done) {
+    clientA.publish('/+/dId/@scope/capname/+');
+    clientA.subscribe('/#'); // result
+    clientA.data.update('/uId1/dId/@scope/capname/1.0.0/b', {c: 1, d: 1});
+    clientA.data.update('/uId1/dId/@scope/capname/1.0.0/d', {keep: true});
+    clientA.data.update('/uId1/dId/@scope/capname/1.1.0/b', {c: 2, e: 3});
+    clientA.data.update('/uId2/dId/@scope/capname/1.0.0/f', {c: 1, d: 1});
+    clientA.data.update('/uId2/dId/@scope/capname/1.1.0/f', {c: 2, e: 3});
+    setTimeout(() => {
+        let mqttClientC = mqtt.connect(mqttURL);
+        // new client which does the migration
+        let clientC = new MqttSync({
+          mqttClient: mqttClientC,
+          migrate: [{topic: '/+/dId/@scope/capname/+/b', newVersion: '1.2.0'}],
+          onReady: () => {
+            log.debug('onReady');
+            setTimeout(() => {
+                // log.debug(JSON.stringify(clientA.data.get(), true, 2));
+                // verify migration result:
+                assert.deepEqual(
+                  clientA.data.getByTopic('/uId1/dId/@scope/capname/1.2.0/b'),
+                  {c: 2, d: 1, e: 3});
+                // verify old data has been cleared:
+                assert.deepEqual(
+                  clientA.data.getByTopic('/uId1/dId/@scope/capname/1.0.0'),
+                  {d: {keep: true}});
+                assert.equal(
+                  clientA.data.getByTopic('/uId1/dId/@scope/capname/1.1.0'),
+                  null);
+                assert.deepEqual(
+                  clientA.data.getByTopic('/uId2/dId/@scope/capname/'),
+                  {
+                    '1.0.0': {f: {c: 1, d: 1}},
+                    '1.1.0': {f: {c: 2, e: 3}},
+                  });
+
+                mqttClientC.end();
+                mqttClientC = null;
+                clientC = null;
+                done();
+              }, 300);
+          }
+        });
+      }, 100);
   });
 
   /** testing throttle and queue-merge:

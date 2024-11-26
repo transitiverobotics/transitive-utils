@@ -114,9 +114,9 @@ class MqttSync {
 
     this.mqtt.on('message', (topic, payload, packet) => {
       const payloadString = payload && payload.toString()
-      log.debug('got message', topic, payloadString.slice(0, 180),
-        payloadString.length > 180 ? `... (${payloadString.length} bytes)` : '',
-        packet.retain);
+      // log.debug('got message', topic, payloadString.slice(0, 180),
+      // payloadString.length > 180 ? `... (${payloadString.length} bytes)` : '',
+      // packet.retain);
 
       if (topic == HEARTBEAT_TOPIC) {
         if (this.heartbeats > 0) { // ignore initial heartbeat (retained)
@@ -175,7 +175,7 @@ class MqttSync {
     });
 
     migrate?.length > 0 && this.migrate(migrate, () => {
-      log.debug('done migrating', onReady);
+      log.debug('done migrating');
       onReady && this.waitForHeartbeatOnce(onReady);
     });
   }
@@ -202,8 +202,15 @@ class MqttSync {
   }
 
   /** Migrate a list of `{topic, newVersion, transform}`. The version number in
-  topic will be ignored, and all versions' values will be merged, applied in
-  order, such that the latest version is applied last. */
+  * topic will be ignored, and all versions' values will be merged, applied in
+  * order, such that the latest version is applied last. `topic` may include
+  * wildcards in the part before the version number but not after.
+  *
+  * Example:
+  * ```js
+  * mqttSync.migrate([{topic: '/+/dId/@scope/capname/+/b', newVersion: '1.2.0'}]
+  * ```
+  */
   migrate(list, onReady = undefined) {
 
     let toGo = list.length;
@@ -232,47 +239,62 @@ class MqttSync {
             return;
           }
 
+          const all = {};
           this.waitForHeartbeatOnce(() => {
-            // merge everything
-            log.debug('got heartbeat', topic, subTopic);
-            const all = this.data.getByTopic(prefix);
-            if (!all) {
+
+            // for each match (prefix can include wildcards) merge everything
+            this.data.forMatch(prefix, (value, path, match) => {
+              // an actual (ground, aka. no wildcard) prefix
+              const groundPrefix = pathToTopic(path);
+
+              log.debug('got heartbeat', {prefix, topic, subTopic, suffix}, groundPrefix, value);
+              if (!value) {
+                // no data to migrate
+                return;
+              }
+              // collect for cleanup
+              Object.assign(all, value);
+
+              const merged = mergeVersions(value, suffix, {maxVersion: newVersion});
+              // get suffix in merged
+              const suffixMergedValue = _.get(merged, topicToPath(suffix));
+              log.debug({value, suffix, merged, suffixMergedValue});
+              // ^ this will need to change to support wild-cards in suffix
+              const transformed = transform ? transform(suffixMergedValue) :
+                suffixMergedValue;
+
+              // Publish the transformed value under the ground prefix as
+              // `newVersion/suffix`
+              const newTopic =
+                resolveDoubleSlashes(`${groundPrefix}/${newVersion}/${suffix}`);
+              log.debug('publishing merged', newTopic);
+
+              if (flat) {
+                const flatObj = toFlatObject(transformed);
+                const newPath = topicToPath(newTopic);
+                _.forEach(flatObj, (value, key) => {
+                  const keyTopic = pathToTopic(newPath.concat(topicToPath(key)));
+                  // TODO: Is this OK, or do we need to go through this.publish?
+                  this.mqtt.publish(keyTopic, JSON.stringify(value),
+                    {retain: true}, (err) => {
+                      err && log.warn(
+                        `Error when publishing migration result for ${key}`, err);
+                    });
+                });
+
+              } else {
+                this.publishAtLevel(newTopic, transformed, level);
+              }
+            });
+
+            this.unsubscribe(subTopic);
+
+            if (Object.keys(all).length == 0) {
               // no data to migrate
-              this.unsubscribe(subTopic);
               oneDown();
               return;
             }
 
-            const merged = mergeVersions(all, suffix, {maxVersion: newVersion});
-            // log.debug(JSON.stringify({all, merged}, true, 2));
-            // get suffix in merged
-            const suffixMergedValue = _.get(merged, topicToPath(suffix));
-            // ^ this will need to change to support wild-cards in suffix
-            const transformed = transform ? transform(suffixMergedValue) :
-              suffixMergedValue;
-            // publish its value at `prefix/newVersion/suffix`
-            const newTopic =
-              resolveDoubleSlashes(`${prefix}/${newVersion}/${suffix}`);
-            log.debug('publishing merged', newTopic);
-
-            if (flat) {
-              const flatObj = toFlatObject(transformed);
-              const newPath = topicToPath(newTopic);
-              _.forEach(flatObj, (value, key) => {
-                const keyTopic = pathToTopic(newPath.concat(topicToPath(key)));
-                // TODO: Is this OK, or do we need to go through this.publish?
-                this.mqtt.publish(keyTopic, JSON.stringify(value),
-                  {retain: true}, (err) => {
-                    err && log.warn(
-                      `Error when publishing migration result for ${key}`, err);
-                  });
-              });
-
-            } else {
-              this.publishAtLevel(newTopic, transformed, level);
-            }
-
-            this.unsubscribe(subTopic);
             this.waitForHeartbeatOnce(() => {
               // now clear this suffix in the old version space
               const oldVersions = Object.keys(all).filter(v =>
@@ -282,7 +304,6 @@ class MqttSync {
               const prefixesToClear = oldVersions.map(oldV =>
                 resolveDoubleSlashes(`${prefix}/${oldV}/${suffix}`));
 
-              log.debug({prefixesToClear});
               this.clear(prefixesToClear);
               oneDown();
             });

@@ -230,14 +230,14 @@ class DataCache {
     return this.filter(topicToPath(topic));
   }
 
-  /** For each topic match, invoke the callback with the value, topic, and match
+  /** For each topic match, invoke the callback with the value, path, and match
   just like subscribePath, but on the current data rather than future changes. */
   forMatch(topic, callback) {
     const path = topicToPath(topic);
     this.forPathMatch(path, callback);
   }
 
-  /** For each path match, invoke the callback with the value, topic, and match
+  /** For each path match, invoke the callback with the value, path, and match
   just like subscribePath */
   forPathMatch(path, callback) {
     forMatchIterator(this.get(), path, callback);
