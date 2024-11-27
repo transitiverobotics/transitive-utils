@@ -68,6 +68,8 @@ export function RFunction({myReact}) {
 
 
 const Device = (props) => {
+  console.log('Device', {props});
+
   const appReact = props.appReact || React;
   const { useState, useRef, useEffect } = appReact;
 

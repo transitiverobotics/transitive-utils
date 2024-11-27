@@ -355,6 +355,7 @@ describe('MqttSync', function() {
       clientA.data.update('/uId/dId/@scope/capname/1.0.0/b', {c: 1, d: 1});
       clientA.data.update('/uId/dId/@scope/capname/1.1.0/b', {c: 2, e: 3});
       setTimeout(() => {
+          log.info('received before', clientA.receivedTopics);
           let mqttClientC = mqtt.connect(mqttURL);
           let clientC = new MqttSync({
             mqttClient: mqttClientC,
@@ -362,6 +363,38 @@ describe('MqttSync', function() {
             onReady: () => {
               log.debug('onReady');
               setTimeout(() => {
+                  log.info('received after', clientC.receivedTopics);
+                  assert.deepEqual(
+                    clientA.data.getByTopic('/uId/dId/@scope/capname/1.2.0/b'),
+                    {c: 2, d: 1, e: 3});
+                  mqttClientC.end();
+                  mqttClientC = null;
+                  clientC = null;
+                  done();
+                }, 300);
+            }
+          });
+        }, 100);
+    });
+
+    it('migrates single topic, base values', function(done) {
+      clientA.publish('/uId/dId/@scope/capname/1.0.0');
+      clientA.publish('/uId/dId/@scope/capname/1.1.0');
+      clientA.subscribe('/uId/dId/@scope/capname/1.2.0/b/#');
+      clientA.data.update('/uId/dId/@scope/capname/1.0.0/b/c', 1);
+      clientA.data.update('/uId/dId/@scope/capname/1.0.0/b/d', 1);
+      clientA.data.update('/uId/dId/@scope/capname/1.1.0/b/c', 2);
+      clientA.data.update('/uId/dId/@scope/capname/1.1.0/b/e', 3);
+      setTimeout(() => {
+          log.info('received before', clientA.receivedTopics);
+          let mqttClientC = mqtt.connect(mqttURL);
+          let clientC = new MqttSync({
+            mqttClient: mqttClientC,
+            migrate: [{topic: '/uId/dId/@scope/capname/+/b', newVersion: '1.2.0'}],
+            onReady: () => {
+              log.debug('onReady');
+              setTimeout(() => {
+                  log.info('received after', clientC.receivedTopics);
                   assert.deepEqual(
                     clientA.data.getByTopic('/uId/dId/@scope/capname/1.2.0/b'),
                     {c: 2, d: 1, e: 3});

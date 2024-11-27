@@ -150,7 +150,7 @@ export const TransitiveCapability = ({
     useEffect(() => {
         ref.current?.instance?.setState(s =>
           ({ ...s, id, jwt, host, ssl, ...config }));
-      }, [ref.current, id, jwt, host, ssl, ...Object.values(config)]);
+      }, [ref.current, loaded, id, jwt, host, ssl, ...Object.values(config)]);
 
     // Disrupt the reactive chain of the MutationObserver to the customElement,
     // so we are not competing with it for updating the props.

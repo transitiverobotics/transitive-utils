@@ -50,7 +50,9 @@ const startServer = () => {
 
   // App routes
   app.use(express.static('test/dist'));
+  // for client-side routing
   app.use(cors(), express.static('test/static'));
+  app.use('/*', (req, res) => res.sendFile(`${process.cwd()}/test/static/index.html`));
 
   app.get('/json1', (_, response) => {
     response.json({msg: 'json1'});
