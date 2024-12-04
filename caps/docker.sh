@@ -25,8 +25,8 @@ function findOffset() {
 
 OFFSET=$(findOffset)
 PORT=$(( $BASE_PORT + $OFFSET ))
-MIN_PORT=$((30000 + $OFFSET * 100))
-MAX_PORT=$((30080 + $OFFSET * 100))
+MIN_PORT=$((60000 + $OFFSET * 100))
+MAX_PORT=$((60080 + $OFFSET * 100))
 
 echo "using port offset $OFFSET, i.e., port $PORT and port range $MIN_PORT-$MAX_PORT"
 
