@@ -183,7 +183,7 @@ class DataCache {
   }
 
   /** Subscribe to a specific topic only. Callback receives
-  `value, key, matched, tags`. */
+  `value, key, matched, tags`. TODO: rename to subscribeTopic. */
   subscribePath(topic, callback) {
     this.#listeners.push((changes, tags) => {
       _.forEach(changes, (value, key) => {
