@@ -25,10 +25,12 @@ function findOffset() {
 
 OFFSET=$(findOffset)
 PORT=$(( $BASE_PORT + $OFFSET ))
-MIN_PORT=$((60000 + $OFFSET * 100))
-MAX_PORT=$((60080 + $OFFSET * 100))
+# not in use by any capabilities right now:
+# MIN_PORT=$((60000 + $OFFSET * 100))
+# MAX_PORT=$((60080 + $OFFSET * 100))
 
-echo "using port offset $OFFSET, i.e., port $PORT and port range $MIN_PORT-$MAX_PORT"
+# echo "using port offset $OFFSET, i.e., port $PORT and port range $MIN_PORT-$MAX_PORT"
+echo "using port $PORT"
 
 CAP_NAME=$(npm pkg get name)
 VERSION=$(node -e "console.log(require('@transitive-sdk/utils').getPackageVersionNamespace())")
@@ -62,18 +64,20 @@ mkdir -p /tmp/pers/$TAG
 docker run -it --rm --init \
 --env MQTT_URL=mqtts://mosquitto \
 --env PUBLIC_PORT=$PORT \
---env MIN_PORT=$MIN_PORT \
---env MAX_PORT=$MAX_PORT \
 --env MONGO_DB="cap_$SAFE_NAME" \
 --env MONGO_URL="mongodb://mongodb" \
 -p $PORT:1000 -p $PORT:1000/udp \
--p $MIN_PORT-$MAX_PORT:$MIN_PORT-$MAX_PORT -p $MIN_PORT-$MAX_PORT:$MIN_PORT-$MAX_PORT/udp \
 -v /tmp/pers/common:/persistent/common \
 -v /tmp/pers/${TAG//:/.}:/persistent/self \
 --network=cloud_caps \
 --name $CONTAINER_NAME \
 $TAG $@
 # -v $PWD/cloud:/app/cloud \
+
+# not in use by any capabilities right now:
+# --env MIN_PORT=$MIN_PORT \
+# --env MAX_PORT=$MAX_PORT \
+# -p $MIN_PORT-$MAX_PORT:$MIN_PORT-$MAX_PORT -p $MIN_PORT-$MAX_PORT:$MIN_PORT-$MAX_PORT/udp \
 
 # doesn't yet work: when using this, the npm script runs as the owning user,
 # "node", because it has the same uid (1000) as us. But we want root.
