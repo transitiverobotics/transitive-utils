@@ -3,9 +3,32 @@
 
 const fs = require('node:fs');
 
-const { getLogger, constants } = require('@transitive-sdk/utils');
-const log = getLogger('ROSs');
-log.setLevel('info');
+// const { getLogger, constants } = require('@transitive-sdk/utils');
+// const log = getLogger('ROSs');
+// log.setLevel('info');
+
+
+const log = {
+  warn: console.warn,
+  info: console.log,
+  debug: console.log,
+  // debug: () => {}, //console.log,
+};
+
+const constants = {
+  rosReleases: {
+    kinetic: { rosVersion: 1, ubuntuCodename: 'xenial' },
+    melodic: { rosVersion: 1, ubuntuCodename: 'bionic' },
+    noetic: { rosVersion: 1, ubuntuCodename: 'focal' },
+    dashing: { rosVersion: 2 },
+    eloquent: { rosVersion: 2 },
+    foxy: { rosVersion: 2 },
+    galactic: { rosVersion: 2 },
+    humble: { rosVersion: 2 },
+    iron: { rosVersion: 2 },
+    rolling: { rosVersion: 2 },
+  }
+};
 
 const config = JSON.parse(process.env.TRCONFIG || '{}');
 log.debug('using config', config, constants);

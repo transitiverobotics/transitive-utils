@@ -1,11 +1,19 @@
 const fs = require('fs');
 const path = require('path');
 const rclnodejs = require('rclnodejs');
-const _ = require('lodash');
+// const _ = require('lodash');
 
-const { getLogger, wait } = require('@transitive-sdk/utils');
-const log = getLogger('ROS2');
-log.setLevel('info');
+// const { getLogger, wait } = require('@transitive-sdk/utils');
+// const log = getLogger('ROS2');
+// log.setLevel('info');
+
+const log = {
+  warn: console.warn,
+  info: console.log,
+  debug: () => {},
+};
+const wait = (delay) => new Promise((resolve) => { setTimeout(resolve, delay); });
+
 
 qos = new rclnodejs.QoS();
 qos.reliability = rclnodejs.QoS.ReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
@@ -230,17 +238,28 @@ class ROS2 {
         .map(({name}) => name);
 
     const types = {};
-    _.forEach(packages, (pkgName) => {
+    for (let pkg in packages) {
+      const pkgName = packages[pkg];
       const content = fs.readdirSync(path.join(messageDir, pkgName));
-      const parsed = content.map(fileName =>
-        fileName.replace('.js', '').split('__').slice(1,3));
-      const grouped = _.groupBy(parsed, type => type[0]);
+
+      // const parsed = content.map(fileName =>
+      //   fileName.replace('.js', '').split('__').slice(1,3));
+      // const grouped = _.groupBy(parsed, type => type[0]);
+
+      const grouped = {};
+      content.forEach(fileName => {
+        const type = fileName.replace('.js', '').split('__').slice(1,3);
+        grouped[type[0]] ||= [];
+        grouped[type[0]].push(type);
+      });
+
       types[pkgName] = {
         msg: grouped.msg?.map(type => type[1]) || [],
         srv: grouped.srv?.map(type => type[1]) || [],
         action: grouped.action?.map(type => type[1]) || [],
       };
-    });
+    }
+    // );
     return types;
   }
 

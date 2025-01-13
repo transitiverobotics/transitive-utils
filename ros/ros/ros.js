@@ -1,11 +1,18 @@
 
 process.env.CMAKE_PREFIX_PATH += `:${process.env.PWD}/var/ros1`;
 const rosnodejs = require('rosnodejs');
-const _ = require('lodash');
+// const _ = require('lodash');
 
-const { getLogger, wait } = require('@transitive-sdk/utils');
-const log = getLogger('ROS1');
-log.setLevel('info');
+// const { getLogger, wait } = require('@transitive-sdk/utils');
+// const log = getLogger('ROS1');
+// log.setLevel('info');
+
+const log = {
+  warn: console.warn,
+  info: console.log,
+  debug: () => {},
+};
+const wait = (delay) => new Promise((resolve) => { setTimeout(resolve, delay); });
 
 const ROS_MASTER_URI = process.env.ROS_MASTER_URI || 'http://localhost:11311';
 
@@ -17,6 +24,8 @@ class ROS {
   isShutdown = false;
 
   rosVersion = 1;
+
+  r = rosnodejs; // for #DEBUG
 
   async generateMessages() {
     log.info('Generating messages for ROS 1');
@@ -210,7 +219,8 @@ class ROS {
   getAvailableTypes() {
     const packages = rosnodejs.getAvailableMessagePackages();
     const types = {};
-    _.forEach(packages, (value, pkgName) => {
+    for (let pkgName in packages) {
+      const value = packages[pkgName];
       try {
         const pkg = rosnodejs.require(pkgName);
         types[pkgName] = {
@@ -220,7 +230,8 @@ class ROS {
       } catch (e) {
         log.warn(`Failed to load package ${pkgName}`, e);
       }
-    });
+    }
+    // );
     return types;
   }
 
@@ -241,3 +252,4 @@ class ROS {
 const instance = new ROS();
 
 module.exports = instance;
+// module.exports = { r: rosnodejs };
