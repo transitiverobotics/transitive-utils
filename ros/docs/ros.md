@@ -201,7 +201,7 @@ Get topics that have subscribers
 
 ### getTopics
 
-Get all topic of a given type or all topics ifno type is specified
+Get all topic of a given type or all topics if no type is specified
 
 ##### Parameters
 

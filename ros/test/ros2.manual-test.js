@@ -30,14 +30,14 @@ const run = async () => {
   await ROS2.init();
 
   console.log('topics:', await ROS2.getTopics());
-  const imageTopics = await ROS2.getTopics('sensor_msgs/msg/Image')
+  const imageTopics = await ROS2.getTopics('sensor_msgs/Image')
   console.log('image topics:', imageTopics);
   console.log('subscribed topics:', await ROS2.getSubscribedTopics());
 
   ROS2.subscribe(topic2, type, console.log);
 
   imageTopics.length > 0 &&
-  ROS2.subscribe(imageTopics[0], 'sensor_msgs/msg/Image', console.log);
+  ROS2.subscribe(imageTopics[0], 'sensor_msgs/Image', console.log);
 
   setInterval(() => ROS2.publish(topic1, type, 'hello1!'), 1000);
 }

@@ -43,6 +43,14 @@ const generateTemplate = (TypeClass) => {
   return rtv;
 };
 
+/* Function to implement convenience of poviding a ROS1 type and converting it
+ * to ROS2, i.e., inject msg/ or srv/ .*/
+const toROS2Type = (type, category = 'msg') => {
+  if (!type) return type; // null or undefined, keep it like that
+  const parts = type.split('/');
+  if (parts.length > 2) return type; // already a ROS2 type
+  return [parts[0], category, parts[1]].join('/');
+};
 
 /** Small convenient singleton class for interfacing with ROS2, including some
   auxiliary functions that come in handy in capabilities. Based on rclnodejs. */
@@ -93,11 +101,12 @@ class ROS2 {
   async getTopicsWithTypes(type = undefined) {
     this.requireInit();
     let topics = this.node.getTopicNamesAndTypes();
-    type && (topics = topics.filter(topic => topic.types.includes(type)));
+    const ros2Type = toROS2Type(type);
+    ros2Type && (topics = topics.filter(topic => topic.types.includes(ros2Type)));
     return topics;
   }
 
-  /** Get all topic of a given type or all topics ifno type is specified */
+  /** Get all topic of a given type or all topics if no type is specified */
   async getTopics(type = undefined) {
     const topics = await this.getTopicsWithTypes(type);
     return topics.map(t => t.name);
@@ -131,8 +140,9 @@ class ROS2 {
   * */
   subscribe(topic, type, onMessage, options = {}) {
     this.requireInit();
+    const ros2Type = toROS2Type(type);
     const sub = this.node.createSubscription(
-      type, topic, {qos, ...options}, onMessage);
+      ros2Type, topic, {qos, ...options}, onMessage);
     this.subscriptions[topic] = sub;
     return {
       shutdown: () => {
@@ -157,7 +167,8 @@ class ROS2 {
   advertise the topic if not yet advertised. */
   publish(topic, type, message, latching = true) {
     if (!this.publishers[topic]) {
-      this.publishers[topic] = this.node.createPublisher(type, topic);
+      const ros2Type = toROS2Type(type);
+      this.publishers[topic] = this.node.createPublisher(ros2Type, topic);
     }
 
     this.publishers[topic].publish({
@@ -189,7 +200,8 @@ class ROS2 {
 
     let serviceClient;
     try {
-      serviceClient = this.node.createClient(type, serviceName);
+      const ros2Type = toROS2Type(type, 'srv');
+      serviceClient = this.node.createClient(ros2Type, serviceName);
     } catch (e) {
       const error = `Unable to get service: "${e}"`;
       log.warn(`callService: ${error}`);

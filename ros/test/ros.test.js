@@ -14,7 +14,7 @@ test('loads', () => {
   describe(`ROS ${version}`, function() {
 
     const topic = '/utils_ros/test1';
-    const type = version == 1 ? 'std_msgs/String' : 'std_msgs/msg/String';
+    const type = 'std_msgs/String';
 
     let ros;
     let interval;
@@ -53,8 +53,7 @@ test('loads', () => {
 
     test('can publish messages with headers', () => {
       const topic = '/test_diag';
-      const type = version == 1 ? 'diagnostic_msgs/DiagnosticArray' :
-        'diagnostic_msgs/msg/DiagnosticArray';
+      const type = 'diagnostic_msgs/DiagnosticArray';
 
       ros.publish(topic, type, {
         level: 0,
@@ -66,7 +65,7 @@ test('loads', () => {
 
     test('can publish messages with typed arrays', () => {
       const topic = '/test_nav';
-      const typeList = `nav_msgs/${version == 1 ? '' : 'msg/'}GridCells`;
+      const typeList = `nav_msgs/GridCells`;
       ros.publish(topic, type,
         ros.getTypeTemplate('nav_msgs', 'msg', 'GridCells'));
     });
