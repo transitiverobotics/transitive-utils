@@ -90,7 +90,7 @@ Add a callback for all change events.
 ### subscribePath
 
 Subscribe to a specific topic only. Callback receives
-`value, key, matched, tags`.
+`value, key, matched, tags`. TODO: rename to subscribeTopic.
 
 ##### Parameters
 

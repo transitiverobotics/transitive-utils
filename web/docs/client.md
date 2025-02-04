@@ -170,6 +170,19 @@ Example:
   />
 ```
 
+Always loads the capability specified in the JWT and will default to the
+main component for that JWT (`-device` or `-fleet`). To specify a secondary
+component offered by the capability specify `component`, e.g., to load
+`webrtc-video-supervisor` instead of `webrtc-video-device`, provide a device
+JWT for webrtc-video and use:
+
+```jsx
+  <TransitiveCapability jwt={jwt}
+    component='webrtc-video-supervisor'
+    auto="true"
+  />
+```
+
 #### Parameters
 
 *   `$0` **[Object][1]**&#x20;
