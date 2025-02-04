@@ -394,7 +394,10 @@ const Simple = () => {
   const [count, setCount] = useState(1);
 
   return <div>
+    Outside:
     <button onClick={() => setCount(c => c + 1)}>inc</button>
+
+    Primary component:
     <TransitiveCapability host={HOST} ssl={false}
       jwt={mockJWT('mockUserSimple', 0)}
       ignore={count}
@@ -403,6 +406,18 @@ const Simple = () => {
       onData={(...args) => console.log('ondata', ...args)}
       handler={{myEvent: console.log}}
       />
+
+    Secondary component:
+    <TransitiveCapability host={HOST} ssl={false}
+      jwt={mockJWT('mockUserSimple', 0)}
+      count={count}
+      myconfig='Simple'
+      component='mock-secondary'
+      onclick2={() => { log.debug('clicked2 -- simple!!!'); }}
+      onData={(...args) => console.log('ondata', ...args)}
+      handler={{myEvent: console.log}}
+      />
+
   </div>;
 }
 

@@ -116,6 +116,18 @@ export const Timer = ({duration, onTimeout, onStart, setOnDisconnect, children})
 *     onclick={() => { console.log('custom click handler'); }}
 *   />
 * ```
+*
+* Always loads the capability specified in the JWT and will default to the
+* main component for that JWT (`-device` or `-fleet`). To specify a secondary
+* component offered by the capability specify `component`, e.g., to load
+* `webrtc-video-supervisor` instead of `webrtc-video-device`, provide a device
+* JWT for webrtc-video and use:
+* ```jsx
+*   <TransitiveCapability jwt={jwt}
+*     component='webrtc-video-supervisor'
+*     auto="true"
+*   />
+* ```
 */
 export const TransitiveCapability = ({
     jwt, host = 'transitiverobotics.com', ssl = true, ...config
@@ -134,6 +146,7 @@ export const TransitiveCapability = ({
     const type = device == '_fleet' ? 'fleet' : 'device';
     const capName = capability.split('/')[1];
     const name = `${capName}-${type}`;
+    const component = config.component || name;
 
     const { loaded } = useCapability({
       capability,
@@ -157,8 +170,7 @@ export const TransitiveCapability = ({
     const propClone = useMemo(() => ({id, jwt, host, ssl, ...config}), []);
 
     if (!loaded) return <div>Loading {name}</div>;
-    // return React.createElement(name, {id, jwt, host, ssl, ...config, ref});
-    return React.createElement(name, {...propClone, ref});
+    return React.createElement(component, {...propClone, ref});
   };
 
 

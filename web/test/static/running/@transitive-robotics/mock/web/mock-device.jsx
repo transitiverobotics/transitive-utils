@@ -104,7 +104,19 @@ const Device = (props) => {
   </div>;
 };
 
-log.debug('creating component');
+/** A secondary UI offered by this (mock) capability */
+const Secondary = (props) => {
+  return <div>Secondary UI component: {capabilityName}-secondary. Props:
+    <pre>
+      {JSON.stringify(props, true, 2)}
+    </pre>
+  </div>
+};
+
+
+log.debug('creating components');
 createWebComponent(Device, `${capabilityName}-device`, TR_PKG_VERSION);
+createWebComponent(Secondary, `${capabilityName}-secondary`, TR_PKG_VERSION);
+
 
 export default Device;
