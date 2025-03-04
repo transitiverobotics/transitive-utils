@@ -128,8 +128,8 @@ class MqttSync {
 
       } else {
         this.receivedTopics.add(topic);
+        // Do NOT parse payload just yet, since it may be binary and ignored by us
 
-        const json = mqttParsePayload(payload);
         let path = topicToPath(topic);
         log.debug('processing message', topic, path);
         if (sliceTopic) {
@@ -138,14 +138,17 @@ class MqttSync {
         }
 
         if (this.rpcHandlers[topic]) {
+          const json = mqttParsePayload(payload);
           this.handleRPCRequest(topic, json);
 
         } else if (this.rpcCallbacks[topic]) {
+          const json = mqttParsePayload(payload);
           this.handleRPCResponse(topic, json);
 
         } else if (packet.retain || ignoreRetain) {
 
           if (this.isPublished(topic)) {
+            const json = mqttParsePayload(payload);
             // store plain messages, still stored in a structure, but values are
             // not interpreted; we just store them to undo them if necessary, e.g.,
             // for switching between atomic and non-atomic subdocuments
@@ -160,12 +163,15 @@ class MqttSync {
             this.data.update(topic, json, {external: true});
 
           } else if (this.isSubscribed(topic)) {
+            const json = mqttParsePayload(payload);
 
             log.debug('applying received update', topic);
             const changes = this.data.update(topic, json);
             onChange && Object.keys(changes).length > 0 && onChange(changes);
           }
         }
+        // else: do not try to parse it, it might be a binary message sent
+        // directly using the client (with or without retain)
       }
     });
 

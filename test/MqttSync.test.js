@@ -1254,4 +1254,24 @@ describe('MqttSync', function() {
     });
 
   });
+
+
+
+  it('ignores (binary) data sent and subscribed directly on client', function(done) {
+    clientA.publish('/a/#');
+    clientB.subscribe('/a/#');
+
+    clientB.mqtt.subscribe('/binary/#');
+    clientB.mqtt.on('message', (topic, buffer, packet) => {
+      if (topic.startsWith('/binary')) {
+        inSync(clientA, clientB, done);
+      }
+    });
+
+    const buffer = Buffer.from([200, 201, 202, 203]); // some binary data
+    clientA.mqtt.publish('/binary/b', buffer);
+
+    clientA.data.update('a', {b: 1});
+  });
+
 });
