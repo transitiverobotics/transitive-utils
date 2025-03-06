@@ -1253,5 +1253,11 @@ describe('MqttSync', function() {
       assert.equal(await clientRobot.call(command, 2), 32);
     });
 
+    it('send complex path RPC with wildcards, await', async function() {
+      clientA.register('/+/subcom1/mycommand2', arg => arg * arg);
+
+      await wait(10);
+      assert.equal(await clientB.call(command2, 2), 4);
+    });
   });
 });
