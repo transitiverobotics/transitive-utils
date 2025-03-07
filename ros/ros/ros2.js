@@ -102,7 +102,11 @@ class ROS2 {
     this.requireInit();
     let topics = this.node.getTopicNamesAndTypes();
     const ros2Type = toROS2Type(type);
-    ros2Type && (topics = topics.filter(topic => topic.types.includes(ros2Type)));
+    ros2Type && 
+    (topics = topics
+      .filter(topic => topic.types.includes(ros2Type))
+      .map(topic => ({name: topic.name, type: ros2Type}))
+    );
     return topics;
   }
 
