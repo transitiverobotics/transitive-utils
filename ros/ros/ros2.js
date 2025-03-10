@@ -7,8 +7,13 @@ const { getLogger, wait } = require('@transitive-sdk/utils');
 const log = getLogger('ROS2');
 log.setLevel('info');
 
-qos = new rclnodejs.QoS();
-qos.reliability = rclnodejs.QoS.ReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+volatileQos = new rclnodejs.QoS();
+volatileQos.reliability = rclnodejs.QoS.ReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+
+latchingQos = new rclnodejs.QoS();
+latchingQos.reliability = rclnodejs.QoS.ReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+latchingQos.durability = rclnodejs.QoS.DurabilityPolicy.RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL;
+
 
 
 const primitiveDefaults = {
@@ -143,28 +148,71 @@ class ROS2 {
   * The default `options.qos.reliability` is best-effort.
   * */
   subscribe(topic, type, onMessage, options = {}) {
+    // TODO: this only supports a single subscription per topic
     this.requireInit();
+    let firstLatchedMessage;
     const ros2Type = toROS2Type(type);
-    const sub = this.node.createSubscription(
-      ros2Type, topic, {qos, ...options}, onMessage);
-    this.subscriptions[topic] = sub;
+    const _destroyLatchingSub = () => {
+      const subs = this.subscriptions[topic];
+      if (subs?.latching){
+        if (!subs.latching.__destroyed){
+          subs.latching.__destroyed = true;
+          this.node.destroySubscription(subs.latching);
+        }
+        delete this.subscriptions[topic].latching;
+      }
+    }
+
+    const latchingSub = this.node.createSubscription(
+      ros2Type, topic, {latchingQos, ...options}, (msg) => {
+        _destroyLatchingSub();
+        firstLatchedMessage = msg;
+        onMessage(msg);
+      }
+    );
+
+    const volatileSub = this.node.createSubscription(
+      ros2Type, topic, {volatileQos, ...options}, (msg) => {
+        _destroyLatchingSub();
+        if (firstLatchedMessage){
+          if(_.isEqual(firstLatchedMessage, msg)){
+            firstLatchedMessage = undefined;
+            // avoids duplicate first message
+            return;
+          }
+          firstLatchedMessage = undefined;          
+        }
+        onMessage(msg);
+      }
+    );  
+
+    this.subscriptions[topic] = {
+      volatile: volatileSub,
+      latching: latchingSub,
+    }
     return {
       shutdown: () => {
-        if (!sub || sub.__destroyed) return;
-        sub.__destroyed = true;
-        this.node.destroySubscription(sub);
+        this.unsubscribe(topic);
       }
     }
   }
 
   /** Unsubscribe from topic */
   unsubscribe(topic) {
-    const sub = this.subscriptions[topic];
-    if (!sub) {
+    const subs = this.subscriptions[topic];
+    if (!subs) {
       console.warn(`cannot unsubscribe from ${topic}, subscription not found`);
       return;
     }
-    this.node.destroySubscription(sub);
+    if (subs.volatile && !subs.volatile.__destroyed){
+      subs.volatile.__destroyed = true;
+      this.node.destroySubscription(subs.volatile);
+    }
+    if (subs.latching && !subs.latching.__destroyed){
+      subs.latching.__destroyed = true;
+      this.node.destroySubscription(subs.latching);
+    }
+    delete this.subscriptions[topic];
   }
 
   /** Publish the given message (json) on the names topic of type. Will
@@ -172,17 +220,17 @@ class ROS2 {
   publish(topic, type, message, latching = true) {
     if (!this.publishers[topic]) {
       const ros2Type = toROS2Type(type);
-      this.publishers[topic] = this.node.createPublisher(ros2Type, topic);
+      if(latching){
+        this.publishers[topic] = this.node.createPublisher(ros2Type, topic, {latchingQos});
+      } else {
+        this.publishers[topic] = this.node.createPublisher(ros2Type, topic);
+      }
     }
 
     this.publishers[topic].publish({
       header: this.createHeader(),
       ...message
     });
-
-    // TODO: latching, see
-    // https://github.com/RobotWebTools/rclnodejs/blob/develop/example/publisher-qos-example.js
-    // and https://github.com/ros2/ros2/issues/464
   }
 
   /** create a std_msgs/Header for the given frame_id and date */
