@@ -152,6 +152,10 @@ class ROS2 {
     this.requireInit();
     let firstLatchedMessage;
     const ros2Type = toROS2Type(type);
+    const _onMessage = options?.throttleMs ?
+      _.throttle(onMessage, options.throttleMs, { trailing: false }) :
+      onMessage;
+
     const _destroyLatchingSub = () => {
       const subs = this.subscriptions[topic];
       if (subs?.latching){
@@ -167,7 +171,7 @@ class ROS2 {
       ros2Type, topic, {latchingQos, ...options}, (msg) => {
         _destroyLatchingSub();
         firstLatchedMessage = msg;
-        onMessage(msg);
+        _onMessage(msg);
       }
     );
 
@@ -182,7 +186,7 @@ class ROS2 {
           }
           firstLatchedMessage = undefined;          
         }
-        onMessage(msg);
+        _onMessage(msg);
       }
     );  
 
