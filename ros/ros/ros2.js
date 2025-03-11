@@ -11,7 +11,7 @@ volatileQos = new rclnodejs.QoS();
 volatileQos.reliability = rclnodejs.QoS.ReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
 
 latchingQos = new rclnodejs.QoS();
-latchingQos.reliability = rclnodejs.QoS.ReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+latchingQos.reliability = rclnodejs.QoS.ReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_RELIABLE;
 latchingQos.durability = rclnodejs.QoS.DurabilityPolicy.RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL;
 
 
@@ -146,9 +146,9 @@ class ROS2 {
   * is received the provided callback is called. For available options see
   * https://robotwebtools.github.io/rclnodejs/docs/0.22.3/Node.html#createSubscription.
   * The default `options.qos.reliability` is best-effort.
+  * options object can contain: "throttleMs": throttle-in-milliseconds }`.
   * */
   subscribe(topic, type, onMessage, options = {}) {
-    // TODO: this only supports a single subscription per topic
     this.requireInit();
     let firstLatchedMessage;
     const ros2Type = toROS2Type(type);
@@ -156,32 +156,29 @@ class ROS2 {
       _.throttle(onMessage, options.throttleMs, { trailing: false }) :
       onMessage;
 
-    const _destroyLatchingSub = () => {
-      const subs = this.subscriptions[topic];
-      if (subs?.latching){
-        if (!subs.latching.__destroyed){
-          subs.latching.__destroyed = true;
-          this.node.destroySubscription(subs.latching);
-        }
-        delete this.subscriptions[topic].latching;
+    const _destroySub = (subscriber) => {
+      if (subscriber && !subscriber.__destroyed){
+        subscriber.__destroyed = true;
+        this.node.destroySubscription(subscriber);
+        this.subscriptions[topic] = this.subscriptions[topic].filter(sub => sub !== subscriber);
       }
     }
 
     const latchingSub = this.node.createSubscription(
-      ros2Type, topic, {latchingQos, ...options}, (msg) => {
-        _destroyLatchingSub();
+      ros2Type, topic, {qos: latchingQos, ...options}, (msg) => {
+        _destroySub(latchingSub);
         firstLatchedMessage = msg;
         _onMessage(msg);
       }
     );
 
     const volatileSub = this.node.createSubscription(
-      ros2Type, topic, {volatileQos, ...options}, (msg) => {
-        _destroyLatchingSub();
+      ros2Type, topic, {qos: volatileQos, ...options}, (msg) => {
+        _destroySub(latchingSub);
         if (firstLatchedMessage){
           if(_.isEqual(firstLatchedMessage, msg)){
             firstLatchedMessage = undefined;
-            // avoids duplicate first message
+            // avoids duplicating first message
             return;
           }
           firstLatchedMessage = undefined;          
@@ -190,13 +187,16 @@ class ROS2 {
       }
     );  
 
-    this.subscriptions[topic] = {
-      volatile: volatileSub,
-      latching: latchingSub,
+    if(!this.subscriptions[topic]){
+      this.subscriptions[topic] = []
     }
+    this.subscriptions[topic].push(volatileSub);
+    this.subscriptions[topic].push(latchingSub);
+
     return {
       shutdown: () => {
-        this.unsubscribe(topic);
+        _destroySub(volatileSub);
+        _destroySub(latchingSub);
       }
     }
   }
@@ -205,17 +205,14 @@ class ROS2 {
   unsubscribe(topic) {
     const subs = this.subscriptions[topic];
     if (!subs) {
-      console.warn(`cannot unsubscribe from ${topic}, subscription not found`);
       return;
     }
-    if (subs.volatile && !subs.volatile.__destroyed){
-      subs.volatile.__destroyed = true;
-      this.node.destroySubscription(subs.volatile);
-    }
-    if (subs.latching && !subs.latching.__destroyed){
-      subs.latching.__destroyed = true;
-      this.node.destroySubscription(subs.latching);
-    }
+    subs.forEach(sub => {
+      if (!sub.__destroyed){
+        sub.__destroyed = true;
+        this.node.destroySubscription(sub);
+      }
+    });
     delete this.subscriptions[topic];
   }
 
@@ -225,9 +222,9 @@ class ROS2 {
     if (!this.publishers[topic]) {
       const ros2Type = toROS2Type(type);
       if(latching){
-        this.publishers[topic] = this.node.createPublisher(ros2Type, topic, {latchingQos});
+        this.publishers[topic] = this.node.createPublisher(ros2Type, topic, {qos: latchingQos});
       } else {
-        this.publishers[topic] = this.node.createPublisher(ros2Type, topic);
+        this.publishers[topic] = this.node.createPublisher(ros2Type, topic, {qos: volatileQos});
       }
     }
 
