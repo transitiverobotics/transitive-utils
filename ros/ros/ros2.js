@@ -48,7 +48,7 @@ const generateTemplate = (TypeClass) => {
   return rtv;
 };
 
-/* Function to implement convenience of poviding a ROS1 type and converting it
+/* Function to implement convenience of providing a ROS1 type and converting it
  * to ROS2, i.e., inject msg/ or srv/ .*/
 const toROS2Type = (type, category = 'msg') => {
   if (!type) return type; // null or undefined, keep it like that
@@ -142,31 +142,29 @@ class ROS2 {
     return list.find(({name}) => name == service)?.types[0];
   }
 
+  _destroySubscriber(subscriber){
+    if (subscriber && !subscriber.__destroyed){
+      subscriber.__destroyed = true;
+      this.node.destroySubscription(subscriber);
+    }
+  }
   /** Subscribe to the named topic of the named type. Each time a new message
   * is received the provided callback is called. For available options see
   * https://robotwebtools.github.io/rclnodejs/docs/0.22.3/Node.html#createSubscription.
   * The default `options.qos.reliability` is best-effort.
-  * options object can contain: "throttleMs": throttle-in-milliseconds }`.
+  * options object can contain: "throttleMs": throttle-in-milliseconds.
   * */
   subscribe(topic, type, onMessage, options = {}) {
     this.requireInit();
     let firstLatchedMessage;
     const ros2Type = toROS2Type(type);
     const _onMessage = options?.throttleMs ?
-      _.throttle(onMessage, options.throttleMs, { trailing: false }) :
+      _.throttle(onMessage, options.throttleMs) :
       onMessage;
-
-    const _destroySub = (subscriber) => {
-      if (subscriber && !subscriber.__destroyed){
-        subscriber.__destroyed = true;
-        this.node.destroySubscription(subscriber);
-        this.subscriptions[topic] = this.subscriptions[topic].filter(sub => sub !== subscriber);
-      }
-    }
 
     const latchingSub = this.node.createSubscription(
       ros2Type, topic, {qos: latchingQos, ...options}, (msg) => {
-        _destroySub(latchingSub);
+        this._destroySubscriber(latchingSub);
         firstLatchedMessage = msg;
         _onMessage(msg);
       }
@@ -174,7 +172,7 @@ class ROS2 {
 
     const volatileSub = this.node.createSubscription(
       ros2Type, topic, {qos: volatileQos, ...options}, (msg) => {
-        _destroySub(latchingSub);
+        this._destroySubscriber(latchingSub);
         if (firstLatchedMessage){
           if(_.isEqual(firstLatchedMessage, msg)){
             firstLatchedMessage = undefined;
@@ -187,38 +185,33 @@ class ROS2 {
       }
     );  
 
-    if(!this.subscriptions[topic]){
-      this.subscriptions[topic] = []
+    if(this.subscriptions[topic]){
+      this.unsubscribe(topic);
     }
-    this.subscriptions[topic].push(volatileSub);
-    this.subscriptions[topic].push(latchingSub);
+
+    this.subscriptions[topic] = {
+      volatileSubscriber: volatileSub,
+      latchingSubscriber: latchingSub
+    };
 
     return {
       shutdown: () => {
-        _destroySub(volatileSub);
-        _destroySub(latchingSub);
+        this.unsubscribe(topic);
       }
     }
   }
 
   /** Unsubscribe from topic */
   unsubscribe(topic) {
-    const subs = this.subscriptions[topic];
-    if (!subs) {
-      return;
-    }
-    subs.forEach(sub => {
-      if (!sub.__destroyed){
-        sub.__destroyed = true;
-        this.node.destroySubscription(sub);
-      }
-    });
+    if (!this.subscriptions[topic]) return;
+    this._destroySubscriber(this.subscriptions[topic].volatileSubscriber);
+    this._destroySubscriber(this.subscriptions[topic].latchingSubscriber);
     delete this.subscriptions[topic];
   }
 
   /** Publish the given message (json) on the names topic of type. Will
   advertise the topic if not yet advertised. */
-  publish(topic, type, message, latching = true) {
+  publish(topic, type, message, latching = false) {
     if (!this.publishers[topic]) {
       const ros2Type = toROS2Type(type);
       if(latching){
