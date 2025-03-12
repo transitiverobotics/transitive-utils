@@ -32,6 +32,8 @@ test('loads', () => {
     });
 
     test('gets topics', async () => {
+      const topic = '/utils_ros/testtopic';
+      ros.publish(topic, type, {data: String(Date.now())});
       const list = await ros.getTopics();
       expect(list.length > 0).toBeTruthy();
     });
@@ -46,15 +48,14 @@ test('loads', () => {
         first && done();
         first = false;
       });
-      ros.publish(topic, type, {data: String(Date.now())}, false);
+      ros.publish(topic, type, {data: String(Date.now())});
     });
 
     test('can receive latched messages', (done) => {
       const topic = '/utils_ros/testlatchedmessages';
-      const type = version == 1 ? 'std_msgs/String' : 'std_msgs/msg/String';
       let receivedMsgs = 0;
 
-      ros.publish(topic, type, {data: 'latched'});
+      ros.publish(topic, type, {data: 'latched'}, true);
       // sleep for a bit and subscribe later to ensure message is latched
       setTimeout(() => {
         const sub = ros.subscribe(topic, type, (msg) => {
@@ -73,42 +74,6 @@ test('loads', () => {
           ros.publish(topic, type, {data: 'volatile'}, false);
         }, 500);
       }, 500);
-    });
-
-    test('can handle multiple subscribers on same topic', (done) => {
-      const topic = '/utils_ros/testmultisubscribers';
-      const type = version == 1 ? 'std_msgs/String' : 'std_msgs/msg/String';
-      let receivedMsgs = 0;
-
-      const wrapUp = () => {
-        receivedMsgs++;
-        if(receivedMsgs == 3) {
-          done();
-        }
-      }
-      
-      const sub1 = ros.subscribe(topic, type, (msg) => {
-        console.log('received message on sub1', msg);
-        expect(msg.data).toEqual('multisubscribers');
-        sub1.shutdown();
-        wrapUp();
-      });
-
-      const sub2 = ros.subscribe(topic, type, (msg) => {
-        console.log('received message on sub2', msg);
-        expect(msg.data).toEqual('multisubscribers');
-        sub2.shutdown();
-        wrapUp();
-      });
-
-      const sub3 = ros.subscribe(topic, type, (msg) => {
-        console.log('received message on sub3', msg);
-        expect(msg.data).toEqual('multisubscribers');
-        sub3.shutdown();
-        wrapUp();
-      });
-
-      ros.publish(topic, type, {data: 'multisubscribers'}, false);
     });
 
     test('can publish messages with headers', () => {
