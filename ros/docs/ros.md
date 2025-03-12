@@ -238,7 +238,7 @@ advertise the topic if not yet advertised.
 *   `topic` &#x20;
 *   `type` &#x20;
 *   `message` &#x20;
-*   `latching`   (optional, default `true`)
+*   `latching`   (optional, default `false`)
 
 ### subscribe
 
