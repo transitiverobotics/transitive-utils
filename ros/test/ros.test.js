@@ -14,12 +14,16 @@ test('loads', () => {
   describe(`ROS ${version}`, function() {
 
     const type = 'std_msgs/String';
+    const topic = '/utils_ros/testtopic';
 
     let ros;
     let interval;
     beforeAll(async () => {
       ros = getForVersion(version);
       await ros.init();
+      interval = setInterval(() => {
+        ros.publish(topic, type, {data: String(Date.now())});
+      }, 10);
     });
 
     afterAll(() => {
@@ -32,15 +36,12 @@ test('loads', () => {
     });
 
     test('gets topics', async () => {
-      const topic = '/utils_ros/testtopic';
-      ros.publish(topic, type, {data: String(Date.now())});
       const list = await ros.getTopics();
       expect(list.length > 0).toBeTruthy();
     });
 
     test('can subscribe and receive new messages', (done) => {
       let first = true;
-      const topic = '/utils_ros/testsubscription';
       const sub = ros.subscribe(topic, type, (msg) => {
         first && expect(Number(msg.data) > 0).toBeTruthy();
         ros.unsubscribe(topic);
@@ -48,7 +49,6 @@ test('loads', () => {
         first && done();
         first = false;
       });
-      ros.publish(topic, type, {data: String(Date.now())});
     });
 
     test('can receive latched messages', (done) => {
@@ -59,10 +59,10 @@ test('loads', () => {
       // sleep for a bit and subscribe later to ensure message is latched
       setTimeout(() => {
         const sub = ros.subscribe(topic, type, (msg) => {
-          if(receivedMsgs == 0) {
+          if (receivedMsgs == 0) {
             expect(msg.data).toEqual('latched');
           } 
-          if(receivedMsgs == 1) {
+          if (receivedMsgs == 1) {
             expect(msg.data).toEqual('volatile');
             sub.shutdown();
             done();
@@ -127,13 +127,11 @@ test('loads', () => {
       const template = ros.rosVersion == 2 ?
         ros.getTypeTemplate('rcl_interfaces', 'srv', 'SetParameters') :
         ros.getTypeTemplate('sensor_msgs', 'srv', 'SetCameraInfo');
-      // console.log(template);
     });
 
     test('get services', async () => {
       const services = await ros.getServices();
       // check some known services that should always be present
-      console.log('services', ros.rosVersion, services);
       if (ros.rosVersion == 1) {
         assert(services.includes('/rosout/get_loggers'));
       } else {

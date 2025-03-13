@@ -142,8 +142,9 @@ class ROS2 {
     return list.find(({name}) => name == service)?.types[0];
   }
 
-  _destroySubscriber(subscriber){
-    if (subscriber && !subscriber.__destroyed){
+  /** Destroys a given subscriber. */
+  _destroySubscriber(subscriber) {
+    if (subscriber && !subscriber.__destroyed) {
       subscriber.__destroyed = true;
       this.node.destroySubscription(subscriber);
     }
@@ -162,6 +163,11 @@ class ROS2 {
       _.throttle(onMessage, options.throttleMs) :
       onMessage;
 
+    // we create two subscriptions, one for latched messages and one for volatile (new) messages
+    // after receiving the first message we destroy the latched subscription and only keep the volatile one
+    // we need to do this because of qos incompatibilities between volatile/latching pubs and subs
+    // we can't have a single subscription that can handle both, and user may not be in control of the publisher
+    // see https://docs.ros.org/en/rolling/Concepts/Intermediate/About-Quality-of-Service-Settings.html#qos-compatibilities
     const latchingSub = this.node.createSubscription(
       ros2Type, topic, {qos: latchingQos, ...options}, (msg) => {
         this._destroySubscriber(latchingSub);
@@ -173,8 +179,8 @@ class ROS2 {
     const volatileSub = this.node.createSubscription(
       ros2Type, topic, {qos: volatileQos, ...options}, (msg) => {
         this._destroySubscriber(latchingSub);
-        if (firstLatchedMessage){
-          if(_.isEqual(firstLatchedMessage, msg)){
+        if (firstLatchedMessage) {
+          if (_.isEqual(firstLatchedMessage, msg)) {
             firstLatchedMessage = undefined;
             // avoids duplicating first message
             return;
@@ -185,7 +191,7 @@ class ROS2 {
       }
     );  
 
-    if(this.subscriptions[topic]){
+    if (this.subscriptions[topic]) {
       this.unsubscribe(topic);
     }
 
@@ -203,7 +209,10 @@ class ROS2 {
 
   /** Unsubscribe from topic */
   unsubscribe(topic) {
-    if (!this.subscriptions[topic]) return;
+    if (!this.subscriptions[topic]) {
+      console.warn(`cannot unsubscribe from ${topic}, subscription not found`);
+      return;
+    }
     this._destroySubscriber(this.subscriptions[topic].volatileSubscriber);
     this._destroySubscriber(this.subscriptions[topic].latchingSubscriber);
     delete this.subscriptions[topic];
@@ -214,11 +223,7 @@ class ROS2 {
   publish(topic, type, message, latching = false) {
     if (!this.publishers[topic]) {
       const ros2Type = toROS2Type(type);
-      if(latching){
-        this.publishers[topic] = this.node.createPublisher(ros2Type, topic, {qos: latchingQos});
-      } else {
-        this.publishers[topic] = this.node.createPublisher(ros2Type, topic, {qos: volatileQos});
-      }
+      this.publishers[topic] = this.node.createPublisher(ros2Type, topic, {qos: latching ? latchingQos : volatileQos});
     }
 
     this.publishers[topic].publish({
