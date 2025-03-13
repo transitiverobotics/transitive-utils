@@ -209,12 +209,13 @@ class ROS2 {
 
   /** Unsubscribe from topic */
   unsubscribe(topic) {
-    if (!this.subscriptions[topic]) {
+    const sub = this.subscriptions[topic];
+    if (!sub) {
       console.warn(`cannot unsubscribe from ${topic}, subscription not found`);
       return;
     }
-    this._destroySubscriber(this.subscriptions[topic].volatileSubscriber);
-    this._destroySubscriber(this.subscriptions[topic].latchingSubscriber);
+    this._destroySubscriber(sub.volatileSubscriber);
+    this._destroySubscriber(sub.latchingSubscriber);
     delete this.subscriptions[topic];
   }
 
