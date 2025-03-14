@@ -70,6 +70,8 @@ class ROS2 {
 
   rosVersion = 2;
 
+  emitter;
+
   async generateMessages() {
     log.info('Generating messages for ROS 2');
     await rclnodejs.regenerateAll();
@@ -84,6 +86,8 @@ class ROS2 {
     }
 
     log.info('initializing');
+
+    this.emitter = new EventEmitter();
     const nodeName =
       (process.env.TRPACKAGE || `cap_ros_${Date.now().toString(16)}`)
         .replace(/[^a-zA-Z0-9\_]/g, '_');
@@ -173,7 +177,7 @@ class ROS2 {
       ros2Type, topic, {qos: latchingQos, ...options}, (msg) => {
         this._destroySubscriber(latchingSub);
         firstLatchedMessage = msg;
-        this.subscriptions[topic]?.emitter.emit('message', msg);
+        this.emitter.emit(topic, msg);
       }
     );
 
@@ -188,7 +192,7 @@ class ROS2 {
           }
           firstLatchedMessage = undefined;          
         }
-        this.subscriptions[topic]?.emitter.emit('message', msg);
+        this.emitter.emit(topic, msg);
       }
     );  
 
@@ -196,11 +200,10 @@ class ROS2 {
       this.subscriptions[topic] = {
         volatileSubscriber: volatileSub,
         latchingSubscriber: latchingSub,
-        emitter: new EventEmitter()
       };
     }
 
-    this.subscriptions[topic].emitter.on('message', throttledCallback);
+    this.emitter.on(topic, throttledCallback);
     return {
       shutdown: () => {
         const sub = this.subscriptions[topic];
@@ -208,8 +211,8 @@ class ROS2 {
           console.warn(`cannot shutdown ${topic}, subscription not found`);
           return;
         }
-        sub.emitter.off('message', throttledCallback);
-        if (sub.emitter.listenerCount('message') == 0) {
+        this.emitter.off(topic, throttledCallback);
+        if (this.emitter.listenerCount(topic) == 0) {
           this.unsubscribe(topic);
         }
       }
@@ -218,12 +221,12 @@ class ROS2 {
 
   /** Unsubscribe from topic */
   unsubscribe(topic) {
+    this.emitter.removeAllListeners(topic);
     const sub = this.subscriptions[topic];
     if (!sub) {
       console.warn(`cannot unsubscribe from ${topic}, subscription not found`);
       return;
     }
-    sub.emitter.removeAllListeners('message');
     this._destroySubscriber(sub.volatileSubscriber);
     this._destroySubscriber(sub.latchingSubscriber);
     delete this.subscriptions[topic];
