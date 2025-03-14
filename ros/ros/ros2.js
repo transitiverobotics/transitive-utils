@@ -2,13 +2,19 @@ const fs = require('fs');
 const path = require('path');
 const rclnodejs = require('rclnodejs');
 const _ = require('lodash');
+const EventEmitter = require('events');
 
 const { getLogger, wait } = require('@transitive-sdk/utils');
 const log = getLogger('ROS2');
 log.setLevel('info');
 
-qos = new rclnodejs.QoS();
-qos.reliability = rclnodejs.QoS.ReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+volatileQos = new rclnodejs.QoS();
+volatileQos.reliability = rclnodejs.QoS.ReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+
+latchingQos = new rclnodejs.QoS();
+latchingQos.reliability = rclnodejs.QoS.ReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_RELIABLE;
+latchingQos.durability = rclnodejs.QoS.DurabilityPolicy.RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL;
+
 
 
 const primitiveDefaults = {
@@ -43,7 +49,7 @@ const generateTemplate = (TypeClass) => {
   return rtv;
 };
 
-/* Function to implement convenience of poviding a ROS1 type and converting it
+/* Function to implement convenience of providing a ROS1 type and converting it
  * to ROS2, i.e., inject msg/ or srv/ .*/
 const toROS2Type = (type, category = 'msg') => {
   if (!type) return type; // null or undefined, keep it like that
@@ -64,6 +70,8 @@ class ROS2 {
 
   rosVersion = 2;
 
+  emitter;
+
   async generateMessages() {
     log.info('Generating messages for ROS 2');
     await rclnodejs.regenerateAll();
@@ -78,6 +86,8 @@ class ROS2 {
     }
 
     log.info('initializing');
+
+    this.emitter = new EventEmitter();
     const nodeName =
       (process.env.TRPACKAGE || `cap_ros_${Date.now().toString(16)}`)
         .replace(/[^a-zA-Z0-9\_]/g, '_');
@@ -102,7 +112,11 @@ class ROS2 {
     this.requireInit();
     let topics = this.node.getTopicNamesAndTypes();
     const ros2Type = toROS2Type(type);
-    ros2Type && (topics = topics.filter(topic => topic.types.includes(ros2Type)));
+    ros2Type && 
+    (topics = topics
+      .filter(topic => topic.types.includes(ros2Type))
+      .map(topic => ({name: topic.name, type: ros2Type}))
+    );
     return topics;
   }
 
@@ -133,52 +147,103 @@ class ROS2 {
     return list.find(({name}) => name == service)?.types[0];
   }
 
+  /** Destroys a given subscriber. */
+  _destroySubscriber(subscriber) {
+    if (subscriber && !subscriber.__destroyed) {
+      subscriber.__destroyed = true;
+      this.node.destroySubscription(subscriber);
+    }
+  }
   /** Subscribe to the named topic of the named type. Each time a new message
   * is received the provided callback is called. For available options see
   * https://robotwebtools.github.io/rclnodejs/docs/0.22.3/Node.html#createSubscription.
   * The default `options.qos.reliability` is best-effort.
+  * options object can contain: "throttleMs": throttle-in-milliseconds.
   * */
   subscribe(topic, type, onMessage, options = {}) {
     this.requireInit();
+    let firstLatchedMessage;
     const ros2Type = toROS2Type(type);
-    const sub = this.node.createSubscription(
-      ros2Type, topic, {qos, ...options}, onMessage);
-    this.subscriptions[topic] = sub;
+    const throttledCallback = options?.throttleMs ?
+      _.throttle(onMessage, options.throttleMs) :
+      onMessage;
+
+    // we create two subscriptions, one for latched messages and one for volatile (new) messages
+    // after receiving the first message we destroy the latched subscription and only keep the volatile one
+    // we need to do this because of qos incompatibilities between volatile/latching pubs and subs
+    // we can't have a single subscription that can handle both, and user may not be in control of the publisher
+    // see https://docs.ros.org/en/rolling/Concepts/Intermediate/About-Quality-of-Service-Settings.html#qos-compatibilities
+    const latchingSub = this.node.createSubscription(
+      ros2Type, topic, {qos: latchingQos, ...options}, (msg) => {
+        this._destroySubscriber(latchingSub);
+        firstLatchedMessage = msg;
+        this.emitter.emit(topic, msg);
+      }
+    );
+
+    const volatileSub = this.node.createSubscription(
+      ros2Type, topic, {qos: volatileQos, ...options}, (msg) => {
+        this._destroySubscriber(latchingSub);
+        if (firstLatchedMessage) {
+          if (_.isEqual(firstLatchedMessage, msg)) {
+            firstLatchedMessage = undefined;
+            // avoids duplicating first message
+            return;
+          }
+          firstLatchedMessage = undefined;          
+        }
+        this.emitter.emit(topic, msg);
+      }
+    );  
+
+    if (!this.subscriptions[topic]) {
+      this.subscriptions[topic] = {
+        volatileSubscriber: volatileSub,
+        latchingSubscriber: latchingSub,
+      };
+    }
+
+    this.emitter.on(topic, throttledCallback);
     return {
       shutdown: () => {
-        if (!sub || sub.__destroyed) return;
-        sub.__destroyed = true;
-        this.node.destroySubscription(sub);
+        const sub = this.subscriptions[topic];
+        if (!sub) {
+          console.warn(`cannot shutdown ${topic}, subscription not found`);
+          return;
+        }
+        this.emitter.off(topic, throttledCallback);
+        if (this.emitter.listenerCount(topic) == 0) {
+          this.unsubscribe(topic);
+        }
       }
     }
   }
 
   /** Unsubscribe from topic */
   unsubscribe(topic) {
+    this.emitter.removeAllListeners(topic);
     const sub = this.subscriptions[topic];
     if (!sub) {
       console.warn(`cannot unsubscribe from ${topic}, subscription not found`);
       return;
     }
-    this.node.destroySubscription(sub);
+    this._destroySubscriber(sub.volatileSubscriber);
+    this._destroySubscriber(sub.latchingSubscriber);
+    delete this.subscriptions[topic];
   }
 
   /** Publish the given message (json) on the names topic of type. Will
   advertise the topic if not yet advertised. */
-  publish(topic, type, message, latching = true) {
+  publish(topic, type, message, latching = false) {
     if (!this.publishers[topic]) {
       const ros2Type = toROS2Type(type);
-      this.publishers[topic] = this.node.createPublisher(ros2Type, topic);
+      this.publishers[topic] = this.node.createPublisher(ros2Type, topic, {qos: latching ? latchingQos : volatileQos});
     }
 
     this.publishers[topic].publish({
       header: this.createHeader(),
       ...message
     });
-
-    // TODO: latching, see
-    // https://github.com/RobotWebTools/rclnodejs/blob/develop/example/publisher-qos-example.js
-    // and https://github.com/ros2/ros2/issues/464
   }
 
   /** create a std_msgs/Header for the given frame_id and date */
