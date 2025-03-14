@@ -76,6 +76,42 @@ test('loads', () => {
       }, 500);
     });
 
+    test('can handle multiple subscribers on same topic', (done) => {
+      const topic = '/utils_ros/testmultisubscribers';
+      const type = version == 1 ? 'std_msgs/String' : 'std_msgs/msg/String';
+      let receivedMsgs = 0;
+
+      const wrapUp = () => {
+        receivedMsgs++;
+        if(receivedMsgs == 3) {
+          done();
+        }
+      }
+
+      const sub1 = ros.subscribe(topic, type, (msg) => {
+        console.log('received message on sub1', msg);
+        expect(msg.data).toEqual('multisubscribers');
+        sub1.shutdown();
+        wrapUp();
+      });
+
+      const sub2 = ros.subscribe(topic, type, (msg) => {
+        console.log('received message on sub2', msg);
+        expect(msg.data).toEqual('multisubscribers');
+        sub2.shutdown();
+        wrapUp();
+      });
+
+      const sub3 = ros.subscribe(topic, type, (msg) => {
+        console.log('received message on sub3', msg);
+        expect(msg.data).toEqual('multisubscribers');
+        sub3.shutdown();
+        wrapUp();
+      });
+
+      ros.publish(topic, type, {data: 'multisubscribers'}, false);
+    });
+
     test('can publish messages with headers', () => {
       const topic = '/test_diag';
       const type = 'diagnostic_msgs/DiagnosticArray';

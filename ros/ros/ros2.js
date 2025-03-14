@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const rclnodejs = require('rclnodejs');
 const _ = require('lodash');
+const EventEmitter = require('events');
 
 const { getLogger, wait } = require('@transitive-sdk/utils');
 const log = getLogger('ROS2');
@@ -159,7 +160,7 @@ class ROS2 {
     this.requireInit();
     let firstLatchedMessage;
     const ros2Type = toROS2Type(type);
-    const _onMessage = options?.throttleMs ?
+    const throttledCallback = options?.throttleMs ?
       _.throttle(onMessage, options.throttleMs) :
       onMessage;
 
@@ -172,7 +173,7 @@ class ROS2 {
       ros2Type, topic, {qos: latchingQos, ...options}, (msg) => {
         this._destroySubscriber(latchingSub);
         firstLatchedMessage = msg;
-        _onMessage(msg);
+        this.subscriptions[topic]?.emitter.emit('message', msg);
       }
     );
 
@@ -187,22 +188,32 @@ class ROS2 {
           }
           firstLatchedMessage = undefined;          
         }
-        _onMessage(msg);
+        this.subscriptions[topic]?.emitter.emit('message', msg);
       }
     );  
 
-    if (this.subscriptions[topic]) {
-      this.unsubscribe(topic);
+    if (!this.subscriptions[topic]) {
+      this.subscriptions[topic] = {
+        volatileSubscriber: volatileSub,
+        latchingSubscriber: latchingSub,
+        emitter: new EventEmitter()
+      };
     }
 
-    this.subscriptions[topic] = {
-      volatileSubscriber: volatileSub,
-      latchingSubscriber: latchingSub
-    };
-
+    this.subscriptions[topic].emitter.on('message', throttledCallback);
     return {
       shutdown: () => {
-        this.unsubscribe(topic);
+        const sub = this.subscriptions[topic];
+        if (!sub) {
+          console.warn(`cannot shutdown ${topic}, subscription not found`);
+          return;
+        }
+        console.log('Removing listener for', topic);
+        sub.emitter.off('message', throttledCallback);
+        if (sub.emitter.listenerCount('message') == 0) {
+          console.log('No more listeners for', topic);
+          this.unsubscribe(topic);
+        }
       }
     }
   }
@@ -214,6 +225,8 @@ class ROS2 {
       console.warn(`cannot unsubscribe from ${topic}, subscription not found`);
       return;
     }
+    console.log('Unsubscribing from', topic);
+    sub.emitter.removeAllListeners('message');
     this._destroySubscriber(sub.volatileSubscriber);
     this._destroySubscriber(sub.latchingSubscriber);
     delete this.subscriptions[topic];
