@@ -208,10 +208,8 @@ class ROS2 {
           console.warn(`cannot shutdown ${topic}, subscription not found`);
           return;
         }
-        console.log('Removing listener for', topic);
         sub.emitter.off('message', throttledCallback);
         if (sub.emitter.listenerCount('message') == 0) {
-          console.log('No more listeners for', topic);
           this.unsubscribe(topic);
         }
       }
@@ -225,7 +223,6 @@ class ROS2 {
       console.warn(`cannot unsubscribe from ${topic}, subscription not found`);
       return;
     }
-    console.log('Unsubscribing from', topic);
     sub.emitter.removeAllListeners('message');
     this._destroySubscriber(sub.volatileSubscriber);
     this._destroySubscriber(sub.latchingSubscriber);
