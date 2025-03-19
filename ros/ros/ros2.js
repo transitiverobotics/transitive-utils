@@ -168,35 +168,35 @@ class ROS2 {
       _.throttle(onMessage, options.throttleMs) :
       onMessage;
 
-    // we create two subscriptions, one for latched messages and one for volatile (new) messages
-    // after receiving the first message we destroy the latched subscription and only keep the volatile one
-    // we need to do this because of qos incompatibilities between volatile/latching pubs and subs
-    // we can't have a single subscription that can handle both, and user may not be in control of the publisher
-    // see https://docs.ros.org/en/rolling/Concepts/Intermediate/About-Quality-of-Service-Settings.html#qos-compatibilities
-    const latchingSub = this.node.createSubscription(
-      ros2Type, topic, {qos: latchingQos, ...options}, (msg) => {
-        this._destroySubscriber(latchingSub);
-        firstLatchedMessage = msg;
-        this.emitter.emit(topic, msg);
-      }
-    );
-
-    const volatileSub = this.node.createSubscription(
-      ros2Type, topic, {qos: volatileQos, ...options}, (msg) => {
-        this._destroySubscriber(latchingSub);
-        if (firstLatchedMessage) {
-          if (_.isEqual(firstLatchedMessage, msg)) {
-            firstLatchedMessage = undefined;
-            // avoids duplicating first message
-            return;
-          }
-          firstLatchedMessage = undefined;          
-        }
-        this.emitter.emit(topic, msg);
-      }
-    );  
-
     if (!this.subscriptions[topic]) {
+      // we create two subscriptions, one for latched messages and one for volatile (new) messages
+      // after receiving the first message we destroy the latched subscription and only keep the volatile one
+      // we need to do this because of qos incompatibilities between volatile/latching pubs and subs
+      // we can't have a single subscription that can handle both, and user may not be in control of the publisher
+      // see https://docs.ros.org/en/rolling/Concepts/Intermediate/About-Quality-of-Service-Settings.html#qos-compatibilities
+      const latchingSub = this.node.createSubscription(
+        ros2Type, topic, {qos: latchingQos, ...options}, (msg) => {
+          this._destroySubscriber(latchingSub);
+          firstLatchedMessage = msg;
+          this.emitter.emit(topic, msg);
+        }
+      );
+
+      const volatileSub = this.node.createSubscription(
+        ros2Type, topic, {qos: volatileQos, ...options}, (msg) => {
+          this._destroySubscriber(latchingSub);
+          if (firstLatchedMessage) {
+            if (_.isEqual(firstLatchedMessage, msg)) {
+              firstLatchedMessage = undefined;
+              // avoids duplicating first message
+              return;
+            }
+            firstLatchedMessage = undefined;          
+          }
+          this.emitter.emit(topic, msg);
+        }
+      );  
+
       this.subscriptions[topic] = {
         volatileSubscriber: volatileSub,
         latchingSubscriber: latchingSub,
