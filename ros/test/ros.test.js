@@ -13,8 +13,8 @@ test('loads', () => {
 
   describe(`ROS ${version}`, function() {
 
-    const topic = '/utils_ros/test1';
     const type = 'std_msgs/String';
+    const topic = '/utils_ros/testtopic';
 
     let ros;
     let interval;
@@ -23,7 +23,7 @@ test('loads', () => {
       await ros.init();
       interval = setInterval(() => {
         ros.publish(topic, type, {data: String(Date.now())});
-      });
+      }, 10);
     });
 
     afterAll(() => {
@@ -40,7 +40,7 @@ test('loads', () => {
       expect(list.length > 0).toBeTruthy();
     });
 
-    test('can subscribe and get topic messages', (done) => {
+    test('can subscribe and receive new messages', (done) => {
       let first = true;
       const sub = ros.subscribe(topic, type, (msg) => {
         first && expect(Number(msg.data) > 0).toBeTruthy();
@@ -49,6 +49,67 @@ test('loads', () => {
         first && done();
         first = false;
       });
+    });
+
+    test('can receive latched messages', (done) => {
+      const topic = '/utils_ros/testlatchedmessages';
+      let receivedMsgs = 0;
+
+      ros.publish(topic, type, {data: 'latched'}, true);
+      // sleep for a bit and subscribe later to ensure message is latched
+      setTimeout(() => {
+        const sub = ros.subscribe(topic, type, (msg) => {
+          if (receivedMsgs == 0) {
+            expect(msg.data).toEqual('latched');
+          } 
+          if (receivedMsgs == 1) {
+            expect(msg.data).toEqual('volatile');
+            sub.shutdown();
+            done();
+          }
+          receivedMsgs++;
+        });
+        // we then publish a volatile message to check that it is received
+        setTimeout(() => {
+          ros.publish(topic, type, {data: 'volatile'}, false);
+        }, 500);
+      }, 500);
+    });
+
+    test('can handle multiple subscribers on same topic', (done) => {
+      const topic = '/utils_ros/testmultisubscribers';
+      const type = version == 1 ? 'std_msgs/String' : 'std_msgs/msg/String';
+      let receivedMsgs = 0;
+
+      const wrapUp = () => {
+        receivedMsgs++;
+        if(receivedMsgs == 3) {
+          done();
+        }
+      }
+
+      const sub1 = ros.subscribe(topic, type, (msg) => {
+        console.log('received message on sub1', msg);
+        expect(msg.data).toEqual('multisubscribers');
+        sub1.shutdown();
+        wrapUp();
+      });
+
+      const sub2 = ros.subscribe(topic, type, (msg) => {
+        console.log('received message on sub2', msg);
+        expect(msg.data).toEqual('multisubscribers');
+        sub2.shutdown();
+        wrapUp();
+      });
+
+      const sub3 = ros.subscribe(topic, type, (msg) => {
+        console.log('received message on sub3', msg);
+        expect(msg.data).toEqual('multisubscribers');
+        sub3.shutdown();
+        wrapUp();
+      });
+
+      ros.publish(topic, type, {data: 'multisubscribers'}, false);
     });
 
     test('can publish messages with headers', () => {
@@ -102,13 +163,11 @@ test('loads', () => {
       const template = ros.rosVersion == 2 ?
         ros.getTypeTemplate('rcl_interfaces', 'srv', 'SetParameters') :
         ros.getTypeTemplate('sensor_msgs', 'srv', 'SetCameraInfo');
-      // console.log(template);
     });
 
     test('get services', async () => {
       const services = await ros.getServices();
       // check some known services that should always be present
-      console.log('services', ros.rosVersion, services);
       if (ros.rosVersion == 1) {
         assert(services.includes('/rosout/get_loggers'));
       } else {
