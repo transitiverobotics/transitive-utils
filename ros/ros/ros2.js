@@ -9,13 +9,14 @@ const log = getLogger('ROS2');
 log.setLevel('info');
 
 volatileQos = new rclnodejs.QoS();
-volatileQos.reliability = rclnodejs.QoS.ReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+volatileQos.reliability =
+  rclnodejs.QoS.ReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
 
 latchingQos = new rclnodejs.QoS();
-latchingQos.reliability = rclnodejs.QoS.ReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_RELIABLE;
-latchingQos.durability = rclnodejs.QoS.DurabilityPolicy.RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL;
-
-
+latchingQos.reliability =
+  rclnodejs.QoS.ReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_RELIABLE;
+latchingQos.durability =
+  rclnodejs.QoS.DurabilityPolicy.RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL;
 
 const primitiveDefaults = {
   bool: true,
@@ -112,11 +113,8 @@ class ROS2 {
     this.requireInit();
     let topics = this.node.getTopicNamesAndTypes();
     const ros2Type = toROS2Type(type);
-    ros2Type && 
-    (topics = topics
-      .filter(topic => topic.types.includes(ros2Type))
-      .map(topic => ({name: topic.name, type: ros2Type}))
-    );
+    ros2Type && (topics = topics.filter(topic => topic.types.includes(ros2Type))
+          .map(topic => ({name: topic.name, type: ros2Type})));
     return topics;
   }
 
@@ -154,11 +152,12 @@ class ROS2 {
       this.node.destroySubscription(subscriber);
     }
   }
+
   /** Subscribe to the named topic of the named type. Each time a new message
   * is received the provided callback is called. For available options see
   * https://robotwebtools.github.io/rclnodejs/docs/0.22.3/Node.html#createSubscription.
   * The default `options.qos.reliability` is best-effort.
-  * options object can contain: "throttleMs": throttle-in-milliseconds.
+  * The `options` object can contain: "throttleMs": throttle (in milliseconds).
   * */
   subscribe(topic, type, onMessage, options = {}) {
     this.requireInit();
@@ -169,11 +168,14 @@ class ROS2 {
       onMessage;
 
     if (!this.subscriptions[topic]) {
-      // we create two subscriptions, one for latched messages and one for volatile (new) messages
-      // after receiving the first message we destroy the latched subscription and only keep the volatile one
-      // we need to do this because of qos incompatibilities between volatile/latching pubs and subs
-      // we can't have a single subscription that can handle both, and user may not be in control of the publisher
-      // see https://docs.ros.org/en/rolling/Concepts/Intermediate/About-Quality-of-Service-Settings.html#qos-compatibilities
+      /* We create two subscriptions, one for latched messages and one for
+      volatile (new) messages. After receiving the first message we destroy the
+      latched subscription and only keep the volatile one. We need to do this
+      because of QoS incompatibilities between volatile/latching pubs and subs.
+      We can't have a single subscription that can handle both, and users of
+      this libary may not be in control of the publisher. See
+      https://docs.ros.org/en/rolling/Concepts/Intermediate/About-Quality-of-Service-Settings.html#qos-compatibilities.
+      */
       const latchingSub = this.node.createSubscription(
         ros2Type, topic, {qos: latchingQos, ...options}, (msg) => {
           this._destroySubscriber(latchingSub);
@@ -191,11 +193,11 @@ class ROS2 {
               // avoids duplicating first message
               return;
             }
-            firstLatchedMessage = undefined;          
+            firstLatchedMessage = undefined;
           }
           this.emitter.emit(topic, msg);
         }
-      );  
+      );
 
       this.subscriptions[topic] = {
         volatileSubscriber: volatileSub,
@@ -208,7 +210,7 @@ class ROS2 {
       shutdown: () => {
         const sub = this.subscriptions[topic];
         if (!sub) {
-          console.warn(`cannot shutdown ${topic}, subscription not found`);
+          log.warn(`cannot shutdown ${topic}, subscription not found`);
           return;
         }
         this.emitter.off(topic, throttledCallback);
@@ -224,7 +226,7 @@ class ROS2 {
     this.emitter.removeAllListeners(topic);
     const sub = this.subscriptions[topic];
     if (!sub) {
-      console.warn(`cannot unsubscribe from ${topic}, subscription not found`);
+      log.warn(`cannot unsubscribe from ${topic}, subscription not found`);
       return;
     }
     this._destroySubscriber(sub.volatileSubscriber);
