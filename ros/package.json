@@ -1,6 +1,6 @@
 {
   "name": "@transitive-sdk/utils-ros",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Utils for using ROS with Transitive",
   "homepage": "https://transitiverobotics.com",
   "repository": {
