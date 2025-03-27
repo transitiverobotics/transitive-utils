@@ -246,7 +246,7 @@ Subscribe to the named topic of the named type. Each time a new message
 is received the provided callback is called. For available options see
 [https://robotwebtools.github.io/rclnodejs/docs/0.22.3/Node.html#createSubscription][1].
 The default `options.qos.reliability` is best-effort.
-options object can contain: "throttleMs": throttle-in-milliseconds.
+The `options` object can contain: "throttleMs": throttle (in milliseconds).
 
 ##### Parameters
 
