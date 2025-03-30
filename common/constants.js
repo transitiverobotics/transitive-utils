@@ -9,6 +9,8 @@ module.exports = {
     galactic: { rosVersion: 2 },
     humble: { rosVersion: 2 },
     iron: { rosVersion: 2 },
+    jazzy: { rosVersion: 2 },
+    kilted: { rosVersion: 2 },
     rolling: { rosVersion: 2 },
   }
 };
