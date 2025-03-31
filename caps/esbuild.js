@@ -83,7 +83,7 @@ const run = async () => {
 
   // define multiple config overwrites, for multiple outputs
   const formats = [
-    { format: 'iife' },
+    { format: 'iife', logOverride: { 'empty-import-meta': 'info' } },
     { format: 'esm', outExtension: {'.js': '.esm.js'}}
   ];
 
