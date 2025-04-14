@@ -239,7 +239,8 @@ class ROS2 {
   publish(topic, type, message, latching = false) {
     if (!this.publishers[topic]) {
       const ros2Type = toROS2Type(type);
-      this.publishers[topic] = this.node.createPublisher(ros2Type, topic, {qos: latching ? latchingQos : volatileQos});
+      this.publishers[topic] = this.node.createPublisher(ros2Type, topic,
+        latching ? {qos: latchingQos} : {});
     }
 
     this.publishers[topic].publish({
