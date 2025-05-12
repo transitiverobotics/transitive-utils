@@ -406,7 +406,7 @@ const formatDuration = (seconds) => {
 
 module.exports = { parseMQTTUsername, parseMQTTTopic,
   pathToTopic, topicToPath, toFlatObject, topicMatch,
-  mqttParsePayload, getRandomId, toBase52, versionCompare,
+  mqttParsePayload, getRandomId, toBase52, getDateBase52, versionCompare,
   loglevel, getLogger,
   mergeVersions, mqttClearRetained, isSubTopicOf, clone, setFromPath,
   forMatchIterator, encodeTopicElement, decodeTopicElement, constants, visit,

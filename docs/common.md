@@ -415,6 +415,10 @@ named wildcards)
 *   `pathSoFar`   (optional, default `[]`)
 *   `matchSoFar`   (optional, default `{}`)
 
+## getDateBase52
+
+Get a base52 representation \[a-zA-Z] of the current date (ms since epoch)
+
 ## getLogger
 
 Get a new loglevel logger; call with a name, e.g., `module.id`. The returned
@@ -516,6 +520,14 @@ Like \_.set but without arrays. This allows using numbers as keys.
 *   `obj` &#x20;
 *   `path` &#x20;
 *   `value` &#x20;
+
+## toBase52
+
+Convert number to base52 \[a-zA-Z]
+
+#### Parameters
+
+*   `num` &#x20;
 
 ## toFlatObject
 
