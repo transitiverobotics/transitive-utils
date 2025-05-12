@@ -320,6 +320,20 @@ const getRandomId = (bytes = 6) => {
   return buffer.reduce((memo, i) => memo + i.toString(36), '');
 };
 
+/** Convert number to base52 [a-zA-Z] */
+const toBase52 = (num) => {
+  const characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const list = [];
+  do {
+    list.unshift(characters[num % 52]);
+    num = Math.floor(num / 52);
+  } while (num > 0);
+  return list.join('');
+}
+
+/** Get a base52 representation [a-zA-Z] of the current date (ms since epoch) */
+const getDateBase52 = () => toBase52(Date.now());
+
 // -------------------------------------------------------------------------
 
 /** Compare to version strings. Return -1 if a is lower than b,
@@ -392,7 +406,7 @@ const formatDuration = (seconds) => {
 
 module.exports = { parseMQTTUsername, parseMQTTTopic,
   pathToTopic, topicToPath, toFlatObject, topicMatch,
-  mqttParsePayload, getRandomId, versionCompare,
+  mqttParsePayload, getRandomId, toBase52, versionCompare,
   loglevel, getLogger,
   mergeVersions, mqttClearRetained, isSubTopicOf, clone, setFromPath,
   forMatchIterator, encodeTopicElement, decodeTopicElement, constants, visit,
