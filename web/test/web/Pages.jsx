@@ -395,7 +395,7 @@ const Simple = () => {
 
   return <div>
     Outside:
-    <button onClick={() => setCount(c => c + 1)}>inc</button>
+    <button onClick={() => setCount(c => c + 1)}>inc</button> {count}
 
     Primary component:
     <TransitiveCapability host={HOST} ssl={false}
