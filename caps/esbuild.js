@@ -42,7 +42,7 @@ const config = {
   loader: {
     '.svg': 'text',
     '.wasm': 'file',
-    // '.css': 'local-css',
+    '.module.css': 'local-css',
   },
   plugins: [{
       /* Plugin to run tailwind and @scope the result */
