@@ -299,6 +299,12 @@ export const createWebComponent = (Component, name, version = '0.0.0',
       onDisconnect = null;
       state = {};
 
+      componentDidMount() {
+        this.props._element.instance = this;
+        this.webComponentConstructed(this.props._element);
+        this.props._element.callLifeCycleHook('connectedCallback');
+      }
+
       /* function used by `Component` to register a onDisconnect handler */
       setOnDisconnect(fn) {
         this.onDisconnect = fn;

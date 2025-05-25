@@ -106,9 +106,10 @@ const Device = (props) => {
 
 /** A secondary UI offered by this (mock) capability */
 const Secondary = (props) => {
+  console.log('secondary', props);
   return <div>Secondary UI component: {capabilityName}-secondary. Props:
     <pre>
-      {JSON.stringify(props, true, 2)}
+      inc count: {props.count}
     </pre>
   </div>
 };
