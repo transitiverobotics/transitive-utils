@@ -6,6 +6,14 @@
 
 ## Transitive Web Utils
 
-Utilities used by the web components of [Transitive Robotics](https://transitiverobotics.com) capabilities.
+The web SDK used by:
+- the web components of [Transitive Robotics](https://transitiverobotics.com) capabilities.
+- Transitive users to interact with the framework and its capabilities.
 
 [Documentation](https://transitiverobotics.com/docs/sdk/utils-web)
+
+
+### Notes
+
+- React 17: use v0.12.
+- React 18: use latest.
