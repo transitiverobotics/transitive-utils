@@ -4,8 +4,8 @@
   </a>
 </p>
 
-## Transitive Utils
+## Transitive Node.js SDK
 
-Utilities used by the [Transitive Robotics](https://transitiverobotics.com) framework and it's capabilities.
+The node.js SDK used by the [Transitive Robotics](https://transitiverobotics.com) framework and its capabilities on the back-end, i.e., robots, on-prem devices, and cloud.
 
 [Documentation](https://transitiverobotics.com/docs/sdk/utils)
