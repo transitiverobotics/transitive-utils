@@ -10,6 +10,8 @@ const MqttSync = require('../../common/MqttSync');
 const log = getLogger('utils-web/hooks');
 log.setLevel('info');
 
+const RECONNECT_PERIOD_DEFAULT = 1000; // default time until mqtt retries connecting
+const RECONNECT_PERIOD_MAX = 20000;    // max retry time (after dynamic backoff)
 
 /** Hook for using MqttSync in React.
 * @returns {object} An object `{data, mqttSync, ready, StatusComponent, status}`
@@ -31,14 +33,43 @@ export const useMqttSync = ({jwt, id, mqttUrl, appReact}) => {
 
   useEffect(() => {
       const payload = decodeJWT(jwt);
-      log.debug('re-create mqtt client');
+
+      // pre-check validity of JWT, don't use if expired
+      const { validity, iat } = payload;
+      if (!validity || !iat || (iat + validity) * 1e3 < Date.now()) {
+        const error = 'The provided JWT is invalid or expired.';
+        log.warn(error, payload);
+        setStatus(`error: ${error}`);
+        return;
+      }
+
+      /** Implement dynamic backoff when we fail to connect. */
+      let reconnectPeriod = RECONNECT_PERIOD_DEFAULT; // default to start with
+      const transformWsUrl = (url, options, client) => {
+        options.reconnectPeriod = reconnectPeriod;
+        log.info(`reconnect in ${options.reconnectPeriod} s`);
+        return url;
+      }
+
+      log.debug('(re-)create mqtt client');
       const client = mqtt.connect(mqttUrl, {
         username: JSON.stringify({id, payload}),
-        password: jwt
+        password: jwt,
+        transformWsUrl
       });
+
+      // Increase backoff with each close (since we can't actually detect auth
+      // errors)
+      client.on('close', () =>
+        reconnectPeriod = Math.min(reconnectPeriod * 2, RECONNECT_PERIOD_MAX)
+      );
+
+      // reset to default after a successful connection
+      client.on('connect', () => reconnectPeriod = RECONNECT_PERIOD_DEFAULT);
 
       client.once('connect', () => {
         log.debug('MQTT connected');
+
         const mqttSyncClient = new MqttSync({
           mqttClient: client,
           ignoreRetain: true,
