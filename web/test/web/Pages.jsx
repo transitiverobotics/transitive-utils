@@ -150,11 +150,13 @@ const ClassWithFunctional = class extends React.Component {
   }
 };
 
-const mockJWT = (id, count) =>
+const mockJWT = (id, count, validity = 20) =>
   `ignore.${btoa(JSON.stringify({
     id,
     device: `d_mock_${count}`,
-    capability: '@transitive-robotics/mock'
+    capability: '@transitive-robotics/mock',
+    validity,
+    iat: Math.floor(Date.now() / 1e3)
   }))}.ignore`;
 
 
@@ -234,7 +236,9 @@ const KitchenSink = () => {
   // log.debug({loadedModule});
 
   if (!mqttSync || !ready) {
-    return <div>Connecting...</div>;
+    return <div>Connecting...
+      <StatusComponent />
+    </div>;
   }
 
   return <div>
@@ -421,4 +425,22 @@ const Simple = () => {
   </div>;
 }
 
-export default { KitchenSink, Simple };
+
+const FailMqtt = () => {
+
+
+  // test failing mqtt connections
+  useMqttSync({jwt: mockJWT('mockUser', 0), id: 'ignore',
+    host: 'so-wrong.localhost:1234', ssl: false});
+
+  // test expired JWT
+  const expiredJWT = mockJWT('mockUser', 0, -1);
+  const {StatusComponent} = useMqttSync({jwt: expiredJWT, id: 'ignore', host: HOST, ssl: false});
+
+  return <div>
+    <StatusComponent />
+    Also see dev console.
+  </div>;
+}
+
+export default { KitchenSink, Simple, FailMqtt };
