@@ -2,7 +2,7 @@
 
 
 const common = require('./common/common');
-const dataCache = require('./common/DataCache');
+const dataCache = require('./common/datacache/DataCache');
 const MqttSync = require('./common/MqttSync');
 const server = require('./server/server.js');
 const cloud = require('./server/cloud.js');
