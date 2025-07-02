@@ -1,0 +1,30 @@
+{
+  "name": "@transitive-sdk/datacache",
+  "version": "0.14.0",
+  "description": "A class for storing data in a JSON object with change detection and change notifications. Ideal for building data-syncs.",
+  "main": "index.js",
+  "homepage": "https://transitiverobotics.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/transitiverobotics/transitive-utils.git",
+    "directory": "common/datacache"
+  },
+  "author": {
+    "name": "Christian Fritz",
+    "email": "christian@transitiverobotics.com"
+  },
+  "keywords": [
+    "robotics"
+  ],
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "echo 'See test in parent folder'",
+    "prepack": "cat generateDocs.js | node --input-type=module"
+  },
+  "dependencies": {
+    "lodash": "^4.17.21"
+  }
+}
