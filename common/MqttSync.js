@@ -6,7 +6,7 @@ const { mqttParsePayload, topicMatch, topicToPath, pathToTopic,
 toFlatObject, getLogger, mergeVersions, parseMQTTTopic, isSubTopicOf,
 versionCompare, encodeTopicElement, visitAncestor, getRandomId }
   = require('./common');
-const { DataCache } = require('./DataCache');
+const { DataCache } = require('./datacache/DataCache');
 
 
 const log = getLogger('MqttSync');
