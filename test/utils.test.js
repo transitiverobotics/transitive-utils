@@ -14,29 +14,29 @@ const { updateObject, DataCache, toFlatObject, topicToPath, topicMatch,
 const log = getLogger('utils.test');
 
 describe('topicMatch', function() {
-  const path = '/a123/b234/c345/d456';
+  const topic = '/a123/b234/c345/d456';
 
   it('should do full matches', function() {
-    assert(topicMatch(path, path));
-    assert(!topicMatch('/a123/b234/wrong/d456', path));
+    assert(topicMatch(topic, topic));
+    assert(!topicMatch('/a123/b234/wrong/d456', topic));
   });
 
   it('should do tail matches', function() {
-    assert(topicMatch('/a123/b234', path));
-    assert(topicMatch('/#', path));
-    assert(!topicMatch('/a', path));
-    assert(!topicMatch('/a/#', path));
-    assert(!topicMatch('/a123/b234/wrong/#', path));
+    assert(topicMatch('/a123/b234', topic));
+    assert(topicMatch('/#', topic));
+    assert(!topicMatch('/a', topic));
+    assert(!topicMatch('/a/#', topic));
+    assert(!topicMatch('/a123/b234/wrong/#', topic));
   });
 
   it('should do wild-card matches and return result', function() {
-    assert.deepEqual(topicMatch('/a123/+bpart/c345/d456', path), {bpart: 'b234'});
-    assert.deepEqual(topicMatch('/a123/+bpart', path), {bpart: 'b234'});
-    assert.deepEqual(topicMatch('/a123/+bpart/c345/+dpart', path), {
+    assert.deepEqual(topicMatch('/a123/+bpart/c345/d456', topic), {bpart: 'b234'});
+    assert.deepEqual(topicMatch('/a123/+bpart', topic), {bpart: 'b234'});
+    assert.deepEqual(topicMatch('/a123/+bpart/c345/+dpart', topic), {
       bpart: 'b234',
       dpart: 'd456'
     });
-    assert(!topicMatch('/a123/+bpart/1345/+dpart', path));
+    assert(!topicMatch('/a123/+bpart/1345/+dpart', topic));
   });
 
   it('wildcards should match empty', function() {
@@ -52,6 +52,16 @@ describe('topicMatch', function() {
     assert(topicMatch('/a/b/c/#', '/a/b'));
     assert(!topicMatch('/a/b/c', '/a/b/d'));
     assert(!topicMatch('/a/b/c/#', '/a/b/d'));
+  });
+
+  it('should match path against topic', function() {
+    assert(topicMatch(topicToPath(topic), topic));
+    assert(!topicMatch(topicToPath('/a123/b234/wrong/d456'), topic));
+  });
+
+  it('should match path against topic', function() {
+    assert(topicMatch(topic, topicToPath(topic)));
+    assert(!topicMatch('/a123/b234/wrong/d456', topicToPath(topic)));
   });
 });
 
