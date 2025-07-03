@@ -6,10 +6,11 @@ const {expect} = require('expect'); // from jest
 const { updateObject, DataCache, toFlatObject, topicToPath, topicMatch,
   versionCompare, getPackageVersionNamespace, pathToTopic, decodeJWT,
   mergeVersions, isSubTopicOf,
-  setFromPath, Mongo, getLogger, fetchURL, visit, wait, formatBytes,
+  setFromPath, getLogger, fetchURL, visit, wait, formatBytes,
   formatDuration, findPath, tryJSONParse,
   forMatchIterator
 } = require('../index');
+const Mongo = require('../mongo/index');
 
 const log = getLogger('utils.test');
 
