@@ -1,0 +1,30 @@
+{
+  "name": "@transitive-sdk/mongo",
+  "version": "0.14.0",
+  "description": "A tiny MongoDB utility class for use in the Transitive framework.",
+  "homepage": "https://transitiverobotics.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/transitiverobotics/transitive-utils.git",
+    "directory": "mongo"
+  },
+  "author": {
+    "name": "Christian Fritz",
+    "email": "christian@transitiverobotics.com"
+  },
+  "keywords": [
+    "robotics"
+  ],
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "index.js",
+  "scripts": {
+  },
+  "dependencies": {
+    "mongodb": "^4.1.0"
+  },
+  "devDependencies": {
+  }
+}

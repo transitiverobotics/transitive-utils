@@ -7,7 +7,6 @@ const jwt = require('jsonwebtoken');
 const http = require('http');
 const https = require('https');
 
-const Mongo = require('./mongo');
 const { getRandomId, decodeJWT } = require('../common/common');
 
 const randomId = getRandomId;
@@ -128,5 +127,5 @@ const importCapability = async (args) => {
 module.exports = Object.assign({}, {
   findPath, getPackageVersionNamespace,
   randomId, setTerminalTitle, fetchURL,
-  Mongo, importCapability
+  importCapability
 });

@@ -1,6 +1,6 @@
 {
   "name": "@transitive-sdk/utils",
-  "version": "0.13.1",
+  "version": "0.14.0",
   "description": "Utils for the Transitive framework",
   "homepage": "https://transitiverobotics.com",
   "repository": "github:transitiverobotics/transitive-utils",
@@ -27,7 +27,6 @@
     "jsonwebtoken": "^8.5.1",
     "lodash": "^4.17.21",
     "loglevel": "^1.8.0",
-    "mongodb": "^4.1.0",
     "mqtt": "^4.3.7",
     "semver": "^7.3.5"
   },

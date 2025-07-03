@@ -1,18 +1,19 @@
 const MongoClient = require('mongodb').MongoClient;
 
-const URL = process.env.MONGO_URL || 'mongodb://localhost';
-const DB_NAME = process.env.MONGO_DB || 'transitive';
-
+/** A tiny convenience (singleton) class for using MongoDB */
 class Mongo {
 
-  init(onConnect) {
-    this.client = new MongoClient(URL, {useUnifiedTopology: true});
+  init(onConnect, {dbUrl, dbName} = {}) {
+    const url = dbUrl || process.env.MONGO_URL || 'mongodb://localhost';
+    const name = dbName || process.env.MONGO_DB || 'transitive';
+
+    this.client = new MongoClient(url, {useUnifiedTopology: true});
 
     // Use connect method to connect to the server
     this.client.connect((err) => {
       if (!err) {
-        this._db = this.client.db(DB_NAME);
-        console.log(`Connected successfully to mongodb server ${URL}, db: ${DB_NAME}`);
+        this._db = this.client.db(name);
+        console.log(`Connected successfully to mongodb server ${url}, db: ${name}`);
         onConnect?.(this);
       } else {
         console.error('Error connecting to mongodb', err);
