@@ -14,6 +14,7 @@ const _ = {
 };
 
 const loglevel = require('loglevel');
+const prefix = require('loglevel-plugin-prefix');
 const chalk = require('chalk');
 
 const { topicToPath, pathToTopic, toFlatObject, setFromPath, forMatchIterator,
@@ -22,40 +23,46 @@ const { topicToPath, pathToTopic, toFlatObject, setFromPath, forMatchIterator,
 
 const constants = require('./constants');
 
+// ----------------------------------------------------------------------------
+// Logging, incl. logger prefix
+
 /* Convenience function to set all loggers to the given level. */
 loglevel.setAll = (level) =>
   Object.values(loglevel.getLoggers()).forEach(l => l.setLevel(level));
 
-const methodColors = {
+const logColors = {
   warn: chalk.yellow,
   error: chalk.red,
   info: chalk.green,
   debug: chalk.gray,
 };
-const coloredMethod = (method) =>
-  methodColors[method] ? methodColors[method](method) : method;
 
-// patch the methodFactory to prefix logs with name and level
-const originalFactory = loglevel.methodFactory;
-loglevel.methodFactory = (methodName, level, loggerName) => {
-  const rawMethod = originalFactory(methodName, level, loggerName);
+const levelFormatter =
+  (level) => logColors[level] ? logColors[level](level) : level;
 
-  if (typeof window != 'undefined') {
-    // browser: keep it simple
-    const context = `${loggerName} ${methodName}`;
-    return (...args) => rawMethod(`[${context}]`, ...args);
-  }
+prefix.reg(loglevel);
 
-  const context = `${loggerName} ${coloredMethod(methodName)}`;
-  return (...args) => rawMethod(
-    `[${chalk.blue((new Date()).toISOString())} ${context}]`, ...args);
-};
+if (typeof window != 'undefined') {
+  // browser: keep it simple
+  prefix.apply(loglevel, {
+    template: '[%n %l]',
+  });
+} else {
+  // back-end + robot: include timestamp and use colors
+  prefix.apply(loglevel, {
+    template: '[%t %n %l]',
+    levelFormatter,
+    timestampFormatter: date => chalk.blue(date.toISOString()),
+  });
+}
 
 /** Get a new loglevel logger; call with a name, e.g., `module.id`. The returned
 * logger has methods trace, debug, info, warn, error. See
 *  https://www.npmjs.com/package/loglevel for details.
 */
 const getLogger = loglevel.getLogger;
+
+// ----------------------------------------------------------------------------
 
 /** Deep-clone the given object. All functionality is lost, just data is kept. */
 const clone = (obj) => JSON.parse(JSON.stringify(obj));

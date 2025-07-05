@@ -27,6 +27,7 @@
     "jsonwebtoken": "^8.5.1",
     "lodash": "^4.17.21",
     "loglevel": "^1.8.0",
+    "loglevel-plugin-prefix": "^0.8.4",
     "mqtt": "^4.3.7",
     "semver": "^7.3.5"
   },
