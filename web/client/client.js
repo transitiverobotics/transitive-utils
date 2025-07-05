@@ -1,6 +1,6 @@
 // It is OK to use paths outside of this package because webpack will bundle them
 export * from '../../common/common.js';
-export * from '../../common/DataCache';
+export * from '../../common/datacache';
 import MS from '../../common/MqttSync.js';
 export const MqttSync = MS;
 

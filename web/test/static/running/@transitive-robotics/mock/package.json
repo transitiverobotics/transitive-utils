@@ -20,7 +20,7 @@
   "license": "ISC",
   "devDependencies": {
     "@transitive-sdk/utils-caps": "file:../../../../../../caps",
-    "@transitive-sdk/utils-web": "file:/tmp/transitive-sdk-utils-web-0.12.19.tgz",
+    "@transitive-sdk/utils-web": "file:../../../../../../../../../../../tmp/transitive-sdk-utils-web-0.14.0.tgz",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   }

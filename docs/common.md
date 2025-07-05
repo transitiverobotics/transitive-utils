@@ -89,17 +89,27 @@ Add a callback for all change events.
 
 ### subscribePath
 
-Subscribe to a specific topic only. Callback receives
-`value, key, matched, tags`. TODO: rename to subscribeTopic.
+Subscribe to a specific path (array) only. Callback receives
+`value, key, matched, tags`.
+
+##### Parameters
+
+*   `path` &#x20;
+*   `callback` &#x20;
+
+### subscribePathFlat
+
+Same as subscribePath but always get all changes in flat form
 
 ##### Parameters
 
 *   `topic` &#x20;
 *   `callback` &#x20;
 
-### subscribePathFlat
+### subscribeTopic
 
-Same as subscribePath but always get all changes in flat form
+Subscribe to a specific topic only. Callback receives
+`value, key, matched, tags`.
 
 ##### Parameters
 
@@ -551,8 +561,8 @@ Note: not idempotent!
 
 ## topicMatch
 
-match a slash-separated topic with a selector using +XYZ for (named)
-wildcards. Return the matching result.
+Match a slash-separated topic or path array with a selector using +XYZ for
+(named) wildcards. Return the matching result.
 
 #### Parameters
 
