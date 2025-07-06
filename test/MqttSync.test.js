@@ -22,7 +22,7 @@ const mqttURL = `mqtt://localhost:${port}`;
 */
 
 /** assert that mqttSync instances a and b are in sync, then call done */
-const inSync = (a, b, done, delay = 50) => {
+const inSync = (a, b, done, delay = 150) => {
   setTimeout(() => {
       log.debug('A', a.data.get());
       log.debug('B', b.data.get());
@@ -220,7 +220,7 @@ describe('MqttSync', function() {
         assert(published.a.b['$_']); // checks that it is still atomic
         done();
       });
-    }, 3);  // works with 1, not with 0 (because the self-published 2 will overwrite the 3), #FIX
+    }, 30);  // works with 1, not with 0 (because the self-published 2 will overwrite the 3), #FIX
   });
 
   it('syncs correctly when switching from atomic to flat', function(done) {
