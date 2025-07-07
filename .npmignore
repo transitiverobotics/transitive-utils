@@ -5,3 +5,5 @@ patchNpublish.sh
 coverage
 certs
 caps
+mongo
+node_modules
