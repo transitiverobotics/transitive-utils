@@ -59,7 +59,8 @@ docker build -f $DIR/Dockerfile -t $TAG \
 $TMPDIR
 
 mkdir -p /tmp/pers/common
-mkdir -p /tmp/pers/$TAG
+PERS_CAP_DIR=/tmp/pers/${CAP_NAME//\"/}
+mkdir -p $PERS_CAP_DIR
 
 # bind mounts for all .js files in capability root folder
 jsFiles=$(for n in *.js; do echo -v $PWD/$n:/app/$n; done)
@@ -71,7 +72,7 @@ docker run -it --rm --init \
 --env MONGO_URL="mongodb://mongodb" \
 -p $PORT:1000 -p $PORT:1000/udp \
 -v /tmp/pers/common:/persistent/common \
--v /tmp/pers/${TAG//:/.}:/persistent/self \
+-v $PERS_CAP_DIR:/persistent/self \
 -v $PWD/cloud:/app/cloud \
 $jsFiles \
 --network=cloud_caps \
