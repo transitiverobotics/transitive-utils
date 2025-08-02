@@ -1105,6 +1105,31 @@ describe('MqttSync', function() {
         }, 400);
     });
 
+    it('applies filters when clearing already known sub-topics', function(done) {
+      clientA.publish('/#');
+      clientB.subscribe('/#');
+      clientA.data.update('/uId/dId/@scope/capname/1.0.0/a', {d: 1});
+      clientA.data.update('/uId/dId/@scope/capname/1.0.0/b', {c: 1});
+      clientA.data.update('/uId/dId/@scope/capname/1.1.0/b', {c: 2});
+      setTimeout(() => {
+          console.log('clearing');
+          clientB.clear(['/uId/dId/@scope/capname/1.0.0'], () => {
+              setTimeout(() => {
+                  assert.deepEqual(
+                    clientA.data.getByTopic('/uId/dId/@scope/capname/'),
+                    {
+                      '1.0.0': {b: {c: 1}},
+                      '1.1.0': {b: {c: 2}}
+                    },
+                    'matches');
+                  done();
+                }, 200);
+            }, {
+              filter: (topic) => !topic.match(/1.0.0\/b/)
+            });
+        }, 400);
+    });
+
   });
 
   it('calls onBeforeDisconnect hooks', function(done) {

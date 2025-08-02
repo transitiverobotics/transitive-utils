@@ -333,6 +333,13 @@ class MqttSync {
   */
   clear(prefixes, callback = undefined, options = {}) {
 
+    // If prefixes are empty, just skip (call callback and return)
+    if (!prefixes || prefixes.length == 0) {
+      log.warn('clear was given no prefixes');
+      callback?.(0);
+      return;
+    }
+
     const toDelete = [];
     const collectToDelete = (topic) => {
       // there may be other mqtt subscriptions running, filter by topic
@@ -352,14 +359,10 @@ class MqttSync {
       } else {
         log.warn('Ignoring', prefix, 'since it is not a string.');
       }
-      // add the topics we already know off:
-      this.receivedTopics.forEach(topic => {
-        if (topic.startsWith(prefix)) {
-          log.debug('marking for deletion', `${prefix}${topic}`);
-          toDelete.push(topic);
-        }
-      });
     });
+
+    // add matching topics we already know off:
+    this.receivedTopics.forEach(collectToDelete);
 
     // value to use to clear, depending on node.js vs. browser
     const nullValue = (typeof Buffer != 'undefined' ? Buffer.alloc(0) : null);
