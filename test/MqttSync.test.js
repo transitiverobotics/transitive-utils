@@ -993,6 +993,51 @@ describe('MqttSync', function() {
           clientB.data.update('/a/b', null);
         }, 100);
     });
+
+    it('does not republish changes received from subscription', function(done) {
+      clientA.publish('/a/#');
+      clientA.data.update('/a/b', 'good');
+      let failed = false;
+
+      setTimeout(() => {
+          clientA.mqtt.on('message',
+            // fail if we receive the message back:
+            (topic) => {
+              if (topic.startsWith('/a')) {
+                failed = true;
+                done(new Error('it republished!'));
+              }
+            });
+          clientB.publish('/a/#'); // implies subscribing to
+
+          setTimeout(() => {
+              !failed && inSync(clientA, clientB, done);
+            }, 100);
+        }, 100);
+    });
+
+    it('does not republish (atomic) changes received from subscription', function(done) {
+      clientA.publish('/a');
+      clientA.data.update('/a/b', 'good');
+      let failed = false;
+
+      setTimeout(() => {
+          clientA.mqtt.on('message',
+            // fail if we receive the message back:
+            (topic) => {
+              if (topic.startsWith('/a')) {
+                failed = true;
+                done(new Error('it republished!'));
+              }
+            });
+          clientB.subscribe('/a');
+          clientB.publish('/a', {atomic: true});
+
+          setTimeout(() => {
+              !failed && inSync(clientA, clientB, done);
+            }, 100);
+        }, 100);
+    });
   });
 
   describe('clear', function() {

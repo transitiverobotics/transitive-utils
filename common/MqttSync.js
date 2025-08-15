@@ -166,7 +166,7 @@ class MqttSync {
             const json = mqttParsePayload(payload);
 
             log.debug('applying received update', topic);
-            const changes = this.data.update(topic, json);
+            const changes = this.data.update(topic, json, {external: true});
             onChange && Object.keys(changes).length > 0 && onChange(changes);
           }
         }
