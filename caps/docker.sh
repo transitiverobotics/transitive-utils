@@ -62,8 +62,10 @@ mkdir -p /tmp/pers/common
 PERS_CAP_DIR=/tmp/pers/${CAP_NAME//\"/}
 mkdir -p $PERS_CAP_DIR
 
-# bind mounts for all .js files in capability root folder
-jsFiles=$(for n in *.js; do echo -v $PWD/$n:/app/$n; done)
+# bind mounts for all non-symlink .js files in capability root folder and cloud
+jsFiles=$(for n in $(find *.js cloud/*.js -not -type l 2> /dev/null); do
+  echo -v $PWD/$n:/app/$n;
+done)
 
 docker run -it --rm --init \
 --env MQTT_URL=mqtts://mosquitto \
@@ -73,7 +75,6 @@ docker run -it --rm --init \
 -p $PORT:1000 -p $PORT:1000/udp \
 -v /tmp/pers/common:/persistent/common \
 -v $PERS_CAP_DIR:/persistent/self \
--v $PWD/cloud:/app/cloud \
 $jsFiles \
 --network=cloud_caps \
 --name $CONTAINER_NAME \

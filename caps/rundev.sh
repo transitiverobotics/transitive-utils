@@ -54,4 +54,5 @@ TRPACKAGE=$CAP \
 TRCONFIG="$(cat ~/.transitive/config.json | tr -d '\n' | sed "s#$CAP#package#")" \
 NODE_ARGS=$@ \
 TRANSITIVE_IS_ROBOT=1 \
-npm start
+FORCE_COLOR=1 \
+npm start "ignore, for monitoring: startPackage.sh $CAP" 2>&1 | tee -a ~/.transitive/packages/$CAP/log
