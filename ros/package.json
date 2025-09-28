@@ -28,7 +28,7 @@
     "postinstall": "./postinstall.sh"
   },
   "dependencies": {
-    "@transitive-sdk/utils": "^0.12.17"
+    "@transitive-sdk/utils": "^0.14.4"
   },
   "devDependencies": {
     "jest": "^29.7.0"

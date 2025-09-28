@@ -131,7 +131,7 @@ class MqttSync {
         // Do NOT parse payload just yet, since it may be binary and ignored by us
 
         let path = topicToPath(topic);
-        log.debug('processing message', topic, path);
+        log.debug('processing message', topic);
         if (sliceTopic) {
           path = path.slice(sliceTopic);
           topic = pathToTopic(path);

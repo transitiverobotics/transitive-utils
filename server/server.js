@@ -7,9 +7,12 @@ const jwt = require('jsonwebtoken');
 const http = require('http');
 const https = require('https');
 
-const { getRandomId, decodeJWT } = require('../common/common');
+const { getRandomId, decodeJWT, getLogger } = require('../common/common');
 
 const randomId = getRandomId;
+
+const log = getLogger('utils-server');
+log.setLevel('info');
 
 // moved to common
 // const decodeJWT = (token) => JSON.parse(Buffer.from(token.split('.')[1], 'base64'));
@@ -124,8 +127,19 @@ const importCapability = async (args) => {
   return await capModule.default.default({jwt, host, ssl});
 };
 
+/** Catch all otherwise uncaught errors */
+const registerCatchAll = () => {
+  process.on('uncaughtException', (err) => {
+    log.error(`**** Caught exception: ${err}:`, err.stack);
+  });
+
+  process.on('unhandledRejection', (reason, promise) => {
+    log.error('**** Caught unhandled rejection:', promise, 'reason:', reason);
+  });
+};
+
 module.exports = Object.assign({}, {
   findPath, getPackageVersionNamespace,
   randomId, setTerminalTitle, fetchURL,
-  importCapability
+  importCapability, registerCatchAll
 });
