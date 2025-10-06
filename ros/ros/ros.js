@@ -236,6 +236,16 @@ class ROS {
     return (category == 'msg' ? new Type() :
       new Type[response ? 'Response' : 'Request']());
   }
+
+  /** Get the value of the given ROS parameter  */
+  async getParam(param) {
+    return await this.rn.getParam(param);
+  }
+
+  /** Set the value of the given ROS parameter  */
+  setParam(param, value) {
+    return this.rn.setParam(param, value);
+  }
 };
 
 const instance = new ROS();

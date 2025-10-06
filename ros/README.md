@@ -39,3 +39,9 @@ To run tests, start a `roscore`, then:
 ```bash
 npm test
 ```
+
+
+
+# Changelog
+
+- v0.9: added support for ROS parameters

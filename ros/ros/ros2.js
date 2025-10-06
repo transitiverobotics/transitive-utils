@@ -59,6 +59,7 @@ const toROS2Type = (type, category = 'msg') => {
   return [parts[0], category, parts[1]].join('/');
 };
 
+
 /** Small convenient singleton class for interfacing with ROS2, including some
   auxiliary functions that come in handy in capabilities. Based on rclnodejs. */
 class ROS2 {
@@ -276,7 +277,7 @@ class ROS2 {
       return {success: false, error};
     }
 
-    const available = await serviceClient.waitForService(2000);
+    const available = await serviceClient.waitForService(5000);
 
     if (!available) {
       const error = `service not available "${serviceName}"`;
@@ -284,20 +285,26 @@ class ROS2 {
       return {success: false, error};
     }
 
-    log.debug(`calling ${serviceName}`);
-    return Promise.race([
+    log.debug(`calling ${serviceName}`, request);
+    let raceEnded = false;
+    return await Promise.race([
       new Promise((resolve, reject) => {
         serviceClient.sendRequest(request, response => {
+          if (raceEnded) return;
+          raceEnded = true;
           log.debug('Service response', response);
           resolve({success: true, response});
         });
       }),
-      (async () => { // adding a timeout
-        await wait(2000);
-        const error = `Timeout calling service: "${serviceName}"`;
-        log.warn(`callService: ${error}`);
-        return {success: false, error};
-      })()
+      new Promise((resolve, reject) => { // adding a timeout
+        setTimeout(() => {
+            if (raceEnded) return;
+            raceEnded = true;
+            const error = `Timeout calling service: "${serviceName}"`;
+            log.warn(`callService: ${error}`);
+            resolve({success: false, error});
+          }, 5000);
+      })
     ]);
   }
 
@@ -336,6 +343,94 @@ class ROS2 {
     return (category == 'msg' ? generateTemplate(TypeClass, category) :
       generateTemplate(TypeClass[response ? 'Response' : 'Request']));
   }
+
+  /** Get the named parameter. If `node` is not given, then from our own params.
+   * Example:
+   *   `await getParam('background_b', '/turtlesim')`
+  */
+  async getParam(param, node = undefined) {
+
+    if (!node || node == this.node.name) {
+      const parameter = this.node.getParameter(param);
+      return parameter.value;
+    } else {
+      // for other nodes, in ROS2, we need to call a service, e.g.:
+      // ros2 service call /turtlesim/get_parameters rcl_interfaces/srv/GetParameters 'names: [background_g]'
+      const result = await this.callService(`${node}/get_parameters`,
+        'rcl_interfaces/srv/GetParameters', {names: [param]});
+      log.debug('result', result);
+      if (result.success) {
+        return getValueFromParameterMsg(result.response.values[0]);
+      } else {
+        log.warn('Failed to get parameter value', param, node);
+      }
+    }
+  }
+
+  /** Set parameter `param` to `value`, auto-detecting the type of `value`.
+   * If the `node` argument is not given, it's applied to the current node params.
+   * Example:
+   *   `await setParam('background_b', 188, '/turtlesim')`
+   */
+  async setParam(param, value, node = undefined) {
+    const typeMap = {
+      'boolean': () => rclnodejs.ParameterType.PARAMETER_BOOL,
+      'number': x => (Number.isInteger(x)
+        ? rclnodejs.ParameterType.PARAMETER_INTEGER
+        : rclnodejs.ParameterType.PARAMETER_DOUBLE),
+      'string': () => rclnodejs.ParameterType.PARAMETER_STRING,
+      'object': x => Array.isArray(x) &&
+        (typeof(x[0]) == 'bool'
+          ? rclnodejs.ParameterType.PARAMETER_BOOL_ARRAY
+          : typeof(x[0]) == 'number'
+          ? (Number.isInteger(x[0])
+            ? rclnodejs.ParameterType.PARAMETER_INTEGER_ARRAY
+            : rclnodejs.ParameterType.PARAMETER_DOUBLE_ARRAY)
+          : (typeof(x[0]) == 'string'
+            ? rclnodejs.ParameterType.PARAMETER_STRING_ARRAY
+            : rclnodejs.ParameterType.PARAMETER_NOT_SET)
+        )
+      // PARAMETER_BYTE_ARRAY, // not supported
+    };
+
+    const type = typeMap[typeof(value)](value);
+    if (type == rclnodejs.ParameterType.PARAMETER_NOT_SET) {
+      log.warn('Could not identify type of parameter value', value);
+      return;
+    }
+
+    if (!node || node == this.node.name) {
+      this.node.setParameter(new rclnodejs.Parameter(param, type, value));
+    } else {
+      // use service to set parameter of another ROS node
+
+      // construct the ParameterValue msg payload
+      const parameterValue = {type};
+      parameterValue[types[type]] = value; // set value into the right field
+      const result = await this.callService(`${node}/set_parameters`,
+        'rcl_interfaces/srv/SetParameters',
+        {parameters: [{ name: param, value: parameterValue }]}
+      );
+      log.debug('setting parameter', result);
+    }
+  }
+};
+
+
+// types for Parameter messages
+const types = ['type',
+  'bool_value',
+  'integer_value',
+  'double_value',
+  'string_value',
+  'byte_array_value',
+  'bool_array_value',
+  'integer_array_value',
+  'double_array_value',
+  'string_array_value',
+];
+const getValueFromParameterMsg = (msg) => {
+  return msg[types[msg.type]];
 };
 
 const instance = new ROS2();

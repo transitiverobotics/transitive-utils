@@ -108,6 +108,10 @@ run();
 
 *   `args` &#x20;
 
+## registerCatchAll
+
+Catch all otherwise uncaught errors
+
 ## setTerminalTitle
 
 set the title of the terminal we are running in
