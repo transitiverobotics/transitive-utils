@@ -66,6 +66,14 @@ create a std\_msgs/Header for the given frame\_id and date
 
 Get all known message and service types, grouped by package.
 
+### getParam
+
+Get the value of the given ROS parameter
+
+##### Parameters
+
+*   `param` &#x20;
+
 ### getServices
 
 Get available services (list of names).
@@ -129,6 +137,15 @@ advertise the topic if not yet advertised.
 *   `message` &#x20;
 *   `latching`   (optional, default `true`)
 
+### setParam
+
+Set the value of the given ROS parameter
+
+##### Parameters
+
+*   `param` &#x20;
+*   `value` &#x20;
+
 ### subscribe
 
 Subscribe to the named topic of the named type. Each time a new message
@@ -178,6 +195,17 @@ create a std\_msgs/Header for the given frame\_id and date
 ### getAvailableTypes
 
 Get all known message, service, and action types, grouped by package.
+
+### getParam
+
+Get the named parameter. If `node` is not given, then from our own params.
+Example:
+`await getParam('background_b', '/turtlesim')`
+
+##### Parameters
+
+*   `param` &#x20;
+*   `node`   (optional, default `undefined`)
 
 ### getServices
 
@@ -239,6 +267,19 @@ advertise the topic if not yet advertised.
 *   `type` &#x20;
 *   `message` &#x20;
 *   `latching`   (optional, default `false`)
+
+### setParam
+
+Set parameter `param` to `value`, auto-detecting the type of `value`.
+If the `node` argument is not given, it's applied to the current node params.
+Example:
+`await setParam('background_b', 188, '/turtlesim')`
+
+##### Parameters
+
+*   `param` &#x20;
+*   `value` &#x20;
+*   `node`   (optional, default `undefined`)
 
 ### subscribe
 
