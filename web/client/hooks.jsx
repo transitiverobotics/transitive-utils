@@ -47,7 +47,6 @@ export const useMqttSync = ({jwt, id, mqttUrl, appReact}) => {
       let reconnectPeriod = RECONNECT_PERIOD_DEFAULT; // default to start with
       const transformWsUrl = (url, options, client) => {
         options.reconnectPeriod = reconnectPeriod;
-        log.info(`reconnect in ${options.reconnectPeriod} s`);
         return url;
       }
 
@@ -59,24 +58,37 @@ export const useMqttSync = ({jwt, id, mqttUrl, appReact}) => {
       });
 
       // Increase backoff with each close (since we can't actually detect auth
-      // errors)
-      client.on('close', () =>
-        reconnectPeriod = Math.min(reconnectPeriod * 2, RECONNECT_PERIOD_MAX)
-      );
+      // errors); stop reconnecting if JWT is invalid by now.
+      client.on('close', () => {
+        reconnectPeriod = Math.min(reconnectPeriod * 2, RECONNECT_PERIOD_MAX);
+
+        if ((iat + validity) * 1e3 < Date.now()) {
+          const error = 'MQTT connection closed and the JWT is expired by now. Not reconnecting.';
+          log.warn(error, payload);
+          setStatus(`error: ${error}`);
+          // give up, do not try to reconnect; user needs to provide a fresh JWT.
+          client.end();
+        } else {
+          const msg = `reconnect in ${reconnectPeriod / 1000} s`;
+          log.info(msg);
+          setStatus(msg);
+        }
+      });
 
       // reset to default after a successful connection
-      client.on('connect', () => reconnectPeriod = RECONNECT_PERIOD_DEFAULT);
+      client.on('connect', () => {
+        reconnectPeriod = RECONNECT_PERIOD_DEFAULT;
+        log.debug('MQTT (re-)connected');
+        setStatus('connected');
+      });
 
       client.once('connect', () => {
-        log.debug('MQTT connected');
-
         const mqttSyncClient = new MqttSync({
           mqttClient: client,
           ignoreRetain: true,
           onHeartbeatGranted: () => setHeartbeatGranted(true)
         });
         setMqttSync(mqttSyncClient);
-        setStatus('connected');
 
         // Update data on change. Note: need to clone object to force reaction
         mqttSyncClient.data.subscribe(_.throttle(() =>

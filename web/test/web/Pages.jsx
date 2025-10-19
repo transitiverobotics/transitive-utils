@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useRef,
-    forwardRef, useImperativeHandle, Suspense }
+    forwardRef, useImperativeHandle, Suspense, useMemo }
   from 'react';
 // window.React = React;
 import ReactDOM from 'react-dom';
@@ -354,6 +354,9 @@ const KitchenSink = () => {
 
 
     <Section title="Production Capabilities">
+      <h5>Copy and paste a "fresh" React snippet here for testing</h5>
+      and set host and ssl={false}.
+
     </Section>
 
     <Section title="Failures">
@@ -426,19 +429,42 @@ const Simple = () => {
 }
 
 
+/** Test some scenarios regarding connection issues to mqtt */
 const FailMqtt = () => {
 
+  const mqttUrl = `ws://${HOST}`;
+  const sectionConfigs = useMemo(() => [{
+        // Fail to connect to MQTT entirely. Expected behavior: back off.
+        description: 'test failing mqtt connection',
+        jwt: mockJWT('mockUser', 0, 180000), id: 'ignore',
+        mqttUrl: 'ws://so-wrong.localhost:1234'
+      }, {
+        // expected behavior: never even try to connect
+        description: 'test expired JWT',
+        jwt: mockJWT('mockUser', 0, -1), id: 'ignore',  mqttUrl
+      }, {
+        // connect to invalid URL and then stop trying once JWT is expired
+        description: 'test JWT that expires soon',
+        jwt: mockJWT('mockUser', 0, 5), id: 'ignore',
+        mqttUrl: 'ws://so-wrong.localhost:1234'
+      }, {
+        // should connect and should say so in StatusComponent
+        description: 'test valid JWT',
+        jwt: mockJWT('mockUser', 0, 180000), id: 'ignore', mqttUrl
+      },
+    ], []);
 
-  // test failing mqtt connections
-  useMqttSync({jwt: mockJWT('mockUser', 0), id: 'ignore',
-    host: 'so-wrong.localhost:1234', ssl: false});
-
-  // test expired JWT
-  const expiredJWT = mockJWT('mockUser', 0, -1);
-  const {StatusComponent} = useMqttSync({jwt: expiredJWT, id: 'ignore', host: HOST, ssl: false});
+  const sections = sectionConfigs.map(options => ({
+    description: options.description,
+    ...useMqttSync(options)
+  }));
 
   return <div>
-    <StatusComponent />
+    {sections.map(({description, StatusComponent}, i) =>
+      <div key={i}>
+        <h6>{description}</h6>
+        <StatusComponent />
+      </div>)}
     Also see dev console.
   </div>;
 }
