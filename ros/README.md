@@ -27,8 +27,8 @@ const demo = async (version) => {
   });
 };
 
-demo(1);
-demo(2);
+demo(1); // ROS 1
+demo(2); // ROS 2
 ```
 
 ## Running Tests
@@ -44,4 +44,5 @@ npm test
 
 # Changelog
 
+- v0.10: using rclnodejs@1.5.2 with pre-built binaries if possible (Humble+)
 - v0.9: added support for ROS parameters
