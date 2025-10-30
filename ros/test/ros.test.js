@@ -10,16 +10,19 @@ test('loads', () => {
 });
 
 [1, 2].forEach(version => {
+  const ros = getForVersion(version);
+  if (!ros) {
+    console.warn(`ROS ${version} not found`);
+    return;
+  }
 
   describe(`ROS ${version}`, function() {
 
     const type = 'std_msgs/String';
     const topic = '/utils_ros/testtopic';
 
-    let ros;
     let interval;
     beforeAll(async () => {
-      ros = getForVersion(version);
       await ros.init();
       interval = setInterval(() => {
         ros.publish(topic, type, {data: String(Date.now())});
@@ -61,7 +64,7 @@ test('loads', () => {
         const sub = ros.subscribe(topic, type, (msg) => {
           if (receivedMsgs == 0) {
             expect(msg.data).toEqual('latched');
-          } 
+          }
           if (receivedMsgs == 1) {
             expect(msg.data).toEqual('volatile');
             sub.shutdown();
