@@ -42,6 +42,8 @@ tryToSourceROS foxy
 tryToSourceROS galactic
 tryToSourceROS humble
 tryToSourceROS iron
+tryToSourceROS jazzy
+tryToSourceROS kilted
 
 # Make sure a config file exists
 if [[ ! -e ~/.transitive/config.json ]]; then

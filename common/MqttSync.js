@@ -127,7 +127,10 @@ class MqttSync {
         this.heartbeats++;
 
       } else {
-        this.receivedTopics.add(topic);
+        if (payload.length == 0)
+          this.receivedTopics.delete(topic)
+          else this.receivedTopics.add(topic);
+
         // Do NOT parse payload just yet, since it may be binary and ignored by us
 
         let path = topicToPath(topic);

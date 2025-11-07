@@ -17,6 +17,8 @@ log.setLevel('debug');
 const port = 9900;
 const mqttURL = `mqtt://localhost:${port}`;
 
+const HEARTBEAT_MS = 200; // server: send mqtt heartbeat every this many ms
+
 /* ---------------------------
   utility functions
 */
@@ -96,7 +98,7 @@ describe('MqttSync', function() {
       interval = setInterval(() => aedes.publish({
           topic: '$SYS/broker/uptime',
           payload: String((Date.now() - start)/1e3) + ' seconds'
-        }), 200);
+        }), HEARTBEAT_MS);
     });
   });
 
@@ -1175,6 +1177,32 @@ describe('MqttSync', function() {
         }, 400);
     });
 
+
+    it('does not repeatedly clear the same topics', async function() {
+      this.timeout(4000);
+
+      clientA.publish('/#');
+      clientB.subscribe('/#');
+
+      // publish a bunch
+      for (let i = 0; i < 200; i++) {
+        clientA.data.update(`/uId/dId/@scope/capname/1.0.0/topic_${i}/foo/bar`,
+          {value: i});
+      }
+
+      const clearPromise = (topics) =>
+        new Promise((resolve, reject) => clientB.clear(topics, resolve));
+
+      await wait(600);
+      log.debug('clearing, 1st');
+      const cleared1 = await clearPromise(['/+/+/@scope/capname/+/+/foo']);
+      assert(cleared1 > 200);
+
+      await wait(600);
+      log.debug('clearing, 2nd');
+      const cleared2 = await clearPromise(['/+/+/@scope/capname/+/+/foo']);
+      assert.equal(cleared2, 0);
+    });
   });
 
   it('calls onBeforeDisconnect hooks', function(done) {
