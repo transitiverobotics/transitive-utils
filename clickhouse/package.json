@@ -1,0 +1,30 @@
+{
+  "name": "@transitive-sdk/clickhouse",
+  "version": "0.1.0",
+  "description": "A tiny Clickhouse utility class for use in the Transitive framework.",
+  "homepage": "https://transitiverobotics.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/transitiverobotics/transitive-utils.git",
+    "directory": "clickhouse"
+  },
+  "author": {
+    "name": "Christian Fritz",
+    "email": "christian@transitiverobotics.com"
+  },
+  "keywords": [
+    "robotics"
+  ],
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "index.js",
+  "scripts": {
+  },
+  "dependencies": {
+    "@clickhouse/client": "^1.12.1"
+  },
+  "devDependencies": {
+  }
+}
