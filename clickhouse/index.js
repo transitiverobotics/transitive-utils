@@ -44,7 +44,7 @@ class ClickHouse {
    * @param {Array<string>} columns - array of column definitions and indexes, e.g. ['Timestamp DateTime CODEC(ZSTD(1))', 'Value Float32 CODEC(ZSTD(1))']
    * @param {Array<string>} settings - array of table settings, e.g. ['ENGINE = MergeTree()', 'ORDER BY (Timestamp)']
    */
-  async createMultitenantTable(tableName, columns, settings = []) {
+  async createTable(tableName, columns, settings = []) {
     const fullSchema = [
       ...columns,
       'OrgId String CODEC(ZSTD(1))',
@@ -74,7 +74,13 @@ class ClickHouse {
    * @param {string} orgId - organization ID to add to each row
    * @param {string} deviceId - device ID to add to each row
    */
-  async insertIntoMultitenantTable(tableName, rows, orgId, deviceId) {
+  async insert(tableName, rows, orgId, deviceId) {
+    // assert that orgId and deviceId are provided
+    if (!orgId || !deviceId) {
+      throw new Error('Both orgId and deviceId must be provided for multi-tenant insert');
+    }
+
+    // Augment each row with OrgId and DeviceId
     const rowsWithIds = rows.map(row => ({
       ...row,
       OrgId: orgId,
