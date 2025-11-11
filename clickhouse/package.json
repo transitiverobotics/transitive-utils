@@ -1,7 +1,7 @@
 {
   "name": "@transitive-sdk/clickhouse",
   "version": "0.1.0",
-  "description": "A tiny Clickhouse utility class for use in the Transitive framework.",
+  "description": "A tiny ClickHouse utility class for use in the Transitive framework.",
   "homepage": "https://transitiverobotics.com",
   "repository": {
     "type": "git",
