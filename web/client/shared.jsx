@@ -94,9 +94,9 @@ export const Timer = ({duration, onTimeout, onStart, setOnDisconnect, children})
   return <TimerContext.Provider value={{reset, duration, timer}}>
     {timer > 0 ? <div>
       {children}
-      {timer < 60 && <div>Timeout in: {timer} seconds</div>}
+      {timer < 60 && <div className="tr-timer-counter">Timeout in: {timer} seconds</div>}
     </div> :
-    <div>Timed out. <Button onClick={reset}>
+    <div className="tr-timer-timeout">Timed out. <Button onClick={reset}>
         Resume
       </Button>
     </div>}
