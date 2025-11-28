@@ -39,7 +39,30 @@ const run = async () => {
   imageTopics.length > 0 &&
   ROS2.subscribe(imageTopics[0], 'sensor_msgs/Image', console.log);
 
-  setInterval(() => ROS2.publish(topic1, type, 'hello1!'), 1000);
+  setInterval(() => ROS2.publish(topic1, type, {data: 'hello1!'}), 1000);
+
+  // action
+  setTimeout(async () => {
+      const actions = ROS2.getActions();
+      console.log(actions);
+      // console.log(ROS2.getAvailableTypes());
+      const goals = {};
+      for (let name in actions) {
+        const type = actions[name];
+        // console.log(name, ROS2.getTypeTemplate(...type.split('/')));
+        // const TypeClass = rclnodejs.require(type);
+        // console.log(TypeClass, Object.keys(TypeClass),
+        //   ROS2.getActionTemplate(type));
+        const template = ROS2.getTypeTemplate(...type.split('/'));
+        console.log(type, template);
+        goals[name] = await ROS2.callAction(name, type, template, console.log);
+      }
+
+      // setInterval(() => console.log(Object.values(goals).map(g => g.status)),
+      //   100);
+      Object.values(goals).forEach(async g => console.log(await g.getResult()));
+
+    }, 2000);
 }
 
 setTimeout(run, 1000);

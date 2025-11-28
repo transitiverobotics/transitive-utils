@@ -69,9 +69,7 @@ class ROS2 {
   subscriptions = {};
   // the rclnode
   node;
-
   rosVersion = 2;
-
   emitter;
 
   async generateMessages() {
@@ -144,6 +142,14 @@ class ROS2 {
   async getServiceType(service) {
     const list = await this.node.getServiceNamesAndTypes();
     return list.find(({name}) => name == service)?.types[0];
+  }
+
+  /** Get available actions */
+  getActions() {
+    const rtv = {};
+    rclnodejs.getActionNamesAndTypes(this.node).forEach(({name, types}) =>
+      rtv[name] = types[0]);
+    return rtv;
   }
 
   /** Destroys a given subscriber. */
@@ -335,14 +341,25 @@ class ROS2 {
   * return a plain object representing that type, which can be used as a
   * template for creating messages. */
   getTypeTemplate(pkg, category, type, response = false) {
-    if (category != 'msg' && category != 'srv') {
+    // if (category != 'msg' && category != 'srv') {
+    if (!['msg', 'srv', 'action'].includes(category)) {
       throw new Error(`Unknown type category ${category} (must be msg or srv).`);
     }
 
     const TypeClass = rclnodejs.require(`${pkg}/${category}/${type}`);
-    return (category == 'msg' ? generateTemplate(TypeClass, category) :
-      generateTemplate(TypeClass[response ? 'Response' : 'Request']));
+    return (category == 'msg'
+      ? generateTemplate(TypeClass)
+      : category == 'action'
+      ? generateTemplate(TypeClass.Goal)
+      : generateTemplate(TypeClass[response ? 'Response' : 'Request']));
   }
+
+  // /** Given an action type, return a plain object representing the goal type, which
+  // * can be used as a template for creating goal messages. */
+  // getActionTemplate(actionType) {
+  //   const TypeClass = rclnodejs.require(actionType);
+  //   return generateTemplate(TypeClass.Goal);
+  // }
 
   /** Get the named parameter. If `node` is not given, then from our own params.
    * Example:
@@ -413,6 +430,13 @@ class ROS2 {
       );
       log.debug('setting parameter', result);
     }
+  }
+
+  /** Call an action, i.e., send goal to action server */
+  async callAction(action, type, goal, feedbackCallback = undefined) {
+    const client = new rclnodejs.ActionClient(this.node, type, action);
+    await client.waitForServer(5000);
+    return client.sendGoal(goal, feedbackCallback);
   }
 };
 

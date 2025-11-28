@@ -102,6 +102,45 @@ class ROS {
     return header.type;
   }
 
+  /** Get available actions */
+  async getActions() {
+    const {publishers, subscribers} = await this.rn._node._masterApi.getSystemState();
+    const topicTypes = await this.rn._node._masterApi.getTopicTypes();
+    const topicTypesIndex = _.keyBy(topicTypes.topics, 'name');
+
+    // find actions based on published and subscribed topics
+    const actions = {};
+
+    // collect goal and cancel topics
+    _.forEach(subscribers, (_nodes, topic) => {
+      const parts = topic.split('/');
+      const name = parts.slice(0,-1).join('/');
+      if (['goal', 'cancel'].includes(parts.at(-1))) {
+        actions[name] ||= {};
+        actions[name][parts.at(-1)] = topicTypesIndex[topic].type;
+      }
+    });
+
+    // collect result, feedback, and status topics
+    _.forEach(publishers, (_nodes, topic) => {
+      const parts = topic.split('/');
+      const name = parts.slice(0,-1).join('/');
+      if (['result', 'feedback', 'status'].includes(parts.at(-1))) {
+        actions[name] ||= {};
+        actions[name][parts.at(-1)] = true;
+      }
+    });
+
+    // return names of complete actions, i.e., those that have all required topics
+    const results = {};
+    _.forEach(actions, (topics, name) =>
+      ['goal', 'cancel', 'result', 'feedback', 'status'].every(topic =>
+        topics[topic]) && (results[name] = topics.goal.replace(/Goal$/, '')));
+
+    return results;
+  }
+
+
   /** Subscribe to the named topic of the named type. Each time a new message
   * is received the provided callback is called. Here `options` is an optional
   * object: `{ "throttleMs": throttle-in-milliseconds }`.
@@ -246,6 +285,14 @@ class ROS {
   setParam(param, value) {
     return this.rn.setParam(param, value);
   }
+
+    /** Call an action, i.e., send goal to action server */
+  async callAction(actionServer, type, goal, feedbackCallback = undefined) {
+    const client = new rosnodejs.ActionClient({nh: this.nh, type, actionServer});
+    client.sendGoal(goal);
+    // #HERE
+  }
+
 };
 
 const instance = new ROS();
