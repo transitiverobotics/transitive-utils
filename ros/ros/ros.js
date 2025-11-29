@@ -135,7 +135,7 @@ class ROS {
     const results = {};
     _.forEach(actions, (topics, name) =>
       ['goal', 'cancel', 'result', 'feedback', 'status'].every(topic =>
-        topics[topic]) && (results[name] = topics.goal.replace(/Goal$/, '')));
+        topics[topic]) && (results[name] = topics.goal.replace(/ActionGoal$/, '')));
 
     return results;
   }
@@ -267,8 +267,13 @@ class ROS {
   * return a plain object representing that type, which can be used as a
   * template for creating messages. */
   getTypeTemplate(pkg, category, type, response = false) {
-    if (category != 'msg' && category != 'srv') {
-      throw new Error(`Unknown type category ${category} (must be msg or srv).`);
+    if (!['msg', 'srv', 'action'].includes(category)) {
+      throw new Error(`Unknown type category ${category} (must be msg, srv, or action).`);
+    }
+
+    if (category == 'action') {
+      const GoalType = rosnodejs.require(pkg).msg[`${type}Goal`];
+      return new GoalType();
     }
 
     const Type = rosnodejs.require(pkg)[category][type];
@@ -288,11 +293,13 @@ class ROS {
 
     /** Call an action, i.e., send goal to action server */
   async callAction(actionServer, type, goal, feedbackCallback = undefined) {
-    const client = new rosnodejs.ActionClient({nh: this.nh, type, actionServer});
-    client.sendGoal(goal);
-    // #HERE
+    log.info({actionServer, type, goal});
+    const client = new rosnodejs.ActionClient({nh: this.rn, type, actionServer});
+    // const client = this.rn.actionClientInterface(actionServer, type);
+    await client.waitForActionServerToStart();
+    return client.sendGoal(goal);
+    // #HERE: get feedback and result
   }
-
 };
 
 const instance = new ROS();

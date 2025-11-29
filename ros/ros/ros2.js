@@ -341,9 +341,8 @@ class ROS2 {
   * return a plain object representing that type, which can be used as a
   * template for creating messages. */
   getTypeTemplate(pkg, category, type, response = false) {
-    // if (category != 'msg' && category != 'srv') {
     if (!['msg', 'srv', 'action'].includes(category)) {
-      throw new Error(`Unknown type category ${category} (must be msg or srv).`);
+      throw new Error(`Unknown type category ${category} (must be msg, srv, or action).`);
     }
 
     const TypeClass = rclnodejs.require(`${pkg}/${category}/${type}`);
