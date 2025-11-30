@@ -3,7 +3,7 @@ const { createClient } = require('@clickhouse/client');
 /** Singleton ClickHouse client wrapper with multi-tenant table support */
 class ClickHouse {
   init({url, dbName, user, password} = {}) {
-    const _url = url || process.env.CLICKHOUSE_URL || 'http://localhost:8123';
+    const _url = url || process.env.CLICKHOUSE_URL || 'http://clickhouse:8123';
     const _dbName = dbName || process.env.CLICKHOUSE_DB || 'default';
     const _user = user || process.env.CLICKHOUSE_USER || 'default';
     const _password = password || process.env.CLICKHOUSE_PASSWORD || '';
@@ -53,7 +53,7 @@ class ClickHouse {
       'INDEX idx_deviceid (DeviceId) TYPE bloom_filter(0.01) GRANULARITY 1'
     ];
     const query = `CREATE TABLE IF NOT EXISTS ${tableName} (${fullSchema.join(', ')}) ${settings.join(' ')}`;
-    
+
     try {
       return await this.client.exec({
         query,
