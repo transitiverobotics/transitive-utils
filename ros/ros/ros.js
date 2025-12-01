@@ -297,8 +297,19 @@ class ROS {
     const client = new rosnodejs.ActionClient({nh: this.rn, type, actionServer});
     // const client = this.rn.actionClientInterface(actionServer, type);
     await client.waitForActionServerToStart();
-    return client.sendGoal(goal);
-    // #HERE: get feedback and result
+    const goalHandle = client.sendGoal(goal, null, feedbackCallback);
+
+    // monkey-patch return value to conform to interface of rclnodejs, i.e.,
+    // can await result
+    goalHandle.origGetResult = goalHandle.getResult;
+    goalHandle.getResult = () => new Promise((resolve, reject) => {
+      const checkDone = () => (goalHandle.getCommState() == 7) &&
+        resolve(goalHandle.origGetResult());
+      goalHandle.on('transition', checkDone);
+    });
+    // goal status according to constants in actionlib_msgs/GoalStatus
+    goalHandle.isSucceeded = () => goalHandle.getGoalStatus().status == 3;
+    return goalHandle;
   }
 };
 

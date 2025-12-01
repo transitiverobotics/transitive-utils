@@ -42,6 +42,17 @@ demo(2); // run demo using ROS2
 Small convenient singleton class for interfacing with ROS, including some
 auxiliary functions that come in handy in capabilities. Based on rosnodejs.
 
+### callAction
+
+Call an action, i.e., send goal to action server
+
+##### Parameters
+
+*   `actionServer` &#x20;
+*   `type` &#x20;
+*   `goal` &#x20;
+*   `feedbackCallback`   (optional, default `undefined`)
+
 ### callService
 
 Call the given service of the given type with the given body (not required
@@ -61,6 +72,10 @@ create a std\_msgs/Header for the given frame\_id and date
 
 *   `frame_id`   (optional, default `''`)
 *   `date`   (optional, default `new Date()`)
+
+### getActions
+
+Get available actions
 
 ### getAvailableTypes
 
@@ -172,6 +187,17 @@ Unsubscribe from topic
 Small convenient singleton class for interfacing with ROS2, including some
 auxiliary functions that come in handy in capabilities. Based on rclnodejs.
 
+### callAction
+
+Call an action, i.e., send goal to action server
+
+##### Parameters
+
+*   `action` &#x20;
+*   `type` &#x20;
+*   `goal` &#x20;
+*   `feedbackCallback`   (optional, default `undefined`)
+
 ### callService
 
 Call the given service of the given type with the given body (not required
@@ -191,6 +217,10 @@ create a std\_msgs/Header for the given frame\_id and date
 
 *   `frame_id`   (optional, default `''`)
 *   `date`   (optional, default `new Date()`)
+
+### getActions
+
+Get available actions
 
 ### getAvailableTypes
 

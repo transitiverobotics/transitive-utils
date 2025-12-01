@@ -60,7 +60,11 @@ const run = async () => {
 
       // setInterval(() => console.log(Object.values(goals).map(g => g.status)),
       //   100);
-      Object.values(goals).forEach(async g => console.log(await g.getResult()));
+      Object.values(goals).forEach(async g => {
+        console.log(await g.getResult());
+        console.log(g.status, g.isSucceeded());
+      });
+
 
     }, 2000);
 }
