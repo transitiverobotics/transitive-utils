@@ -342,4 +342,16 @@ Get the correct instance for the given ROS version (1 or 2).
 
 *   `version` &#x20;
 
+## getROS2GoalStatus
+
+Look up ROS2 goal status for given ROS1 goal handle
+
+#### Parameters
+
+*   `goalHandle` &#x20;
+
+## mapRos1GoalStatusToRos2
+
+mapping from ROS1 goal statuses to ROS2
+
 [1]: https://robotwebtools.github.io/rclnodejs/docs/0.22.3/Node.html#createSubscription
