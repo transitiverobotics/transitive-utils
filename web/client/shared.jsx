@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Button, Accordion, AccordionContext, Card, Badge }
-  from 'react-bootstrap';
+import { Button, Accordion, AccordionContext, Card, Badge, Dropdown,
+  ButtonGroup, Form } from 'react-bootstrap';
 import ReactWebComponent from './react-web-component';
 
 import { parseCookie, decodeJWT } from './client';
 import { useCapability } from './hooks';
+
+const F = React.Fragment;
 
 const styles = {
   badge: {
@@ -21,7 +23,25 @@ const styles = {
   inlineCode: {
     color: '#700',
     margin: '0px 0.5em 0px 0.5em',
-  }
+  },
+
+  selector: {
+    marginBottom: '1em',
+    width: '100%',
+  },
+  field: {
+    borderBottomLeftRadius: '0px',
+    borderTopLeftRadius: '0px',
+    marginBottom: '1em',
+    flex: '100 1 10000em',
+  },
+  sourceForm: {
+    // display: 'flex',
+    // gap: '1rem',
+    display: 'inline-block',
+    width: '100%',
+  },
+
 };
 
 const levelBadges = [
@@ -46,6 +66,7 @@ export const InlineCode = ({children}) => <tt style={styles.inlineCode}>
 
 const intervals = {};
 
+/** A Timeout component: removes the children once time runs out */
 export const TimerContext = React.createContext({});
 export const Timer = ({duration, onTimeout, onStart, setOnDisconnect, children}) => {
   duration = duration || 60;
@@ -368,3 +389,119 @@ export const createWebComponent = (Component, name, version = '0.0.0',
     return ReactWebComponent.create(Wrapper, name, options.shadowDOM || false,
       compRef);
   };
+
+
+/** takes options in the below format and renders a "tree of dropdowns" to
+* allow user to select from these options in sequence.
+* Format:
+* ```js
+* { selector: 'video source',
+*   field: 'type',
+*   options: [
+*     { label: 'ROS Topic', // label for this option (in parent selector)
+*       value: 'rostopic' // value to use when selected
+*       field: 'value', // the field for which options list possible values
+*       selector: 'ROS Version', // label for next selector
+*       options: [
+*         { label: 'ROS1',
+*           options: [{
+*             label: 'topic1',
+*             value: 'topic1'
+*           }],
+*         }, {
+*           label: 'Free form',
+*           value: 'free-form',
+*           selector: 'Enter text',
+*           field: 'textParam',
+*         }, {
+*           label: 'A Number',
+*           value: 'free-form-number',
+*           selector: 'Enter number',
+*           type: 'number',
+*           field: 'numberParam',
+*         }, {
+*           label: 'A Date',
+*           value: 'free-form-date',
+*           selector: 'Enter date',
+*           type: 'datetime-local',
+*           field: 'dateParam',
+*         }
+*       }
+*     },
+*     ...
+*   ]
+* }
+* ```
+*/
+export const TreeSelector = (props) => {
+  const {selector, field, options} = props.options;
+
+  const preselectedOption = props.preselected &&
+    options.find(o => _.isEqual(o.value, props.preselected[field]));
+
+  // log.debug(preselectedOption);
+
+  const [selected, setSelected] = useState(preselectedOption);
+  const select = (choice) => {
+    setSelected(choice);
+    (choice != selected) && props.onSelect?.({
+      selected: {[field]: choice.value},
+      // Indicate when there are no more options to select from, i.e., the
+      // selection is complete:
+      complete: !choice.options && !choice.field
+    });
+  };
+
+  const dropDowns = <F>
+    <Dropdown as={ButtonGroup} style={styles.selector}>
+      <Dropdown.Toggle variant="outline-secondary">
+        {selected?.label || selector}
+      </Dropdown.Toggle>
+      <Dropdown.Menu variant="dark">
+        {options.map((option, i) =>
+          <Dropdown.Item key={i}
+            disabled={option.disabled}
+            onClick={() => select(option)}>
+            {option.label}
+          </Dropdown.Item>
+        )}
+      </Dropdown.Menu>
+    </Dropdown>
+
+    {selected?.options ?
+      <TreeSelector key={JSON.stringify(selected.value)}
+        nested={true}
+        options={selected}
+        preselected={props.preselected} // TODO: is this right?
+        onSelect={(subChoice) => {
+          const merged = {
+            selected: {[field]: selected.value, ...subChoice.selected},
+            complete: subChoice.complete
+          };
+          props.onSelect?.(merged);
+        }}
+        />
+      : // no options given, just provide an input field
+      selected?.field && <Form.Control style={styles.field}
+        type={selected.type || 'text'}
+        placeholder={selected.selector}
+        defaultValue={props.preselected?.[selected.field]}
+        onBlur={e => {
+          props.onSelect?.({
+            selected: {
+              [field]: selected.value,
+              [selected.field]: e.target.value
+            },
+            complete: e.target.value.length > 0
+          });
+        }}
+        />
+    }
+  </F>;
+
+  return props.nested ? dropDowns : <div style={styles.sourceForm}>
+    <ButtonGroup>
+      {dropDowns}
+    </ButtonGroup>
+  </div>;
+};

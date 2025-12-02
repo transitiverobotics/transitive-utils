@@ -158,6 +158,10 @@ parse document cookies
 
 *   `str` &#x20;
 
+## TimerContext
+
+A Timeout component: removes the children once time runs out
+
 ## TransitiveCapability
 
 Dynamically load and use the Transitive web component specified in the JWT.
@@ -195,6 +199,55 @@ JWT for webrtc-video and use:
     *   `$0.host`   (optional, default `'transitiverobotics.com'`)
     *   `$0.ssl`   (optional, default `true`)
     *   `$0.config` **...any**&#x20;
+
+## TreeSelector
+
+takes options in the below format and renders a "tree of dropdowns" to
+allow user to select from these options in sequence.
+Format:
+
+```js
+{ selector: 'video source',
+  field: 'type',
+  options: [
+    { label: 'ROS Topic', // label for this option (in parent selector)
+      value: 'rostopic' // value to use when selected
+      field: 'value', // the field for which options list possible values
+      selector: 'ROS Version', // label for next selector
+      options: [
+        { label: 'ROS1',
+          options: [{
+            label: 'topic1',
+            value: 'topic1'
+          }],
+        }, {
+          label: 'Free form',
+          value: 'free-form',
+          selector: 'Enter text',
+          field: 'textParam',
+        }, {
+          label: 'A Number',
+          value: 'free-form-number',
+          selector: 'Enter number',
+          type: 'number',
+          field: 'numberParam',
+        }, {
+          label: 'A Date',
+          value: 'free-form-date',
+          selector: 'Enter date',
+          type: 'datetime-local',
+          field: 'dateParam',
+        }
+      }
+    },
+    ...
+  ]
+}
+```
+
+#### Parameters
+
+*   `props` &#x20;
 
 ## useCapability
 
