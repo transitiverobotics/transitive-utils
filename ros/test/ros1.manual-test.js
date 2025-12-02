@@ -48,7 +48,8 @@ const run = async () => {
     // });
     log.debug({goal});
     log.debug(await goal.getResult());
-    log.debug(goal.getTerminalState(), goal.isSucceeded());
+    // log.debug(goal.getTerminalState(), goal.isSucceeded());
+    log.debug(goal.getStatus(), goal.isSucceeded(), goal.getStatusName());
   });
 };
 

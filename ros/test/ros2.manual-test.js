@@ -55,6 +55,7 @@ const run = async () => {
         //   ROS2.getActionTemplate(type));
         const template = ROS2.getTypeTemplate(...type.split('/'));
         console.log(type, template);
+        template.theta = Math.random() * 2 * Math.PI;
         goals[name] = await ROS2.callAction(name, type, template, console.log);
       }
 
@@ -62,7 +63,7 @@ const run = async () => {
       //   100);
       Object.values(goals).forEach(async g => {
         console.log(await g.getResult());
-        console.log(g.status, g.isSucceeded());
+        console.log(g.getStatus(), g.isSucceeded(), g.getStatusName());
       });
 
 

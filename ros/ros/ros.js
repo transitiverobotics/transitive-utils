@@ -4,10 +4,31 @@ const rosnodejs = require('rosnodejs');
 const _ = require('lodash');
 
 const { getLogger, wait } = require('@transitive-sdk/utils');
+
+const { goalStatuses } = require('./common.js');
+
 const log = getLogger('ROS1');
 log.setLevel('info');
 
 const ROS_MASTER_URI = process.env.ROS_MASTER_URI || 'http://localhost:11311';
+
+/** mapping from ROS1 goal statuses to ROS2 */
+const mapRos1GoalStatusToRos2 = [
+  1, // 0, pending
+  2, // 1, active
+  5, // 2, preempted
+  4, // 3, succeeded
+  6, // 4, aborted
+  0, // 5, rejected
+  3, // 6, preempting
+  3, // 7, recalling
+  5, // 8, recalled
+  0, // 9, lost
+];
+
+/** Look up ROS2 goal status for given ROS1 goal handle */
+const getROS2GoalStatus = (goalHandle) =>
+  mapRos1GoalStatusToRos2[goalHandle.getGoalStatus().status];
 
 /** Small convenient singleton class for interfacing with ROS, including some
   auxiliary functions that come in handy in capabilities. Based on rosnodejs. */
@@ -299,17 +320,16 @@ class ROS {
     await client.waitForActionServerToStart();
     const goalHandle = client.sendGoal(goal, null, feedbackCallback);
 
-    // monkey-patch return value to conform to interface of rclnodejs, i.e.,
-    // can await result
-    goalHandle.origGetResult = goalHandle.getResult;
-    goalHandle.getResult = () => new Promise((resolve, reject) => {
-      const checkDone = () => (goalHandle.getCommState() == 7) &&
-        resolve(goalHandle.origGetResult());
-      goalHandle.on('transition', checkDone);
-    });
-    // goal status according to constants in actionlib_msgs/GoalStatus
-    goalHandle.isSucceeded = () => goalHandle.getGoalStatus().status == 3;
-    return goalHandle;
+    return {
+      isSucceeded: () => getROS2GoalStatus(goalHandle) == 4,
+      getResult: () => new Promise((resolve, reject) => {
+        const checkDone = () => (goalHandle.getCommState() == 7) &&
+          resolve(goalHandle.getResult());
+        goalHandle.on('transition', checkDone);
+      }),
+      getStatus: () => getROS2GoalStatus(goalHandle),
+      getStatusName: () => goalStatuses[getROS2GoalStatus(goalHandle)]
+    }
   }
 };
 

@@ -5,6 +5,9 @@ const _ = require('lodash');
 const EventEmitter = require('events');
 
 const { getLogger, wait } = require('@transitive-sdk/utils');
+
+const { goalStatuses } = require('./common.js');
+
 const log = getLogger('ROS2');
 log.setLevel('info');
 
@@ -353,13 +356,6 @@ class ROS2 {
       : generateTemplate(TypeClass[response ? 'Response' : 'Request']));
   }
 
-  // /** Given an action type, return a plain object representing the goal type, which
-  // * can be used as a template for creating goal messages. */
-  // getActionTemplate(actionType) {
-  //   const TypeClass = rclnodejs.require(actionType);
-  //   return generateTemplate(TypeClass.Goal);
-  // }
-
   /** Get the named parameter. If `node` is not given, then from our own params.
    * Example:
    *   `await getParam('background_b', '/turtlesim')`
@@ -435,7 +431,15 @@ class ROS2 {
   async callAction(action, type, goal, feedbackCallback = undefined) {
     const client = new rclnodejs.ActionClient(this.node, type, action);
     await client.waitForServer(5000);
-    return client.sendGoal(goal, feedbackCallback);
+    // return client.sendGoal(goal, feedbackCallback);
+    const goalHandle = await client.sendGoal(goal, feedbackCallback);
+
+    return {
+      isSucceeded: goalHandle.isSucceeded.bind(goalHandle),
+      getResult: goalHandle.getResult.bind(goalHandle),
+      getStatus: () => goalHandle.status,
+      getStatusName: () => goalStatuses[goalHandle.status]
+    }
   }
 };
 
