@@ -536,6 +536,16 @@ const TreeSelect = () => {
       {JSON.stringify(selection, true, 2)}
     </pre>
 
+    <hr/>
+
+    Preselected:
+    <TreeSelector {...{options}}
+      preselected={{
+        type: "rostopic",
+        value: "free-form",
+        textParam: "asdf"
+      }} />
+
   </div>
 };
 

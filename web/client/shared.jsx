@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Button, Accordion, AccordionContext, Card, Badge, Dropdown,
   ButtonGroup, Form } from 'react-bootstrap';
-import ReactWebComponent from './react-web-component';
+import _ from 'lodash';
 
+import ReactWebComponent from './react-web-component';
 import { parseCookie, decodeJWT } from './client';
 import { useCapability } from './hooks';
 
