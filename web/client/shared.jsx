@@ -28,13 +28,15 @@ const styles = {
 
   selector: {
     marginBottom: '1em',
-    width: '100%',
+  },
+  selectorButton: {
+    flex: '0 0 auto',
   },
   field: {
     borderBottomLeftRadius: '0px',
     borderTopLeftRadius: '0px',
     marginBottom: '1em',
-    flex: '100 1 10000em',
+    flex: '10 1 10000em',
   },
   sourceForm: {
     // display: 'flex',
@@ -455,7 +457,7 @@ export const TreeSelector = (props) => {
 
   const dropDowns = <F>
     <Dropdown as={ButtonGroup} style={styles.selector}>
-      <Dropdown.Toggle variant="outline-secondary">
+      <Dropdown.Toggle variant="outline-secondary" style={styles.selectorButton}>
         {selected?.label || selector}
       </Dropdown.Toggle>
       <Dropdown.Menu variant="dark">
@@ -486,7 +488,7 @@ export const TreeSelector = (props) => {
       selected?.field && <Form.Control style={styles.field}
         type={selected.type || 'text'}
         placeholder={selected.selector}
-        defaultValue={props.preselected?.[selected.field]}
+        defaultValue={props.preselected?.[selected.field] || selected.default}
         onBlur={e => {
           props.onSelect?.({
             selected: {
@@ -501,7 +503,7 @@ export const TreeSelector = (props) => {
   </F>;
 
   return props.nested ? dropDowns : <div style={styles.sourceForm}>
-    <ButtonGroup>
+    <ButtonGroup style={{width: '100%'}}>
       {dropDowns}
     </ButtonGroup>
   </div>;

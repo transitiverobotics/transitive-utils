@@ -506,6 +506,7 @@ const TreeSelect = () => {
             value: 'free-form',
             selector: 'Enter text',
             field: 'textParam',
+            default: 'my text',
           }, {
             label: 'A Number',
             value: 'free-form-number',
