@@ -38,7 +38,7 @@ async function queryRowsByOrg(org, options = {}) {
 
 /** Generate unique org ID for test isolation */
 function testOrg(suffix) {
-  return `test_${suffix}_${Date.now()}`;
+  return `clickhouse_test_${suffix}_${Date.now()}`;
 }
 
 describe('ClickHouse', function() {
@@ -54,7 +54,7 @@ describe('ClickHouse', function() {
 
   after(async function() {
     await clickhouse.client.exec({
-      query: `ALTER TABLE mqtt_history DELETE WHERE OrgId LIKE 'test_%'`,
+      query: `ALTER TABLE mqtt_history DELETE WHERE OrgId LIKE 'clickhouse_test_%'`,
       clickhouse_settings: { wait_end_of_query: 1 }
     });
   });
@@ -74,12 +74,16 @@ describe('ClickHouse', function() {
   });
 
   describe('registerMqttTopicForStorage', function() {
+    before(async function() {
+      await clickhouse.ensureMqttHistoryTable();
+    });
+
     it('should insert MQTT messages into ClickHouse', async function() {
       const dataCache = new DataCache({});
       const org = testOrg('insert');
       const { done, restore } = interceptInserts(1);
 
-      await clickhouse.registerMqttTopicForStorage(dataCache, STANDARD_TOPIC_PATTERN);
+      clickhouse.registerMqttTopicForStorage(dataCache, STANDARD_TOPIC_PATTERN);
       dataCache.update([org, 'device1', '@robot', 'test-cap', '1.0.0', 'data'], 42.5);
 
       await done;
@@ -101,7 +105,7 @@ describe('ClickHouse', function() {
       const org = testOrg('string');
       const { done, restore } = interceptInserts(1);
 
-      await clickhouse.registerMqttTopicForStorage(dataCache, STANDARD_TOPIC_PATTERN);
+      clickhouse.registerMqttTopicForStorage(dataCache, STANDARD_TOPIC_PATTERN);
       dataCache.update([org, 'device1', '@robot', 'cap', '1.0.0', 'msg'], 'hello world');
 
       await done;
@@ -117,7 +121,7 @@ describe('ClickHouse', function() {
       const org = testOrg('null');
       const { done, restore } = interceptInserts(2);
 
-      await clickhouse.registerMqttTopicForStorage(dataCache, '/+org/+device/#');
+      clickhouse.registerMqttTopicForStorage(dataCache, '/+org/+device/#');
       dataCache.update([org, 'device1', 'data'], 'initial');
       dataCache.update([org, 'device1', 'data'], null);
 
@@ -137,7 +141,7 @@ describe('ClickHouse', function() {
       const { done, restore } = interceptInserts(1);
       const payload = { sensor: 'temp', value: 25.5, nested: { a: 1 } };
 
-      await clickhouse.registerMqttTopicForStorage(dataCache, STANDARD_TOPIC_PATTERN);
+      clickhouse.registerMqttTopicForStorage(dataCache, STANDARD_TOPIC_PATTERN);
       dataCache.update([org, 'device1', '@robot', 'cap', '1.0.0', 'readings'], payload);
 
       await done;
@@ -154,7 +158,7 @@ describe('ClickHouse', function() {
       const org = testOrg('subtopic');
       const { done, restore } = interceptInserts(1);
 
-      await clickhouse.registerMqttTopicForStorage(dataCache, STANDARD_TOPIC_PATTERN);
+      clickhouse.registerMqttTopicForStorage(dataCache, STANDARD_TOPIC_PATTERN);
       dataCache.update([org, 'device1', '@cloud', 'cap', '2.0.0', 'level1', 'level2'], 'value');
 
       await done;
@@ -172,7 +176,7 @@ describe('ClickHouse', function() {
       const org = testOrg('multi');
       const { done, restore } = interceptInserts(2);
 
-      await clickhouse.registerMqttTopicForStorage(dataCache, STANDARD_TOPIC_PATTERN);
+      clickhouse.registerMqttTopicForStorage(dataCache, STANDARD_TOPIC_PATTERN);
       dataCache.update([org, 'device1', '@robot', 'cap', '1.0.0', 'battery'], 85);
       dataCache.update([org, 'device1', '@robot', 'cap', '1.0.0', 'temperature'], 42);
 
@@ -194,7 +198,7 @@ describe('ClickHouse', function() {
       const org = testOrg('unnamed');
       const { done, restore } = interceptInserts(1);
 
-      await clickhouse.registerMqttTopicForStorage(dataCache, '/+/+/+/+/+/#');
+      clickhouse.registerMqttTopicForStorage(dataCache, '/+/+/+/+/+/#');
       dataCache.update([org, 'device1', '@robot', 'cap', '1.0.0', 'data'], { x: 1 });
 
       await done;
