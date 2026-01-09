@@ -1,4 +1,22 @@
 const { createClient } = require('@clickhouse/client');
+const { topicToPath } = require('../common/datacache/tools');
+
+// Default TTL in days for mqtt_history table
+const DEFAULT_TTL_DAYS = 30;
+
+// Shared multi-tenant schema components used by createTable and ensureMqttHistoryTable
+const MULTI_TENANT_SCHEMA = {
+  // Column definitions for OrgId and DeviceId
+  columns: [
+    'OrgId LowCardinality(String) CODEC(ZSTD(1))',
+    'DeviceId LowCardinality(String) CODEC(ZSTD(1))'
+  ],
+  // Bloom filter indexes for efficient filtering
+  indexes: [
+    'INDEX idx_orgid (OrgId) TYPE bloom_filter(0.01) GRANULARITY 1',
+    'INDEX idx_deviceid (DeviceId) TYPE bloom_filter(0.01) GRANULARITY 1'
+  ]
+};
 
 /** Singleton ClickHouse client wrapper with multi-tenant table support */
 class ClickHouse {
@@ -8,6 +26,7 @@ class ClickHouse {
     const _user = user || process.env.CLICKHOUSE_USER || 'default';
     const _password = password || process.env.CLICKHOUSE_PASSWORD || '';
     this._alreadyEnsuredHistoryTable = false;
+    this._currentTtlDaysForHistoryTable = null;
     console.debug(`Creating ClickHouse client for URL: ${_url}, DB: ${_dbName}, User: ${_user}`);
     this._client = createClient({
       url: _url,
@@ -48,10 +67,8 @@ class ClickHouse {
   async createTable(tableName, columns, settings = []) {
     const fullSchema = [
       ...columns,
-      'OrgId String CODEC(ZSTD(1))',    // TODO: This should be LowCardinality for better performance
-      'DeviceId String CODEC(ZSTD(1))', // But we'll need a schema migration
-      'INDEX idx_orgid (OrgId) TYPE bloom_filter(0.01) GRANULARITY 1',
-      'INDEX idx_deviceid (DeviceId) TYPE bloom_filter(0.01) GRANULARITY 1'
+      ...MULTI_TENANT_SCHEMA.columns,
+      ...MULTI_TENANT_SCHEMA.indexes
     ];
     const query = `CREATE TABLE IF NOT EXISTS ${tableName} (${fullSchema.join(', ')}) ${settings.join(' ')}`;
 
@@ -94,72 +111,61 @@ class ClickHouse {
     });
   }
 
-  /** Ensure the mqtt_history table exists with the correct schema
+  /** Update the TTL for the mqtt_history table
+   * @param {number} ttlDays - TTL in days
    */
-  async ensureMqttHistoryTable() {
-    if (this._alreadyEnsuredHistoryTable) {
-      return;
+  async updateMqttHistoryTTL(ttlDays) {
+    const query = `ALTER TABLE mqtt_history MODIFY TTL toDateTime(Timestamp) + toIntervalDay(${ttlDays})`;
+    try {
+      await this.client.exec({
+        query,
+        clickhouse_settings: {
+          wait_end_of_query: 1,
+        }
+      });
+      this._currentTtlDaysForHistoryTable = ttlDays;
+      console.debug(`Updated mqtt_history TTL to ${ttlDays} days`);
+    } catch (error) {
+      console.error('Error updating TTL:', error.message);
+      throw error;
     }
-    // ensure mqtt_history table exists
-    // Note: DEFAULT must come before CODEC in ClickHouse syntax
-    // TopicParts is filtered to remove empty strings, so indices are 1-based
-    const query = `CREATE TABLE IF NOT EXISTS mqtt_history (
-        -- High‑precision event time; Delta+ZSTD is a common combo for time-series
-        -- (mirrors observability schemas like otel_logs/otel_traces).
-        Timestamp DateTime64(9) CODEC(Delta(8), ZSTD(1)),
+  }
 
-        -- Raw MQTT topic split into parts; kept as Array(String) for flexibility.
-        TopicParts Array(String) CODEC(ZSTD(1)),
+  /** Ensure the mqtt_history table exists with the correct schema
+   * @param {number} ttlDays - TTL in days (default: 30)
+   */
+  async ensureMqttHistoryTable(ttlDays = DEFAULT_TTL_DAYS) {
+    const columns = [
+      // High-precision event time; Delta+ZSTD is a common combo for time-series
+      'Timestamp DateTime64(9) CODEC(Delta(8), ZSTD(1))',
+      // Raw MQTT topic split into parts; kept as Array(String) for flexibility
+      'TopicParts Array(String) CODEC(ZSTD(1))',
+      // Org/device fields derived from TopicParts
+      'OrgId LowCardinality(String) DEFAULT TopicParts[1] CODEC(ZSTD(1))',
+      'DeviceId LowCardinality(String) DEFAULT TopicParts[2] CODEC(ZSTD(1))',
+      // Capability-specific fields materialized from TopicParts
+      'Scope LowCardinality(String) DEFAULT TopicParts[3] CODEC(ZSTD(1))',
+      'CapabilityName LowCardinality(String) DEFAULT TopicParts[4] CODEC(ZSTD(1))',
+      'CapabilityVersion LowCardinality(String) DEFAULT TopicParts[5] CODEC(ZSTD(1))',
+      // Remaining topic segments stored as an array for less-structured suffixes
+      'SubTopic Array(String) DEFAULT arraySlice(TopicParts, 6) CODEC(ZSTD(1))',
+      // Payload stored as String with ZSTD(1)
+      'Payload String CODEC(ZSTD(1))',
+      // Bloom filter indexes (shared multi-tenant indexes)
+      ...MULTI_TENANT_SCHEMA.indexes,
+      'INDEX idx_scope (Scope) TYPE bloom_filter(0.01) GRANULARITY 1',
+      'INDEX idx_capability (CapabilityName) TYPE bloom_filter(0.01) GRANULARITY 1'
+    ];
 
-        -- Org/device/name/capability fields are materialized from TopicParts.
-        -- Using LowCardinality(String) follows the pattern used for ServiceName,
-        -- SeverityText, etc. in OTel schemas to improve compression and speed.
-        OrgId LowCardinality(String) DEFAULT TopicParts[1] CODEC(ZSTD(1)),
-        DeviceId LowCardinality(String) DEFAULT TopicParts[2] CODEC(ZSTD(1)),
-        Scope LowCardinality(String) DEFAULT TopicParts[3] CODEC(ZSTD(1)),
-        CapabilityName LowCardinality(String) DEFAULT TopicParts[4] CODEC(ZSTD(1)),
-        CapabilityVersion LowCardinality(String) DEFAULT TopicParts[5] CODEC(ZSTD(1)),
-
-        -- Remaining topic segments stored as an array for less-structured suffixes.
-        SubTopic Array(String) DEFAULT arraySlice(TopicParts, 6) CODEC(ZSTD(1)),
-
-        -- Payload stored as String with ZSTD(1), similar to log Body in OTel schemas.
-        Payload String CODEC(ZSTD(1)),
-
-        -- Bloom filter indices: pattern borrowed from OTel/logging schemas where
-        -- bloom filters are applied to frequently-filtered dimensions. Effectiveness
-        -- depends on correlation with ORDER BY and actual query patterns.
-        INDEX idx_orgid (OrgId) TYPE bloom_filter(0.01) GRANULARITY 1,
-        INDEX idx_deviceid (DeviceId) TYPE bloom_filter(0.01) GRANULARITY 1,
-        INDEX idx_scope (Scope) TYPE bloom_filter(0.01) GRANULARITY 1,
-        INDEX idx_capability (CapabilityName) TYPE bloom_filter(0.01) GRANULARITY 1
-    )
-    ENGINE = MergeTree()
-    -- Partition by day, matching the time-based TTL. This is the same pattern used
-    -- in observability/log schemas to make dropping expired data efficient.
-    PARTITION BY toYYYYMMDD(Timestamp)
-
-    -- Primary key defines the sparse index; putting OrgId and DeviceId first
-    -- optimizes for queries scoped by org/device, then narrowed by time.
-    PRIMARY KEY (OrgId, DeviceId, Timestamp)
-
-    -- ORDER BY controls on-disk sort and primary index layout. This order is
-    -- tuned for access patterns like "all messages for org+device over time",
-    -- similar to (ServiceName, Timestamp, ...) in OTel examples.
-    ORDER BY (OrgId, DeviceId, Timestamp)
-
-    -- Table-level TTL: automatically removes data 30 days after Timestamp.
-    -- This follows the same pattern as otel_logs/otel_traces TTL definitions.
-    TTL toDateTime(Timestamp) + toIntervalDay(30)
-
-    SETTINGS
-      -- Default granularity used in the observability examples; balances index
-      -- size and skipping efficiency.
-      index_granularity = 8192,
-
-      -- Recommended for TTL-based retention: drop whole parts when all rows
-      -- are expired, avoiding expensive row-level TTL mutations.
-      ttl_only_drop_parts = 1`;
+    const query = `CREATE TABLE IF NOT EXISTS mqtt_history (${columns.join(', ')})
+      ENGINE = MergeTree()
+      PARTITION BY toYYYYMMDD(Timestamp)
+      PRIMARY KEY (OrgId, DeviceId, Timestamp, TopicParts)
+      ORDER BY (OrgId, DeviceId, Timestamp, TopicParts)
+      TTL toDateTime(Timestamp) + toIntervalDay(${ttlDays})
+      SETTINGS
+        index_granularity = 8192,
+        ttl_only_drop_parts = 1`;
 
     try {
       await this.client.exec({
@@ -168,7 +174,18 @@ class ClickHouse {
           wait_end_of_query: 1,
         }
       });
+
+      // If table already existed (or was just created), update TTL if different
+      if (this._alreadyEnsuredHistoryTable && this._currentTtlDaysForHistoryTable !== ttlDays) {
+        await this.updateMqttHistoryTTL(ttlDays);
+      } else if (!this._alreadyEnsuredHistoryTable) {
+        // First time - check if table existed with different TTL and update if needed
+        // We can't easily detect the current TTL, so we always update it to be safe
+        await this.updateMqttHistoryTTL(ttlDays);
+      }
+
       this._alreadyEnsuredHistoryTable = true;
+      this._currentTtlDaysForHistoryTable = ttlDays;
     } catch (error) {
       console.error('Error executing query:', error.message);
       console.debug('Query was:', query);
@@ -179,16 +196,20 @@ class ClickHouse {
   /** Register an MQTT topic for storage in ClickHouse
    * subscribes to the topic and stores incoming messages
    * in a ClickHouse table.
+   * NOTE: ensureMqttHistoryTable must be called before registering topics
    * @param {Object} dataCache - DataCache instance to use for subscribing
    * @param {string} topic - MQTT topic to register
    */
-  async registerMqttTopicForStorage(dataCache, topic) {
-    await this.ensureMqttHistoryTable();
+  registerMqttTopicForStorage(dataCache, topic) {
+    if (!this._alreadyEnsuredHistoryTable) {
+      throw new Error('ensureMqttHistoryTable must be called before registerMqttTopicForStorage');
+    }
+
     // Subscribe to the topic using subscribePath to get objects as-is (not flattened to leaves)
-    dataCache.subscribePath(topic, async (value, topic, matched, tags) => {
+    dataCache.subscribePath(topic, async (value, topicString) => {
       const timestamp = new Date();
-      // Remove leading empty string caused by topic starting with '/'
-      const topicParts = topic.replace(/^\//, '').split('/');
+      // Use topicToPath from transitive-utils which properly handles URL-encoded elements
+      const topicParts = topicToPath(topicString);
       const payload = value == null ? null : (typeof value === 'string' ? value : JSON.stringify(value));
       const row = {
         Timestamp: timestamp.toISOString(),
