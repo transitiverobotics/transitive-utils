@@ -731,13 +731,22 @@ class MqttSync {
 
   /** Make an RPC request. Example:
   * ```js
-  * mqttSync.call('/mySquare', 11, result => {
+  * mqttSync.call('/orgId/deviceId/@capScope/capName/capVersion/mySquare', 11, result => {
   *   log.debug(`Called /mySquare with arg 11 and got ${result}`);
   * });
   * ```
+  * This would call the RPC 'mySquare' registered by version `capVersion` of the
+  * capability `@capScope/capName` running on device `deviceId` by user `orgId`.
+  * That RPC would have been registered on the device using
+  * `mqttSync.register('/mySquare', ...)` as shown above (because namespaces
+  * on the device are auto-extended to the org, device and capability).
+  *
+  * RPCs are typically registered on the robot and called from the web or cloud
+  * but the inverse is also possible, with the same namespace caveat.
+  *
   * Alternative you can omit the callback and use async/await:
   * ```js
-  * const result = await mqttSync.call('/mySquare', 11);
+  * const result = await mqttSync.call('${prefix}/mySquare', 11);
   * log.debug(`Called /mySquare with arg 11 and got ${result}`);
   * ```
   * See the note about namespaces in `register`.
