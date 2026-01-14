@@ -20,10 +20,14 @@
     "access": "public"
   },
   "main": "index.js",
-  "scripts": {},
+  "scripts": {
+    "test": "mocha test/*.test.js"
+  },
   "dependencies": {
     "@clickhouse/client": "^1.12.1",
     "@transitive-sdk/utils": "^0.14.0"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "mocha": "^10.2.0"
+  }
 }

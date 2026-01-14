@@ -29,7 +29,7 @@ function interceptInserts(expectedCount) {
 async function queryRowsByOrg(org, options = {}) {
   const { orderBy = 'Timestamp ASC', limit } = options;
   const result = await clickhouse.client.query({
-    query: `SELECT * FROM mqtt_history WHERE OrgId = {org:String} ORDER BY ${orderBy}${limit ? ` LIMIT ${limit}` : ''}`,
+    query: `SELECT * FROM mqtt_history WHERE OrgId = {org:String} ORDER BY ${orderBy}${limit ? ` LIMIT ${limit}` : ''} SETTINGS asterisk_include_materialized_columns = 1`,
     query_params: { org },
     format: 'JSONEachRow'
   });
