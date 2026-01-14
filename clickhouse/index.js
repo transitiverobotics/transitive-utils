@@ -1,5 +1,5 @@
 const { createClient } = require('@clickhouse/client');
-const { topicToPath } = require('../common/datacache/tools');
+const { topicToPath } = require('@transitive-sdk/utils');
 
 // Default TTL in days for mqtt_history table
 const DEFAULT_TTL_DAYS = 30;
@@ -140,15 +140,14 @@ class ClickHouse {
       'Timestamp DateTime64(9) CODEC(Delta(8), ZSTD(1))',
       // Raw MQTT topic split into parts; kept as Array(String) for flexibility
       'TopicParts Array(String) CODEC(ZSTD(1))',
-      // Org/device fields derived from TopicParts
-      'OrgId LowCardinality(String) DEFAULT TopicParts[1] CODEC(ZSTD(1))',
-      'DeviceId LowCardinality(String) DEFAULT TopicParts[2] CODEC(ZSTD(1))',
-      // Capability-specific fields materialized from TopicParts
-      'Scope LowCardinality(String) DEFAULT TopicParts[3] CODEC(ZSTD(1))',
-      'CapabilityName LowCardinality(String) DEFAULT TopicParts[4] CODEC(ZSTD(1))',
-      'CapabilityVersion LowCardinality(String) DEFAULT TopicParts[5] CODEC(ZSTD(1))',
+      // Org/device fields materialized from TopicParts (always computed, never overridable)
+      'OrgId LowCardinality(String) MATERIALIZED TopicParts[1] CODEC(ZSTD(1))',
+      'DeviceId LowCardinality(String) MATERIALIZED TopicParts[2] CODEC(ZSTD(1))',
+      'Scope LowCardinality(String) MATERIALIZED TopicParts[3] CODEC(ZSTD(1))',
+      'CapabilityName LowCardinality(String) MATERIALIZED TopicParts[4] CODEC(ZSTD(1))',
+      'CapabilityVersion LowCardinality(String) MATERIALIZED TopicParts[5] CODEC(ZSTD(1))',
       // Remaining topic segments stored as an array for less-structured suffixes
-      'SubTopic Array(String) DEFAULT arraySlice(TopicParts, 6) CODEC(ZSTD(1))',
+      'SubTopic Array(String) MATERIALIZED arraySlice(TopicParts, 6) CODEC(ZSTD(1))',
       // Payload stored as String with ZSTD(1)
       'Payload String CODEC(ZSTD(1))',
       // Bloom filter indexes (shared multi-tenant indexes)

@@ -123,6 +123,8 @@ describe('ClickHouse', function() {
 
       clickhouse.registerMqttTopicForStorage(dataCache, '/+org/+device/#');
       dataCache.update([org, 'device1', 'data'], 'initial');
+      // Small delay to ensure timestamp ordering
+      await new Promise(resolve => setTimeout(resolve, 10));
       dataCache.update([org, 'device1', 'data'], null);
 
       await done;
