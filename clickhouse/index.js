@@ -167,6 +167,14 @@ class ClickHouse {
         ttl_only_drop_parts = 1`;
 
     try {
+      // Check if table already exists before creating
+      const tableExists = await this.client.query({
+        query: "SELECT name FROM system.tables WHERE name = 'mqtt_history' AND database = currentDatabase()",
+        format: 'JSONEachRow'
+      });
+      const tables = await tableExists.json();
+      const tableAlreadyExisted = tables.length > 0;
+
       await this.client.exec({
         query,
         clickhouse_settings: {
@@ -174,12 +182,8 @@ class ClickHouse {
         }
       });
 
-      // If table already existed (or was just created), update TTL if different
-      if (this._alreadyEnsuredHistoryTable && this._currentTtlDaysForHistoryTable !== ttlDays) {
-        await this.updateMqttHistoryTTL(ttlDays);
-      } else if (!this._alreadyEnsuredHistoryTable) {
-        // First time - check if table existed with different TTL and update if needed
-        // We can't easily detect the current TTL, so we always update it to be safe
+      // Only update TTL if table already existed and TTL is different from what we expect
+      if (tableAlreadyExisted && this._currentTtlDaysForHistoryTable !== ttlDays) {
         await this.updateMqttHistoryTTL(ttlDays);
       }
 
@@ -206,16 +210,17 @@ class ClickHouse {
 
     // Subscribe to the topic using subscribePath to get objects as-is (not flattened to leaves)
     dataCache.subscribePath(topic, async (value, topicString) => {
-      const timestamp = new Date();
-      // Use topicToPath from transitive-utils which properly handles URL-encoded elements
-      const topicParts = topicToPath(topicString);
-      const payload = value == null ? null : (typeof value === 'string' ? value : JSON.stringify(value));
-      const row = {
-        Timestamp: timestamp.toISOString(),
-        TopicParts: topicParts,
-        Payload: payload,
-      };
       try {
+        const timestamp = new Date();
+        // Use topicToPath from transitive-utils which properly handles URL-encoded elements
+        const topicParts = topicToPath(topicString);
+        // Store null/undefined as empty string for ClickHouse compatibility
+        const payload = value == null ? '' : (typeof value === 'string' ? value : JSON.stringify(value));
+        const row = {
+          Timestamp: timestamp.toISOString(),
+          TopicParts: topicParts,
+          Payload: payload,
+        };
         await this.client.insert({
           table: 'mqtt_history',
           values: [row],
