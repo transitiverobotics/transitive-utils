@@ -1,6 +1,6 @@
 {
   "name": "@transitive-sdk/clickhouse",
-  "version": "0.1.1",
+  "version": "0.1.4",
   "description": "A tiny ClickHouse utility class for use in the Transitive framework.",
   "homepage": "https://transitiverobotics.com",
   "repository": {
@@ -22,7 +22,8 @@
   "main": "index.js",
   "scripts": {},
   "dependencies": {
-    "@clickhouse/client": "^1.12.1"
+    "@clickhouse/client": "^1.12.1",
+    "@transitive-sdk/utils": "^0.14.0"
   },
   "devDependencies": {}
 }
