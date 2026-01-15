@@ -1,4 +1,5 @@
 const assert = require('assert');
+const { EventEmitter, once } = require('node:events');
 const dotenv = require('dotenv');
 const { DataCache } = require('@transitive-sdk/datacache');
 
@@ -8,28 +9,25 @@ dotenv.config({path: '~transitive/.env'});
 const CLICKHOUSE_URL = 'http://clickhouse.localhost';
 const STANDARD_TOPIC_PATTERN = '/+org/+device/+scope/+cap/+version/#';
 
-/** Wrap client.insert to track when N inserts complete */
-const interceptInserts = (expectedCount) => {
-  let insertCount = 0;
-  let resolve;
-  const done = new Promise(r => resolve = r);
+/** Wrap client.insert in an event emitter so we can get notified of insert
+ * events. */
+const interceptInserts = () => {
+  const emitter = new EventEmitter();
 
   const originalInsert = clickhouse.client.insert.bind(clickhouse.client);
   clickhouse.client.insert = async (...args) => {
     const result = await originalInsert(...args);
-    if (++insertCount >= expectedCount) resolve();
+    emitter.emit('insert');
     return result;
   };
 
-  const restore = () => { clickhouse.client.insert = originalInsert; };
-  return { done, restore };
+  return emitter;
 }
+
 
 /** Query mqtt_history rows for a given org */
 const queryRowsByOrg = async (org, options = {}) =>
-  await clickhouse.queryMQTTHistory({
-    topicSelector: `/${org}/+/+/+/+/+`
-  });
+  await clickhouse.queryMQTTHistory({ topicSelector: `/${org}/+/+/+/+/+` });
 
 /** Generate unique org ID for test isolation */
 const testOrg = (suffix) => `clickhouse_test_${suffix}_${Date.now()}`;
@@ -38,8 +36,12 @@ const testOrg = (suffix) => `clickhouse_test_${suffix}_${Date.now()}`;
 describe('ClickHouse', function() {
   this.timeout(10000);
 
-  before(function() {
+  let emitter;
+
+  before(() => {
     clickhouse.init({ url: CLICKHOUSE_URL });
+    /* Register for `insert` events on ClickHouse client */
+    emitter = interceptInserts();
   });
 
   after(async () => {
@@ -71,13 +73,10 @@ describe('ClickHouse', function() {
     it('should insert MQTT messages into ClickHouse', async () => {
       const dataCache = new DataCache({});
       const org = testOrg('insert');
-      const { done, restore } = interceptInserts(1);
 
       clickhouse.registerMqttTopicForStorage(dataCache, STANDARD_TOPIC_PATTERN);
       dataCache.update([org, 'device1', '@myscope', 'test-cap', '1.0.0', 'data'], 42.5);
-
-      await done;
-      restore();
+      await once(emitter, 'insert');
 
       const [row] = await queryRowsByOrg(org, { limit: 1 });
 
@@ -92,13 +91,10 @@ describe('ClickHouse', function() {
     it('should store string payloads as-is', async () => {
       const dataCache = new DataCache({});
       const org = testOrg('string');
-      const { done, restore } = interceptInserts(1);
 
       clickhouse.registerMqttTopicForStorage(dataCache, STANDARD_TOPIC_PATTERN);
       dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0', 'msg'], 'hello world');
-
-      await done;
-      restore();
+      await once(emitter, 'insert');
 
       const [row] = await queryRowsByOrg(org, { limit: 1 });
 
@@ -108,16 +104,15 @@ describe('ClickHouse', function() {
     it('should store null values as NULL (omitted)', async () => {
       const dataCache = new DataCache({});
       const org = testOrg('null');
-      const { done, restore } = interceptInserts(2);
+      // const done = interceptInserts(2);
 
       clickhouse.registerMqttTopicForStorage(dataCache, '/+org/+device/#');
       dataCache.update([org, 'device1', 'data'], 'initial');
       // Small delay to ensure timestamp ordering
       await new Promise(resolve => setTimeout(resolve, 10));
       dataCache.update([org, 'device1', 'data'], null);
-
-      await done;
-      restore();
+      await once(emitter, 'insert');
+      await once(emitter, 'insert');
 
       const rows = await queryRowsByOrg(org);
 
@@ -129,14 +124,11 @@ describe('ClickHouse', function() {
     it('should store object payloads as JSON', async () => {
       const dataCache = new DataCache({});
       const org = testOrg('object');
-      const { done, restore } = interceptInserts(1);
       const payload = { sensor: 'temp', value: 25.5, nested: { a: 1 } };
 
       clickhouse.registerMqttTopicForStorage(dataCache, STANDARD_TOPIC_PATTERN);
       dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0', 'readings'], payload);
-
-      await done;
-      restore();
+      await once(emitter, 'insert');
 
       const [row] = await queryRowsByOrg(org, { limit: 1 });
 
@@ -147,13 +139,10 @@ describe('ClickHouse', function() {
     it('should parse nested subtopics correctly', async () => {
       const dataCache = new DataCache({});
       const org = testOrg('subtopic');
-      const { done, restore } = interceptInserts(1);
 
       clickhouse.registerMqttTopicForStorage(dataCache, STANDARD_TOPIC_PATTERN);
       dataCache.update([org, 'device1', '@myscope', 'cap', '2.0.0', 'level1', 'level2'], 'value');
-
-      await done;
-      restore();
+      await once(emitter, 'insert');
 
       const [row] = await queryRowsByOrg(org, { limit: 1 });
 
@@ -165,14 +154,11 @@ describe('ClickHouse', function() {
     it('should handle multiple updates to different subtopics', async () => {
       const dataCache = new DataCache({});
       const org = testOrg('multi');
-      const { done, restore } = interceptInserts(2);
 
       clickhouse.registerMqttTopicForStorage(dataCache, STANDARD_TOPIC_PATTERN);
       dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0', 'battery'], 85);
       dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0', 'temperature'], 42);
-
-      await done;
-      restore();
+      await once(emitter, 'insert');
 
       const rows = await queryRowsByOrg(org);
 
@@ -187,13 +173,10 @@ describe('ClickHouse', function() {
     it('should work with unnamed wildcards', async () => {
       const dataCache = new DataCache({});
       const org = testOrg('unnamed');
-      const { done, restore } = interceptInserts(1);
 
       clickhouse.registerMqttTopicForStorage(dataCache, '/+/+/+/+/+/#');
       dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0', 'data'], { x: 1 });
-
-      await done;
-      restore();
+      await once(emitter, 'insert');
 
       const [row] = await queryRowsByOrg(org, { limit: 1 });
 
