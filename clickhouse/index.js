@@ -52,7 +52,7 @@ class ClickHouse {
         date_time_input_format: 'best_effort',
         // Include MATERILIZED columns in query results
         // https://clickhouse.com/docs/operations/settings/settings#asterisk_include_materialized_columns
-        asterisk_include_materialized_columns: 1
+        // asterisk_include_materialized_columns: 1
       },
     });
   }
@@ -242,7 +242,7 @@ class ClickHouse {
       since = undefined,
       until = undefined,
       orderBy = 'Timestamp ASC',
-      limit
+      limit = 1000
     } = options;
 
     const [OrgId, DeviceId, Scope, CapabilityName, CapabilityVersion, ...subPath]
@@ -284,6 +284,7 @@ class ClickHouse {
     // registerMqttTopicForStorage
     return rows.map(row => {
       row.Payload = row.Payload ? JSON.parse(row.Payload) : null;
+      row.Timestamp = new Date(row.Timestamp);
       return row;
     });
   }
