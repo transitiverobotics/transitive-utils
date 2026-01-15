@@ -2,6 +2,7 @@ const assert = require('assert');
 const { EventEmitter, once } = require('node:events');
 const dotenv = require('dotenv');
 const { DataCache } = require('@transitive-sdk/datacache');
+const { wait } = require('../../index');
 
 const clickhouse = require('../index');
 
@@ -192,12 +193,26 @@ describe('ClickHouse', function() {
     const org = testOrg('query');
 
     before(async () => {
+      // clear
+      await clickhouse.client.exec({
+        query: `ALTER TABLE mqtt_history DELETE WHERE OrgId LIKE 'clickhouse_test_%'`,
+        clickhouse_settings: { wait_end_of_query: 1 }
+      });
+
       clickhouse.registerMqttTopicForStorage(dataCache, '#');
       dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0', 'data'], { x: 1 });
       dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0', 'data2'], { y: 2 });
       dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0',
-        'data', 'sub2', 'sub3'],
-        { isSub: 3, data: {string: 'some string'} });
+        'sub1', 'sub2', 'sub3.1'],
+        { isSub: 3.1, data: {string: 'some string'} });
+      dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0',
+        'sub1', 'sub2', 'sub3.2'],
+        { isSub: 3.3, data: {aNumber: 1234} });
+      await once(emitter, 'insert');
+      await wait(100);
+      // another value, after a delay
+      dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0', 'data'], { x: 2 });
+
       await once(emitter, 'insert');
     });
 
@@ -228,14 +243,25 @@ describe('ClickHouse', function() {
     it('queries based on sub-topic selectors with wildcards', async () => {
       const [row] = await clickhouse.queryMQTTHistory({
         topicSelector: `/${org}/+/+/+/+/+/+/sub2/+` });
-      assert.deepStrictEqual(row.SubTopic[2], 'sub3');
+      assert.deepStrictEqual(row.SubTopic[2], 'sub3.1');
     });
 
     it('queries based on multiple sub-topic selectors with wildcards', async () => {
       const rows = await clickhouse.queryMQTTHistory({
+        topicSelector: `/${org}/+/+/+/+/+/sub1/+/+` });
+      assert.strictEqual(rows[0].SubTopic.length, 3);
+      assert.strictEqual(rows[0].SubTopic[2], 'sub3.1');
+      assert.strictEqual(rows[1].SubTopic[2], 'sub3.2');
+    });
+
+    it('returns the history', async () => {
+      const rows = await clickhouse.queryMQTTHistory({
         topicSelector: `/${org}/+/+/+/+/+/data/+/+` });
-      assert.deepStrictEqual(rows[0].SubTopic.length, 1);
-      assert.deepStrictEqual(rows[1].SubTopic[2], 'sub3');
+      assert.deepStrictEqual(rows.length, 2);
+      assert.deepStrictEqual(rows[0].Payload, {x: 1});
+      assert.deepStrictEqual(rows[1].Payload, {x: 2});
+      console.log(rows);
+      assert(rows[0].Timestamp < rows[1].Timestamp);
     });
 
   });
