@@ -184,4 +184,60 @@ describe('ClickHouse', function() {
       assert.deepStrictEqual(row.Payload, { x: 1 });
     });
   });
+
+
+  describe('queryMQTTHistory', () => {
+
+    const dataCache = new DataCache({});
+    const org = testOrg('query');
+
+    before(async () => {
+      clickhouse.registerMqttTopicForStorage(dataCache, '#');
+      dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0', 'data'], { x: 1 });
+      dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0', 'data2'], { y: 2 });
+      dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0',
+        'data', 'sub2', 'sub3'],
+        { isSub: 3, data: {string: 'some string'} });
+      await once(emitter, 'insert');
+    });
+
+    it('queries with wild cards', async () => {
+      const [row] = await clickhouse.queryMQTTHistory({
+        topicSelector: `/${org}/+/+/+/+/+` });
+      assert.strictEqual(row.DeviceId, 'device1');
+      assert.deepEqual(row.SubTopic, ['data']);
+      assert.deepStrictEqual(row.Payload, { x: 1 });
+    });
+
+    it('queries with multiple selectors', async () => {
+      const [row] = await clickhouse.queryMQTTHistory({
+        topicSelector: `/${org}/+/+/cap/+/+` });
+      assert.strictEqual(row.DeviceId, 'device1');
+      assert.deepEqual(row.SubTopic, ['data']);
+      assert.deepStrictEqual(row.Payload, { x: 1 });
+    });
+
+
+    it('queries based on sub-topic selectors', async () => {
+      const [row] = await clickhouse.queryMQTTHistory({
+        topicSelector: `/${org}/+/+/+/+/+/data2` });
+      assert.strictEqual(row.DeviceId, 'device1');
+      assert.deepStrictEqual(row.Payload, { y: 2 });
+    });
+
+    it('queries based on sub-topic selectors with wildcards', async () => {
+      const [row] = await clickhouse.queryMQTTHistory({
+        topicSelector: `/${org}/+/+/+/+/+/+/sub2/+` });
+      assert.deepStrictEqual(row.SubTopic[2], 'sub3');
+    });
+
+    it('queries based on multiple sub-topic selectors with wildcards', async () => {
+      const rows = await clickhouse.queryMQTTHistory({
+        topicSelector: `/${org}/+/+/+/+/+/data/+/+` });
+      assert.deepStrictEqual(rows[0].SubTopic.length, 1);
+      assert.deepStrictEqual(rows[1].SubTopic[2], 'sub3');
+    });
+
+  });
+
 });
