@@ -1,5 +1,6 @@
+const _ = require('lodash');
 const { createClient } = require('@clickhouse/client');
-const { topicToPath } = require('@transitive-sdk/utils');
+const { topicToPath } = require('@transitive-sdk/datacache');
 
 // Default TTL in days for mqtt_history table
 const DEFAULT_TTL_DAYS = 30;
@@ -20,20 +21,24 @@ const MULTI_TENANT_SCHEMA = {
 
 /** Singleton ClickHouse client wrapper with multi-tenant table support */
 class ClickHouse {
+
+  _client = null;
+  _alreadyEnsuredHistoryTable = false;
+
+  /** Create the client, connecting to Clickhouse */
   init({ url, dbName, user, password } = {}) {
     const _url = url || process.env.CLICKHOUSE_URL || 'http://clickhouse:8123';
     const _dbName = dbName || process.env.CLICKHOUSE_DB || 'default';
     const _user = user || process.env.CLICKHOUSE_USER || 'default';
-    const _password = password || process.env.CLICKHOUSE_PASSWORD || '';
-    this._alreadyEnsuredHistoryTable = false;
-    this._currentTtlDaysForHistoryTable = null;
-    console.debug(`Creating ClickHouse client for URL: ${_url}, DB: ${_dbName}, User: ${_user}`);
+
+    // console.debug(`Creating ClickHouse client for URL: ${_url}, DB: ${_dbName}, User: ${_user}`);
+
     this._client = createClient({
       url: _url,
       max_open_connections: 10,
       database: _dbName,
       username: _user,
-      password: _password,
+      password: password || process.env.CLICKHOUSE_PASSWORD || '',
       clickhouse_settings: {
         // https://clickhouse.com/docs/en/operations/settings/settings#async-insert
         async_insert: 1,
@@ -45,10 +50,14 @@ class ClickHouse {
         async_insert_busy_timeout_ms: 1000,
         // Allows to insert serialized JS Dates (such as '2023-12-06T10:54:48.000Z')
         date_time_input_format: 'best_effort',
+        // Include MATERILIZED columns in query results
+        // https://clickhouse.com/docs/operations/settings/settings#asterisk_include_materialized_columns
+        asterisk_include_materialized_columns: 1
       },
     });
   }
 
+  /** Get the Clickhouse client (from @clickhouse/client) */
   get client() {
     if (this._client == undefined) {
       console.warn('Cannot access ClickHouse client before init() is called');
@@ -57,9 +66,8 @@ class ClickHouse {
     return this._client;
   }
 
-  /** Create a table if it does not already exist
-   * adding OrgId and DeviceId columns to the schema
-   * for multi-tenancy support.
+  /** Create a table if it does not already exist adding OrgId and DeviceId
+   * columns to the schema for multi-tenancy support.
    * @param {string} tableName - name of the table to create
    * @param {Array<string>} columns - array of column definitions and indexes, e.g. ['Timestamp DateTime CODEC(ZSTD(1))', 'Value Float32 CODEC(ZSTD(1))']
    * @param {Array<string>} settings - array of table settings, e.g. ['ENGINE = MergeTree()', 'ORDER BY (Timestamp)']
@@ -115,20 +123,13 @@ class ClickHouse {
    * @param {number} ttlDays - TTL in days
    */
   async updateMqttHistoryTTL(ttlDays) {
-    const query = `ALTER TABLE mqtt_history MODIFY TTL toDateTime(Timestamp) + toIntervalDay(${ttlDays})`;
-    try {
-      await this.client.exec({
-        query,
-        clickhouse_settings: {
-          wait_end_of_query: 1,
-        }
-      });
-      this._currentTtlDaysForHistoryTable = ttlDays;
-      console.debug(`Updated mqtt_history TTL to ${ttlDays} days`);
-    } catch (error) {
-      console.error('Error updating TTL:', error.message);
-      throw error;
-    }
+    // console.log(`updating ttl to ${ttlDays}`);
+    await this.client.command({
+      query: `ALTER TABLE mqtt_history MODIFY TTL toDateTime(Timestamp) + toIntervalDay(${ttlDays})`,
+      clickhouse_settings: {
+        wait_end_of_query: 1,
+      }
+    });
   }
 
   /** Ensure the mqtt_history table exists with the correct schema
@@ -156,44 +157,44 @@ class ClickHouse {
       'INDEX idx_capability (CapabilityName) TYPE bloom_filter(0.01) GRANULARITY 1'
     ];
 
+    const ttlExpression = `TTL toDateTime(Timestamp) + toIntervalDay(${ttlDays})`;
+
     const query = `CREATE TABLE IF NOT EXISTS mqtt_history (${columns.join(', ')})
       ENGINE = MergeTree()
       PARTITION BY toYYYYMMDD(Timestamp)
       PRIMARY KEY (OrgId, DeviceId, Timestamp, TopicParts)
       ORDER BY (OrgId, DeviceId, Timestamp, TopicParts)
-      TTL toDateTime(Timestamp) + toIntervalDay(${ttlDays})
+      ${ttlExpression}
       SETTINGS
         index_granularity = 8192,
         ttl_only_drop_parts = 1`;
 
-    try {
-      // Check if table already exists before creating
-      const tableExists = await this.client.query({
-        query: "SELECT name FROM system.tables WHERE name = 'mqtt_history' AND database = currentDatabase()",
-        format: 'JSONEachRow'
-      });
-      const tables = await tableExists.json();
-      const tableAlreadyExisted = tables.length > 0;
+    // Check if table already exists before creating
+    const tableExists = await this.client.query({
+      query: "SELECT name, create_table_query	FROM system.tables WHERE name = 'mqtt_history' AND database = currentDatabase()",
+      format: 'JSONEachRow'
+    });
+    const tables = await tableExists.json();
 
-      await this.client.exec({
+    if (tables.length > 0) {
+      // table already exists, verify TTL
+      const originalCreateQuery = tables[0].create_table_query;
+
+      // Update table if it differs
+      if (!originalCreateQuery.includes(ttlExpression)) {
+        await this.updateMqttHistoryTTL(ttlDays);
+      }
+    } else {
+      // Create the table
+      await this.client.command({
         query,
         clickhouse_settings: {
           wait_end_of_query: 1,
         }
       });
-
-      // Only update TTL if table already existed and TTL is different from what we expect
-      if (tableAlreadyExisted && this._currentTtlDaysForHistoryTable !== ttlDays) {
-        await this.updateMqttHistoryTTL(ttlDays);
-      }
-
-      this._alreadyEnsuredHistoryTable = true;
-      this._currentTtlDaysForHistoryTable = ttlDays;
-    } catch (error) {
-      console.error('Error executing query:', error.message);
-      console.debug('Query was:', query);
-      throw error;
     }
+
+    this._alreadyEnsuredHistoryTable = true;
   }
 
   /** Register an MQTT topic for storage in ClickHouse
@@ -208,19 +209,18 @@ class ClickHouse {
       throw new Error('ensureMqttHistoryTable must be called before registerMqttTopicForStorage');
     }
 
-    // Subscribe to the topic using subscribePath to get objects as-is (not flattened to leaves)
+    // Subscribe to the topic
     dataCache.subscribePath(topic, async (value, topicString) => {
+      const row = {
+        Timestamp: new Date(),
+        TopicParts: topicToPath(topicString), // topic as array
+      };
+
+      if (value !== null && value !== undefined) {
+        row.Payload = JSON.stringify(value);
+      } // else: omit
+
       try {
-        const timestamp = new Date();
-        // Use topicToPath from transitive-utils which properly handles URL-encoded elements
-        const topicParts = topicToPath(topicString);
-        // Store null/undefined as empty string for ClickHouse compatibility
-        const payload = value == null ? '' : (typeof value === 'string' ? value : JSON.stringify(value));
-        const row = {
-          Timestamp: timestamp.toISOString(),
-          TopicParts: topicParts,
-          Payload: payload,
-        };
         await this.client.insert({
           table: 'mqtt_history',
           values: [row],
@@ -229,6 +229,58 @@ class ClickHouse {
       } catch (error) {
         console.error('Error inserting MQTT message into ClickHouse:', error.message);
       }
+    });
+  }
+
+  /** Query historic MQTT payloads based on topic selector (with the usual
+  * wildcards), as well as a time range. Does the inverse transform of the
+  * payload of registerMqttTopicForStorage. */
+  async queryMQTTHistory(options = {}) {
+
+    const {
+      topicSelector,
+      since = undefined,
+      until = undefined,
+      orderBy = 'Timestamp ASC',
+      limit
+    } = options;
+
+    const [OrgId, DeviceId, Scope, CapabilityName, CapabilityVersion]
+      = topicToPath(topicSelector);
+    // store as objects so we can refer to them by column name
+    const fields = { OrgId, DeviceId, Scope, CapabilityName, CapabilityVersion };
+
+    const selectors = ['Payload', 'TopicParts', 'Timestamp', 'SubTopic'];
+    const where = [];
+
+    // interpret wildcards
+    _.forEach(fields, (value, field) => {
+      if (value.startsWith('+')) {
+        // it's a wild card, add to selectors
+        selectors.push(field);
+      } else {
+        // it's a constant, filter by it
+        where.push(`${field} = '${value}'`);
+      }
+    });
+
+    const whereStatement = where.length > 0
+      ? `WHERE ${where.join(',')}`
+      : '';
+
+    const result = await this.client.query({
+      query: `SELECT ${selectors.join(',')} FROM mqtt_history ${whereStatement
+        } ORDER BY ${orderBy} ${limit ? ` LIMIT ${limit}` : ''}`,
+      format: 'JSONEachRow'
+    });
+
+    const rows = await result.json();
+
+    // map payloads back from JSON; this is the inverse of what we do in
+    // registerMqttTopicForStorage
+    return rows.map(row => {
+      row.Payload = row.Payload ? JSON.parse(row.Payload) : null;
+      return row;
     });
   }
 }
