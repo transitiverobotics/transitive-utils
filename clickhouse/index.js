@@ -245,7 +245,7 @@ class ClickHouse {
       limit
     } = options;
 
-    const [OrgId, DeviceId, Scope, CapabilityName, CapabilityVersion]
+    const [OrgId, DeviceId, Scope, CapabilityName, CapabilityVersion, ...subPath]
       = topicToPath(topicSelector);
     // store as objects so we can refer to them by column name
     const fields = { OrgId, DeviceId, Scope, CapabilityName, CapabilityVersion };
@@ -264,8 +264,12 @@ class ClickHouse {
       }
     });
 
+    // special WHERE conditions for SubPath (if given)
+    subPath?.forEach((value, i) =>
+      !value.startsWith('+') && where.push(`SubTopic[${i}] = '${value}'`));
+
     const whereStatement = where.length > 0
-      ? `WHERE ${where.join(',')}`
+      ? `WHERE ${where.join(' AND ')}`
       : '';
 
     const result = await this.client.query({
