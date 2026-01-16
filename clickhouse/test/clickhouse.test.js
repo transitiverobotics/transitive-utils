@@ -46,10 +46,10 @@ describe('ClickHouse', function() {
   });
 
   after(async () => {
-    await clickhouse.client.exec({
-      query: `ALTER TABLE mqtt_history DELETE WHERE OrgId LIKE 'clickhouse_test_%'`,
-      clickhouse_settings: { wait_end_of_query: 1 }
-    });
+    // await clickhouse.client.exec({
+    //   query: `ALTER TABLE mqtt_history DELETE WHERE OrgId LIKE 'clickhouse_test_%'`,
+    //   clickhouse_settings: { wait_end_of_query: 1 }
+    // });
   });
 
   describe('ensureMqttHistoryTable', () => {
@@ -263,6 +263,80 @@ describe('ClickHouse', function() {
       console.log(rows);
       assert(rows[0].Timestamp < rows[1].Timestamp);
     });
+
+  });
+
+  /** Test performance of the table (index). */
+  describe('performance', () => {
+
+    const ROWS = 100000; // number of rows to insert (mock)
+    const dataCache = new DataCache({});
+    const org = testOrg('query');
+
+    before(async () => {
+      // clear
+      await clickhouse.client.command({
+        query: `ALTER TABLE mqtt_history DELETE WHERE OrgId LIKE 'clickhouse_test_%'`,
+        clickhouse_settings: { wait_end_of_query: 1 }
+      });
+
+      const rows = [];
+      for (let i = 0; i < ROWS; i++) {
+       rows.push({
+          Timestamp: new Date(i), // yes, very old dates
+          TopicParts: [org, `device${i}`, '@myscope', `cap${i}`, `1.${i}.0`, 'data', i],
+          Payload: { i },
+       })
+      }
+
+      await clickhouse.client.insert({
+        table: 'mqtt_history',
+        values: [rows],
+        format: 'JSONEachRow',
+        clickhouse_settings: { wait_end_of_query: 1 }
+      });
+    });
+
+
+    it('returns the entire history in reasonable time', async () => {
+      const rows = await clickhouse.queryMQTTHistory({
+        topicSelector: `/${org}/+/+/+/+/+/data`,
+        limit: 1000000,
+      });
+      assert.equal(rows.length, 100000);
+      assert(rows[0].Timestamp < rows[1].Timestamp);
+    });
+
+    it('quickly finds by DeviceId', async () => {
+      const rows = await clickhouse.queryMQTTHistory({
+        topicSelector: `/${org}/device12345/+/+/+/+/data`,
+      });
+      assert.equal(rows.length, 1);
+    });
+
+    it('quickly finds by CapabilityName', async () => {
+      const rows = await clickhouse.queryMQTTHistory({
+        topicSelector: `/${org}/+/+/cap345/+/+/data`,
+      });
+      assert.equal(rows.length, 1);
+    });
+
+    it('quickly filters by time: since', async () => {
+      const rows = await clickhouse.queryMQTTHistory({
+        topicSelector: `/${org}/+/+/+/+/+/data`,
+        since: new Date(ROWS - 400)
+      });
+      assert.equal(rows.length, 400);
+    });
+
+    it('quickly filters by time: until', async () => {
+      const rows = await clickhouse.queryMQTTHistory({
+        topicSelector: `/${org}/+/+/+/+/+/data`,
+        until: new Date(400)
+      });
+      assert.equal(rows.length, 401);
+    });
+
 
   });
 
