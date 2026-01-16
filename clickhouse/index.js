@@ -141,7 +141,7 @@ class ClickHouse {
       'Timestamp DateTime64(9) CODEC(Delta(8), ZSTD(1))',
       // Raw MQTT topic split into parts; kept as Array(String) for flexibility
       'TopicParts Array(String) CODEC(ZSTD(1))',
-      // Org/device fields materialized from TopicParts (always computed, never overridable)
+      // Org/device fields materialized from TopicParts (always computed, not overridable)
       'OrgId LowCardinality(String) MATERIALIZED TopicParts[1] CODEC(ZSTD(1))',
       'DeviceId LowCardinality(String) MATERIALIZED TopicParts[2] CODEC(ZSTD(1))',
       'Scope LowCardinality(String) MATERIALIZED TopicParts[3] CODEC(ZSTD(1))',
@@ -149,7 +149,9 @@ class ClickHouse {
       'CapabilityVersion LowCardinality(String) MATERIALIZED TopicParts[5] CODEC(ZSTD(1))',
       // Remaining topic segments stored as an array for less-structured suffixes
       'SubTopic Array(String) MATERIALIZED arraySlice(TopicParts, 6) CODEC(ZSTD(1))',
-      // Payload stored as String with ZSTD(1)
+      // Payload stored as a String, compressed with ZSTD(1). This allows us to
+      // store atomic values (still stringified) as opposed to only JSON objects,
+      // as the JSON type would require.
       'Payload String CODEC(ZSTD(1))',
       // Bloom filter indexes (shared multi-tenant indexes)
       ...MULTI_TENANT_SCHEMA.indexes,
@@ -162,8 +164,8 @@ class ClickHouse {
     const query = `CREATE TABLE IF NOT EXISTS mqtt_history (${columns.join(', ')})
       ENGINE = MergeTree()
       PARTITION BY toYYYYMMDD(Timestamp)
-      PRIMARY KEY (OrgId, DeviceId, Timestamp, TopicParts)
-      ORDER BY (OrgId, DeviceId, Timestamp, TopicParts)
+      PRIMARY KEY (Timestamp, OrgId, DeviceId, Scope, CapabilityName, CapabilityVersion, SubTopic)
+      ORDER BY (Timestamp, OrgId, DeviceId, Scope, CapabilityName, CapabilityVersion, SubTopic)
       ${ttlExpression}
       SETTINGS
         index_granularity = 8192,
@@ -197,13 +199,16 @@ class ClickHouse {
     this._alreadyEnsuredHistoryTable = true;
   }
 
-  /** Register an MQTT topic for storage in ClickHouse
-   * subscribes to the topic and stores incoming messages
-   * in a ClickHouse table.
-   * NOTE: ensureMqttHistoryTable must be called before registering topics
-   * @param {Object} dataCache - DataCache instance to use for subscribing
-   * @param {string} topic - MQTT topic to register
-   */
+  /** Register an MQTT topic for storage in ClickHouse subscribes to the topic
+  * and stores incoming messages JSON.stringify'd in a ClickHouse table.
+  * Retrieve using `queryMQTTHistory`, or, when quering directly, e.g., from
+  * Grafana, use the ClickHouse built-in functionality for parsing JSON, e.g.,
+  * after inserting `{ x: 1 }` use
+  * `select JSON_VALUE(Payload, '$.x') AS x FROM default.mqtt_history`.
+  * NOTE: `ensureMqttHistoryTable` must be called before registering topics
+  * @param {Object} dataCache - DataCache instance to use for subscribing
+  * @param {string} topic - MQTT topic to register
+  */
   registerMqttTopicForStorage(dataCache, topic) {
     if (!this._alreadyEnsuredHistoryTable) {
       throw new Error('ensureMqttHistoryTable must be called before registerMqttTopicForStorage');
@@ -267,6 +272,9 @@ class ClickHouse {
     // special WHERE conditions for SubPath (if given)
     subPath?.forEach((value, i) =>
       !value.startsWith('+') && where.push(`SubTopic[${i}] = '${value}'`));
+
+    since && where.push(`Timestamp >= fromUnixTimestamp64Milli(${since.getTime()})`);
+    until && where.push(`Timestamp <= fromUnixTimestamp64Milli(${until.getTime()})`);
 
     const whereStatement = where.length > 0
       ? `WHERE ${where.join(' AND ')}`
