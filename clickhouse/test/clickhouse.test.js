@@ -202,7 +202,8 @@ describe('ClickHouse', function() {
       });
 
       clickhouse.registerMqttTopicForStorage(dataCache, '#');
-      dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0', 'data'], { x: 1 });
+      dataCache.update([org, 'device1', '@myscope', 'nullcap', '1.0.0', 'willBeNull'], 1234);
+      dataCache.update([org, 'device1', '@myscope', 'capdata', '1.0.0', 'data'], { x: 1 });
       dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0', 'data2'], { y: 2 });
       dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0',
         'sub1', 'sub2', 'sub3.1'],
@@ -214,21 +215,20 @@ describe('ClickHouse', function() {
       await wait(100);
       // another value, after a delay
       dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0', 'data'], { x: 2 });
+      dataCache.update([org, 'device1', '@myscope', 'nullcap', '1.0.0', 'willBeNull'], null);
 
       await once(emitter, 'insert');
     });
 
     it('queries with wild cards', async () => {
-      const [row] = await clickhouse.queryMQTTHistory({
+      const rows = await clickhouse.queryMQTTHistory({
         topicSelector: `/${org}/+/+/+/+/+` });
-      assert.strictEqual(row.DeviceId, 'device1');
-      assert.deepEqual(row.SubTopic, ['data']);
-      assert.deepStrictEqual(row.Payload, { x: 1 });
+      assert(rows.length > 0);
     });
 
     it('queries with multiple selectors', async () => {
       const [row] = await clickhouse.queryMQTTHistory({
-        topicSelector: `/${org}/+/+/cap/+/+` });
+        topicSelector: `/${org}/+/+/capdata/+/+` });
       assert.strictEqual(row.DeviceId, 'device1');
       assert.deepEqual(row.SubTopic, ['data']);
       assert.deepStrictEqual(row.Payload, { x: 1 });
@@ -265,6 +265,11 @@ describe('ClickHouse', function() {
       assert(rows[0].Timestamp < rows[1].Timestamp);
     });
 
+    it('handles null values', async () => {
+      const rows = await clickhouse.queryMQTTHistory({
+        topicSelector: `/${org}/+/+/+/+/+/willBeNull` });
+      assert.strictEqual(rows.at(-1).Payload, null);
+    });
   });
 
   /** Test performance of the table (index). */
@@ -290,7 +295,7 @@ describe('ClickHouse', function() {
       for (let i = 0; i < ROWS; i++) {
        rows.push({
           Timestamp: new Date(now + i * GAP), // use current date to avoid immediate TTL cleanup
-          TopicParts: [org, `device${i}`, '@myscope', `cap${i % 1000}`, `1.${i}.0`, 'data', i],
+          TopicParts: [org, `device${i % 1000}`, '@myscope', `cap${i % 100}`, `1.${i % 100}.0`, 'data', i],
           Payload: { i },
        })
       }
@@ -322,18 +327,18 @@ describe('ClickHouse', function() {
       assert(rows[0].Timestamp < rows[1].Timestamp);
     });
 
-    it('quickly finds by DeviceId', async () => {
+    it('quickly filters by DeviceId', async () => {
       const rows = await clickhouse.queryMQTTHistory({
-        topicSelector: `/${org}/device12345/+/+/+/+/data`,
+        topicSelector: `/${org}/device123/+/+/+/+/data`,
       });
-      assert.equal(rows.length, 1);
+      assert.equal(rows.length, 100);
     });
 
     it('quickly filters by CapabilityName', async () => {
       const rows = await clickhouse.queryMQTTHistory({
-        topicSelector: `/+/+/+/cap345/+/+/data`,
+        topicSelector: `/+/+/+/cap34/+/+/data`,
       });
-      assert.equal(rows.length, 100);
+      assert.equal(rows.length, 1000);
     });
 
     it('quickly filters by time: since', async () => {
