@@ -23,7 +23,7 @@ const MULTI_TENANT_SCHEMA = {
 class ClickHouse {
 
   _client = null;
-  _alreadyEnsuredHistoryTable = false;
+  mqttHistoryTable = null; /// name of the table used for MQTT history, if used
 
   /** Create the client, connecting to Clickhouse */
   init({ url, dbName, user, password } = {}) {
@@ -112,6 +112,7 @@ class ClickHouse {
       OrgId: orgId,
       DeviceId: deviceId
     }));
+
     return await this.client.insert({
       table: tableName,
       values: rowsWithIds,
@@ -125,7 +126,7 @@ class ClickHouse {
   async updateMqttHistoryTTL(ttlDays) {
     // console.log(`updating ttl to ${ttlDays}`);
     await this.client.command({
-      query: `ALTER TABLE mqtt_history MODIFY TTL toDateTime(Timestamp) + toIntervalDay(${ttlDays})`,
+      query: `ALTER TABLE ${this.mqttHistoryTable} MODIFY TTL toDateTime(Timestamp) + toIntervalDay(${ttlDays})`,
       clickhouse_settings: {
         wait_end_of_query: 1,
       }
@@ -135,45 +136,16 @@ class ClickHouse {
   /** Ensure the mqtt_history table exists with the correct schema
    * @param {number} ttlDays - TTL in days (default: 30)
    */
-  async ensureMqttHistoryTable(ttlDays = DEFAULT_TTL_DAYS) {
-    const columns = [
-      // High-precision event time; Delta+ZSTD is a common combo for time-series
-      'Timestamp DateTime64(9) CODEC(Delta(8), ZSTD(1))',
-      // Raw MQTT topic split into parts; kept as Array(String) for flexibility
-      'TopicParts Array(String) CODEC(ZSTD(1))',
-      // Org/device fields materialized from TopicParts (always computed, not overridable)
-      'OrgId LowCardinality(String) MATERIALIZED TopicParts[1] CODEC(ZSTD(1))',
-      'DeviceId LowCardinality(String) MATERIALIZED TopicParts[2] CODEC(ZSTD(1))',
-      'Scope LowCardinality(String) MATERIALIZED TopicParts[3] CODEC(ZSTD(1))',
-      'CapabilityName LowCardinality(String) MATERIALIZED TopicParts[4] CODEC(ZSTD(1))',
-      'CapabilityVersion LowCardinality(String) MATERIALIZED TopicParts[5] CODEC(ZSTD(1))',
-      // Remaining topic segments stored as an array for less-structured suffixes
-      'SubTopic Array(String) MATERIALIZED arraySlice(TopicParts, 6) CODEC(ZSTD(1))',
-      // Payload stored as a String, compressed with ZSTD(1). This allows us to
-      // store atomic values (still stringified) as opposed to only JSON objects,
-      // as the JSON type would require.
-      'Payload String CODEC(ZSTD(1))',
-      // Bloom filter indexes (shared multi-tenant indexes)
-      ...MULTI_TENANT_SCHEMA.indexes,
-      'INDEX idx_scope (Scope) TYPE bloom_filter(0.01) GRANULARITY 1',
-      'INDEX idx_capability (CapabilityName) TYPE bloom_filter(0.01) GRANULARITY 1'
-    ];
+  async ensureMqttHistoryTable(tableName = 'mqtt_history', ttlDays = DEFAULT_TTL_DAYS) {
+    if (this.mqttHistoryTable != tableName) {
+      console.warn(`creating or altering mqtt history table ${tableName}`);
+    }
 
     const ttlExpression = `TTL toDateTime(Timestamp) + toIntervalDay(${ttlDays})`;
 
-    const query = `CREATE TABLE IF NOT EXISTS mqtt_history (${columns.join(', ')})
-      ENGINE = MergeTree()
-      PARTITION BY toYYYYMMDD(Timestamp)
-      PRIMARY KEY (Timestamp, OrgId, DeviceId, Scope, CapabilityName, CapabilityVersion, SubTopic)
-      ORDER BY (Timestamp, OrgId, DeviceId, Scope, CapabilityName, CapabilityVersion, SubTopic)
-      ${ttlExpression}
-      SETTINGS
-        index_granularity = 8192,
-        ttl_only_drop_parts = 1`;
-
     // Check if table already exists before creating
     const tableExists = await this.client.query({
-      query: "SELECT name, create_table_query	FROM system.tables WHERE name = 'mqtt_history' AND database = currentDatabase()",
+      query: `SELECT name, create_table_query	FROM system.tables WHERE name = '${this.mqttHistoryTable}' AND database = currentDatabase()`,
       format: 'JSONEachRow'
     });
     const tables = await tableExists.json();
@@ -186,8 +158,44 @@ class ClickHouse {
       if (!originalCreateQuery.includes(ttlExpression)) {
         await this.updateMqttHistoryTTL(ttlDays);
       }
+
     } else {
       // Create the table
+
+      const columns = [
+        // High-precision event time; Delta + ZSTD is a common combo for time-series
+        'Timestamp DateTime64(6) CODEC(Delta, ZSTD(1))',
+        // Raw MQTT topic split into parts; kept as Array(String) for flexibility
+        'TopicParts Array(String) CODEC(ZSTD(1))',
+        // Org/device fields materialized from TopicParts (always computed, not overridable)
+        'OrgId LowCardinality(String) MATERIALIZED TopicParts[1] CODEC(ZSTD(1))',
+        'DeviceId LowCardinality(String) MATERIALIZED TopicParts[2] CODEC(ZSTD(1))',
+        'Scope LowCardinality(String) MATERIALIZED TopicParts[3] CODEC(ZSTD(1))',
+        'CapabilityName LowCardinality(String) MATERIALIZED TopicParts[4] CODEC(ZSTD(1))',
+        'CapabilityVersion LowCardinality(String) MATERIALIZED TopicParts[5] CODEC(ZSTD(1))',
+        // Remaining topic segments stored as an array for less-structured suffixes
+        'SubTopic Array(String) MATERIALIZED arraySlice(TopicParts, 6) CODEC(ZSTD(1))',
+        // Payload stored as a String, compressed with ZSTD(1). This allows us to
+        // store atomic values (still stringified) as opposed to only JSON objects,
+        // as the JSON type would require.
+        'Payload String CODEC(ZSTD(1))',
+        // Bloom filter indexes (shared multi-tenant indexes)
+        ...MULTI_TENANT_SCHEMA.indexes,
+        'INDEX idx_scope (Scope) TYPE bloom_filter(0.01) GRANULARITY 1',
+        'INDEX idx_capability (CapabilityName) TYPE bloom_filter(0.01) GRANULARITY 1'
+      ];
+
+      const query = `CREATE TABLE IF NOT EXISTS ${tableName} (${columns.join(', ')})
+        ENGINE = MergeTree()
+        PARTITION BY toYYYYMMDD(Timestamp)
+        ORDER BY (toUnixTimestamp64Micro(Timestamp), TopicParts)
+        ${ttlExpression}
+        SETTINGS
+        index_granularity = 8192,
+        ttl_only_drop_parts = 1`;
+      // Note: PRIMARY KEY is not needed because we want it to be the same as
+      // ORDER BY, which is what ClickHouse does automatically.
+
       await this.client.command({
         query,
         clickhouse_settings: {
@@ -196,7 +204,7 @@ class ClickHouse {
       });
     }
 
-    this._alreadyEnsuredHistoryTable = true;
+    this.mqttHistoryTable = tableName;
   }
 
   /** Register an MQTT topic for storage in ClickHouse subscribes to the topic
@@ -210,7 +218,7 @@ class ClickHouse {
   * @param {string} topic - MQTT topic to register
   */
   registerMqttTopicForStorage(dataCache, topic) {
-    if (!this._alreadyEnsuredHistoryTable) {
+    if (!this.mqttHistoryTable) {
       throw new Error('ensureMqttHistoryTable must be called before registerMqttTopicForStorage');
     }
 
@@ -227,7 +235,7 @@ class ClickHouse {
 
       try {
         await this.client.insert({
-          table: 'mqtt_history',
+          table: this.mqttHistoryTable,
           values: [row],
           format: 'JSONEachRow'
         });
@@ -281,8 +289,8 @@ class ClickHouse {
       : '';
 
     const result = await this.client.query({
-      query: `SELECT ${selectors.join(',')} FROM mqtt_history ${whereStatement
-        } ORDER BY ${orderBy} ${limit ? ` LIMIT ${limit}` : ''}`,
+      query: `SELECT ${selectors.join(',')} FROM ${this.mqttHistoryTable} ${
+      whereStatement} ORDER BY ${orderBy} ${limit ? ` LIMIT ${limit}` : ''}`,
       format: 'JSONEachRow'
     });
 

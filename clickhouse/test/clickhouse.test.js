@@ -10,6 +10,8 @@ dotenv.config({path: '~transitive/.env'});
 const CLICKHOUSE_URL = 'http://clickhouse.localhost';
 const STANDARD_TOPIC_PATTERN = '/+org/+device/+scope/+cap/+version/#';
 
+const TABLE_NAME = 'mqtt_history_tests';
+
 /** Wrap client.insert in an event emitter so we can get notified of insert
  * events. */
 const interceptInserts = () => {
@@ -39,25 +41,23 @@ describe('ClickHouse', function() {
 
   let emitter;
 
-  before(() => {
+  before(async () => {
     clickhouse.init({ url: CLICKHOUSE_URL });
     /* Register for `insert` events on ClickHouse client */
     emitter = interceptInserts();
-  });
 
-  after(async () => {
-    // await clickhouse.client.exec({
-    //   query: `ALTER TABLE mqtt_history DELETE WHERE OrgId LIKE 'clickhouse_test_%'`,
-    //   clickhouse_settings: { wait_end_of_query: 1 }
-    // });
+    await clickhouse.client.command({
+      query: `DROP TABLE IF EXISTS ${TABLE_NAME}`,
+      clickhouse_settings: { wait_end_of_query: 1 }
+    });
   });
 
   describe('ensureMqttHistoryTable', () => {
     it('should create the mqtt_history table', async () => {
-      await clickhouse.ensureMqttHistoryTable(31);
+      await clickhouse.ensureMqttHistoryTable(TABLE_NAME, 31);
 
       const result = await clickhouse.client.query({
-        query: "SELECT name FROM system.tables WHERE name = 'mqtt_history'",
+        query: `SELECT name FROM system.tables WHERE name = '${TABLE_NAME}'`,
         format: 'JSONEachRow'
       });
       const tables = await result.json();
@@ -68,7 +68,7 @@ describe('ClickHouse', function() {
 
   describe('registerMqttTopicForStorage', () => {
     before(async () => {
-      await clickhouse.ensureMqttHistoryTable(32);
+      await clickhouse.ensureMqttHistoryTable(TABLE_NAME, 32);
     });
 
     it('should insert MQTT messages into ClickHouse', async () => {
@@ -80,7 +80,7 @@ describe('ClickHouse', function() {
       await once(emitter, 'insert');
 
       const [row] = await queryRowsByOrg(org, { limit: 1 });
-
+      assert(!!row);
       assert.strictEqual(row.DeviceId, 'device1');
       assert.strictEqual(row.Scope, '@myscope');
       assert.strictEqual(row.CapabilityName, 'test-cap');
@@ -193,9 +193,11 @@ describe('ClickHouse', function() {
     const org = testOrg('query');
 
     before(async () => {
+      await clickhouse.ensureMqttHistoryTable(TABLE_NAME, 33);
+
       // clear
-      await clickhouse.client.exec({
-        query: `ALTER TABLE mqtt_history DELETE WHERE OrgId LIKE 'clickhouse_test_%'`,
+      await clickhouse.client.command({
+        query: `TRUNCATE TABLE ${TABLE_NAME}`,
         clickhouse_settings: { wait_end_of_query: 1 }
       });
 
@@ -260,7 +262,6 @@ describe('ClickHouse', function() {
       assert.deepStrictEqual(rows.length, 2);
       assert.deepStrictEqual(rows[0].Payload, {x: 1});
       assert.deepStrictEqual(rows[1].Payload, {x: 2});
-      console.log(rows);
       assert(rows[0].Timestamp < rows[1].Timestamp);
     });
 
@@ -270,40 +271,54 @@ describe('ClickHouse', function() {
   describe('performance', () => {
 
     const ROWS = 100000; // number of rows to insert (mock)
+    // time gap between inserted values (to stretch over several partitions):
+    const GAP = 10000;
     const dataCache = new DataCache({});
     const org = testOrg('query');
+    const now = Date.now();
 
     before(async () => {
+      await clickhouse.ensureMqttHistoryTable(TABLE_NAME, 33);
+
       // clear
-      await clickhouse.client.command({
-        query: `ALTER TABLE mqtt_history DELETE WHERE OrgId LIKE 'clickhouse_test_%'`,
+      await clickhouse.client.exec({
+        query: `TRUNCATE TABLE ${TABLE_NAME}`,
         clickhouse_settings: { wait_end_of_query: 1 }
       });
 
       const rows = [];
       for (let i = 0; i < ROWS; i++) {
        rows.push({
-          Timestamp: new Date(i), // yes, very old dates
-          TopicParts: [org, `device${i}`, '@myscope', `cap${i}`, `1.${i}.0`, 'data', i],
+          Timestamp: new Date(now + i * GAP), // use current date to avoid immediate TTL cleanup
+          TopicParts: [org, `device${i}`, '@myscope', `cap${i % 1000}`, `1.${i}.0`, 'data', i],
           Payload: { i },
        })
       }
 
       await clickhouse.client.insert({
-        table: 'mqtt_history',
+        table: TABLE_NAME,
         values: [rows],
         format: 'JSONEachRow',
         clickhouse_settings: { wait_end_of_query: 1 }
       });
+
+      console.log(`inserted ${rows.length} rows into ${TABLE_NAME}`);
     });
 
+    beforeEach(() => {
+      console.time('elapsed');
+    });
+
+    afterEach(() => {
+      console.timeEnd('elapsed');
+    });
 
     it('returns the entire history in reasonable time', async () => {
       const rows = await clickhouse.queryMQTTHistory({
         topicSelector: `/${org}/+/+/+/+/+/data`,
-        limit: 1000000,
+        limit: 2 * ROWS,
       });
-      assert.equal(rows.length, 100000);
+      assert.equal(rows.length, ROWS);
       assert(rows[0].Timestamp < rows[1].Timestamp);
     });
 
@@ -314,29 +329,28 @@ describe('ClickHouse', function() {
       assert.equal(rows.length, 1);
     });
 
-    it('quickly finds by CapabilityName', async () => {
+    it('quickly filters by CapabilityName', async () => {
       const rows = await clickhouse.queryMQTTHistory({
-        topicSelector: `/${org}/+/+/cap345/+/+/data`,
+        topicSelector: `/+/+/+/cap345/+/+/data`,
       });
-      assert.equal(rows.length, 1);
+      assert.equal(rows.length, 100);
     });
 
     it('quickly filters by time: since', async () => {
       const rows = await clickhouse.queryMQTTHistory({
         topicSelector: `/${org}/+/+/+/+/+/data`,
-        since: new Date(ROWS - 400)
+        since: new Date(now + (ROWS - 400) * GAP)
       });
       assert.equal(rows.length, 400);
     });
 
     it('quickly filters by time: until', async () => {
       const rows = await clickhouse.queryMQTTHistory({
-        topicSelector: `/${org}/+/+/+/+/+/data`,
-        until: new Date(400)
+        topicSelector: `/+/+/+/+/+/+/data`,
+        until: new Date(now + 400 * GAP)
       });
       assert.equal(rows.length, 401);
     });
-
 
   });
 
