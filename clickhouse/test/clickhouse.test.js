@@ -275,11 +275,10 @@ describe('ClickHouse', function() {
   /** Test performance of the table (index). */
   describe('performance', () => {
 
-    const ROWS = 100000; // number of rows to insert (mock)
+    const ROWS = 1_000_000; // number of rows to insert (mock)
     // time gap between inserted values (to stretch over several partitions):
-    const GAP = 10000;
+    const GAP = 1_000;
     const dataCache = new DataCache({});
-    const org = testOrg('query');
     const now = Date.now();
 
     before(async () => {
@@ -295,7 +294,7 @@ describe('ClickHouse', function() {
       for (let i = 0; i < ROWS; i++) {
        rows.push({
           Timestamp: new Date(now + i * GAP), // use current date to avoid immediate TTL cleanup
-          TopicParts: [org, `device${i % 1000}`, '@myscope', `cap${i % 100}`, `1.${i % 100}.0`, 'data', i],
+          TopicParts: [`org${i % 50}`, `device${i % 1000}`, '@myscope', `cap${i % 100}`, `1.${i % 100}.0`, 'data', i],
           Payload: { i },
        })
       }
@@ -320,31 +319,42 @@ describe('ClickHouse', function() {
 
     it('returns the entire history in reasonable time', async () => {
       const rows = await clickhouse.queryMQTTHistory({
-        topicSelector: `/${org}/+/+/+/+/+/data`,
+        topicSelector: `/+/+/+/+/+/+`,
         limit: 2 * ROWS,
       });
       assert.equal(rows.length, ROWS);
       assert(rows[0].Timestamp < rows[1].Timestamp);
     });
 
+    it('quickly filters by OrgId', async () => {
+      const rows = await clickhouse.queryMQTTHistory({
+        topicSelector: `/org42/+/+/+/+/+`,
+        limit: 2 * ROWS,
+      });
+      assert.equal(rows.length, ROWS / 50);
+    });
+
     it('quickly filters by DeviceId', async () => {
       const rows = await clickhouse.queryMQTTHistory({
-        topicSelector: `/${org}/device123/+/+/+/+/data`,
+        topicSelector: `/+/device123/+/+/+/+/data`,
+        limit: 2 * ROWS,
       });
-      assert.equal(rows.length, 100);
+      assert.equal(rows.length, ROWS / 1000);
     });
 
     it('quickly filters by CapabilityName', async () => {
       const rows = await clickhouse.queryMQTTHistory({
         topicSelector: `/+/+/+/cap34/+/+/data`,
+        limit: 2 * ROWS,
       });
-      assert.equal(rows.length, 1000);
+      assert.equal(rows.length, ROWS / 100);
     });
 
     it('quickly filters by time: since', async () => {
       const rows = await clickhouse.queryMQTTHistory({
-        topicSelector: `/${org}/+/+/+/+/+/data`,
-        since: new Date(now + (ROWS - 400) * GAP)
+        topicSelector: `/+/+/+/+/+/+/data`,
+        since: new Date(now + (ROWS - 400) * GAP),
+        limit: 2 * ROWS,
       });
       assert.equal(rows.length, 400);
     });
@@ -352,9 +362,19 @@ describe('ClickHouse', function() {
     it('quickly filters by time: until', async () => {
       const rows = await clickhouse.queryMQTTHistory({
         topicSelector: `/+/+/+/+/+/+/data`,
-        until: new Date(now + 400 * GAP)
+        until: new Date(now + 400 * GAP),
+        limit: 2 * ROWS,
       });
       assert.equal(rows.length, 401);
+    });
+
+    it('quickly filters by org and time: since', async () => {
+      const rows = await clickhouse.queryMQTTHistory({
+        topicSelector: `/org23/+/+/+/+/+/data`,
+        since: new Date(now + (ROWS - 400) * GAP),
+        limit: 2 * ROWS,
+      });
+      assert.equal(rows.length, 8);
     });
 
   });
