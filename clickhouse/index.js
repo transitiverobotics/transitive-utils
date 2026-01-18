@@ -188,7 +188,7 @@ class ClickHouse {
       const query = `CREATE TABLE IF NOT EXISTS ${tableName} (${columns.join(', ')})
         ENGINE = MergeTree()
         PARTITION BY toYYYYMMDD(Timestamp)
-        ORDER BY (toUnixTimestamp64Micro(Timestamp), TopicParts)
+        ORDER BY (OrgId, toUnixTimestamp64Micro(Timestamp), TopicParts)
         ${ttlExpression}
         SETTINGS
         index_granularity = 8192,
