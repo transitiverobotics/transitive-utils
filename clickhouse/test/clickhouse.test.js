@@ -309,13 +309,20 @@ describe('ClickHouse', function() {
       console.log(`inserted ${rows.length} rows into ${TABLE_NAME}`);
     });
 
+    let start;
     beforeEach(() => {
       console.time('elapsed');
+      start = performance.now();
     });
 
     afterEach(() => {
       console.timeEnd('elapsed');
     });
+
+    /** Assert that no more than limit ms have passed since start of test case. */
+    const assertTimelimit = (limit) => {
+      assert(performance.now() - start < limit, `Less than ${limit} ms`);
+    }
 
     it('returns the entire history in reasonable time', async () => {
       const rows = await clickhouse.queryMQTTHistory({
@@ -324,6 +331,7 @@ describe('ClickHouse', function() {
       });
       assert.equal(rows.length, ROWS);
       assert(rows[0].Timestamp < rows[1].Timestamp);
+      assertTimelimit(ROWS / 100);
     });
 
     it('quickly filters by OrgId', async () => {
@@ -332,6 +340,7 @@ describe('ClickHouse', function() {
         limit: 2 * ROWS,
       });
       assert.equal(rows.length, ROWS / 50);
+      assertTimelimit(ROWS / 1000);
     });
 
     it('quickly filters by DeviceId', async () => {
@@ -340,6 +349,7 @@ describe('ClickHouse', function() {
         limit: 2 * ROWS,
       });
       assert.equal(rows.length, ROWS / 1000);
+      assertTimelimit(ROWS / 10000);
     });
 
     it('quickly filters by CapabilityName', async () => {
@@ -348,6 +358,7 @@ describe('ClickHouse', function() {
         limit: 2 * ROWS,
       });
       assert.equal(rows.length, ROWS / 100);
+      assertTimelimit(ROWS / 10000);
     });
 
     it('quickly filters by time: since', async () => {
@@ -357,6 +368,7 @@ describe('ClickHouse', function() {
         limit: 2 * ROWS,
       });
       assert.equal(rows.length, 400);
+      assertTimelimit(ROWS / 10000);
     });
 
     it('quickly filters by time: until', async () => {
@@ -366,6 +378,7 @@ describe('ClickHouse', function() {
         limit: 2 * ROWS,
       });
       assert.equal(rows.length, 401);
+      assertTimelimit(ROWS / 10000);
     });
 
     it('quickly filters by org and time: since', async () => {
@@ -375,6 +388,7 @@ describe('ClickHouse', function() {
         limit: 2 * ROWS,
       });
       assert.equal(rows.length, 8);
+      assertTimelimit(ROWS / 10000);
     });
 
   });
