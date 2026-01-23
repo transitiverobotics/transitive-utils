@@ -193,6 +193,10 @@ describe('ClickHouse', function() {
       assert.equal(rows.length, 1);
     });
 
+    it('updates TTL without crashing', async () => {
+      await clickhouse.registerMqttTopicForStorage('/+/+/myscope/+/+/#', 13);
+      await clickhouse.registerMqttTopicForStorage('/+/+/myscope/+/+/#', 15);
+    });
   });
 
 

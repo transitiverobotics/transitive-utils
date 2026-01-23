@@ -26,7 +26,7 @@ const path2where = (path) => {
   _.forEach(path, (value, i) => {
     if (!['+','#'].includes(value[0])) {
       // it's a constant, filter by it
-      where.push(`((TopicParts[${i + 1}]) = '${value}')`);
+      where.push(`TopicParts[${i + 1}] = '${value}'`);
       // Note that ClickHouse/SQL index starting at 1, not 0
     }
   });
@@ -287,7 +287,6 @@ class ClickHouse {
     //     .map(([i, value]) => `((TopicParts[${i + 1}]) = '${value}')`);
     const where = path2where(path);
 
-
     if (where.length == 0) {
       // underspecified, don't set TTL
       return;
@@ -305,11 +304,13 @@ class ClickHouse {
     const ttls = matched ? matched[1].split(',').map(x => x.trim()) : [];
 
     const whereStatement = `WHERE ${where.join(' AND ')}`;
-    let present = false;
+    const newTTLStatement =
+      `toDateTime(Timestamp) + toIntervalDay(${ttlDays}) ${whereStatement}`;
 
+    let present = false;
     // check if TTL statement already present on table definiton
     ttls.forEach((ttl, i) => {
-      if (ttl.endsWith(whereStatement)) {
+      if (ttl.replace(/[()]/g, '').endsWith(whereStatement)) {
         // condition already present, just replace it to update time
         ttls[i] = newTTLStatement;
         present = true;
@@ -317,7 +318,7 @@ class ClickHouse {
     });
 
     if (!present) {
-      ttls.push(`toDateTime(Timestamp) + toIntervalDay(${ttlDays}) ${whereStatement}`);
+      ttls.push(newTTLStatement);
     }
 
     await this.client.command({
