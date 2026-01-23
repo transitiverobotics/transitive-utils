@@ -61,8 +61,7 @@ describe('ClickHouse', function() {
 
     await clickhouse.enableHistory({
       dataCache,
-      tableName: TABLE_NAME,
-      ttlDays: 31
+      tableName: TABLE_NAME
     });
 
     await clickhouse.registerMqttTopicForStorage(STANDARD_TOPIC_PATTERN);

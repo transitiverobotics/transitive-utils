@@ -19,6 +19,21 @@ const MULTI_TENANT_SCHEMA = {
   ]
 };
 
+/** Given a Topic path (array), return an array of conditions to use in a
+ * WHERE clause. */
+const path2where = (path) => {
+  const where = [];
+  _.forEach(path, (value, i) => {
+    if (!['+','#'].includes(value[0])) {
+      // it's a constant, filter by it
+      where.push(`((TopicParts[${i + 1}]) = '${value}')`);
+      // Note that ClickHouse/SQL index starting at 1, not 0
+    }
+  });
+  return where;
+};
+
+
 /** Singleton ClickHouse client wrapper with multi-tenant table support */
 class ClickHouse {
 
@@ -258,18 +273,20 @@ class ClickHouse {
     }
 
     // list of TopicParts indices and selected value to use in WHERE statement
-    const topicPartSelectors = [
-      [2, path[2]],
-      [3, path[3]]
-    ];
+    // const topicPartSelectors = [
+    //   [2, path[2]],
+    //   [3, path[3]]
+    // ];
 
-    path.slice(5).forEach((value, i) => topicPartSelectors.push([i, value]));
+    // path.slice(5).forEach((value, i) => topicPartSelectors.push([i + 5, value]));
 
-    const where = topicPartSelectors
-        // filter out wildcards
-        .filter(([i, value]) => !['+','#'].includes(value[0]))
-        // map to WHERE conditions
-        .map(([i, value]) => `((TopicParts[${i}]) = '${value}')`);
+    // const where = topicPartSelectors
+    //     // filter out wildcards
+    //     .filter(([i, value]) => !['+','#'].includes(value[0]))
+    //     // map to WHERE conditions
+    //     .map(([i, value]) => `((TopicParts[${i + 1}]) = '${value}')`);
+    const where = path2where(path);
+
 
     if (where.length == 0) {
       // underspecified, don't set TTL
@@ -327,14 +344,15 @@ class ClickHouse {
     const path = topicToPath(topicSelector);
 
     // interpret wildcards
-    const where = [];
-    _.forEach(path, (value, i) => {
-      if (!['+','#'].includes(value[0])) {
-        // it's a constant, filter by it
-        where.push(`TopicParts[${i + 1}] = '${value}'`);
-        // Note that ClickHouse/SQL index starting at 1, not 0
-      }
-    });
+    // const where = [];
+    // _.forEach(path, (value, i) => {
+    //   if (!['+','#'].includes(value[0])) {
+    //     // it's a constant, filter by it
+    //     where.push(`TopicParts[${i + 1}] = '${value}'`);
+    //     // Note that ClickHouse/SQL index starting at 1, not 0
+    //   }
+    // });
+    const where = path2where(path);
 
     since && where.push(`Timestamp >= fromUnixTimestamp64Milli(${since.getTime()})`);
     until && where.push(`Timestamp <= fromUnixTimestamp64Milli(${until.getTime()})`);
