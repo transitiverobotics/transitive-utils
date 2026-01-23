@@ -260,35 +260,26 @@ class ClickHouse {
   * @param {string} topic - MQTT topic to register
   */
   async registerMqttTopicForStorage(selector, ttlDays = DEFAULT_TTL_DAYS) {
-    this.topics[selector] = true;
-
-    // ---------------------------------------------------------------
-    // Set/update TTL for this capability and sub-topic
 
     const path = topicToPath(selector);
 
     if (path.length < 4) {
       // underspecified, don't set TTL
+      console.warn('Not registering topic as it is too short', selector);
       return;
     }
 
-    // list of TopicParts indices and selected value to use in WHERE statement
-    // const topicPartSelectors = [
-    //   [2, path[2]],
-    //   [3, path[3]]
-    // ];
+    this.topics[selector] = true;
 
-    // path.slice(5).forEach((value, i) => topicPartSelectors.push([i + 5, value]));
+    // ---------------------------------------------------------------
+    // Set/update TTL for this capability and sub-topic
 
-    // const where = topicPartSelectors
-    //     // filter out wildcards
-    //     .filter(([i, value]) => !['+','#'].includes(value[0]))
-    //     // map to WHERE conditions
-    //     .map(([i, value]) => `((TopicParts[${i + 1}]) = '${value}')`);
+    // Derive WHERE conditions for TTL expression from non-wildcards
     const where = path2where(path);
 
     if (where.length == 0) {
       // underspecified, don't set TTL
+      console.warn('Not setting TTL as topic is under specified', selector);
       return;
     }
 
@@ -307,17 +298,14 @@ class ClickHouse {
     const newTTLStatement =
       `toDateTime(Timestamp) + toIntervalDay(${ttlDays}) ${whereStatement}`;
 
-    let present = false;
-    // check if TTL statement already present on table definiton
-    ttls.forEach((ttl, i) => {
-      if (ttl.replace(/[()]/g, '').endsWith(whereStatement)) {
-        // condition already present, just replace it to update time
-        ttls[i] = newTTLStatement;
-        present = true;
-      }
-    });
+    const currentIndex =
+      ttls.findIndex(ttl => ttl.replace(/[()]/g, '').endsWith(whereStatement));
 
-    if (!present) {
+    if (currentIndex >= 0) {
+      // replace existing
+      ttls[currentIndex] = newTTLStatement;
+    } else {
+      // add new
       ttls.push(newTTLStatement);
     }
 
