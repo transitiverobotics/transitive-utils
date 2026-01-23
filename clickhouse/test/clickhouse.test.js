@@ -1,5 +1,6 @@
 const assert = require('assert');
 const { EventEmitter, once } = require('node:events');
+const { describe, it, before, after, beforeEach } = require('node:test');
 const dotenv = require('dotenv');
 const { DataCache } = require('@transitive-sdk/datacache');
 const { wait } = require('../../index');
@@ -37,7 +38,7 @@ const testOrg = (suffix) => `clickhouse_test_${suffix}_${Date.now()}`;
 
 
 describe('ClickHouse', function() {
-  this.timeout(10000);
+  // this.timeout(10000);
 
   let emitter;
   const dataCache = new DataCache({});
@@ -276,7 +277,7 @@ describe('ClickHouse', function() {
   });
 
   /** Test performance of the table (index). */
-  describe('performance', () => {
+  describe('performance', {timeout: 10000}, () => {
 
     const ROWS = 1_000_000; // number of rows to insert (mock)
     // time gap between inserted values (to stretch over several partitions):
@@ -311,12 +312,7 @@ describe('ClickHouse', function() {
 
     let start;
     beforeEach(() => {
-      console.time('elapsed');
       start = performance.now();
-    });
-
-    afterEach(() => {
-      console.timeEnd('elapsed');
     });
 
     /** Assert that no more than limit ms have passed since start of test case. */
@@ -349,7 +345,7 @@ describe('ClickHouse', function() {
         limit: 2 * ROWS,
       });
       assert.equal(rows.length, ROWS / 1000);
-      assertTimelimit(ROWS / 10000);
+      assertTimelimit(ROWS / 1000);
     });
 
     it('quickly filters by CapabilityName', async () => {

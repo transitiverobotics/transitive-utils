@@ -21,14 +21,13 @@
   },
   "main": "index.js",
   "scripts": {
-    "test": "mocha -w test/*.test.js -b"
+    "test": "node --test --watch"
   },
   "dependencies": {
     "@clickhouse/client": "^1.12.1",
     "@transitive-sdk/datacache": "^0.14.1"
   },
   "devDependencies": {
-    "dotenv": "^17.2.3",
-    "mocha": "^11.7.5"
+    "dotenv": "^17.2.3"
   }
 }
