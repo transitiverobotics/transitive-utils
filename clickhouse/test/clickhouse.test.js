@@ -31,7 +31,10 @@ const interceptInserts = () => {
 
 /** Query mqtt_history rows for a given org */
 const queryRowsByOrg = async (org, options = {}) =>
-  await clickhouse.queryMQTTHistory({ topicSelector: `/${org}/+/+/+/+/+` });
+  await clickhouse.queryMQTTHistory({
+    topicSelector: `/${org}/+/+/+/+/+`,
+    ...options
+  });
 
 /** Generate unique org ID for test isolation */
 const testOrg = (suffix) => `clickhouse_test_${suffix}_${Date.now()}`;

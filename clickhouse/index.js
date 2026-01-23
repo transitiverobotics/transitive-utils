@@ -324,30 +324,17 @@ class ClickHouse {
       limit = 1000
     } = options;
 
-    // const [OrgId, DeviceId, Scope, CapabilityName, CapabilityVersion, ...subPath]
-    //   = topicToPath(topicSelector);
     const path = topicToPath(topicSelector);
-    // store as objects so we can refer to them by column name
-    // const fields = { OrgId, DeviceId, Scope, CapabilityName, CapabilityVersion };
-
-    const selectors = ['Payload', 'TopicParts', 'Timestamp'];
-    const where = [];
 
     // interpret wildcards
+    const where = [];
     _.forEach(path, (value, i) => {
-      if (['+','#'].includes(value[0])) {
-        // it's a wild card, add to selectors
-        // selectors.push(field);
-      } else {
+      if (!['+','#'].includes(value[0])) {
         // it's a constant, filter by it
         where.push(`TopicParts[${i + 1}] = '${value}'`);
         // Note that ClickHouse/SQL index starting at 1, not 0
       }
     });
-
-    // special WHERE conditions for SubPath (if given)
-    // subPath?.forEach((value, i) =>
-    //   !value.startsWith('+') && where.push(`SubTopic[${i}] = '${value}'`));
 
     since && where.push(`Timestamp >= fromUnixTimestamp64Milli(${since.getTime()})`);
     until && where.push(`Timestamp <= fromUnixTimestamp64Milli(${until.getTime()})`);
@@ -357,7 +344,7 @@ class ClickHouse {
       : '';
 
     const result = await this.client.query({
-      query: `SELECT ${selectors.join(',')} FROM default.${this.mqttHistoryTable} ${
+      query: `SELECT Payload,TopicParts,Timestamp FROM default.${this.mqttHistoryTable} ${
       whereStatement} ORDER BY ${orderBy} ${limit ? ` LIMIT ${limit}` : ''}`,
       format: 'JSONEachRow'
     });
