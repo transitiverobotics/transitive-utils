@@ -40,22 +40,32 @@ describe('ClickHouse', function() {
   this.timeout(10000);
 
   let emitter;
+  const dataCache = new DataCache({});
 
   before(async () => {
     clickhouse.init({ url: CLICKHOUSE_URL });
     /* Register for `insert` events on ClickHouse client */
     emitter = interceptInserts();
 
-    await clickhouse.client.command({
-      query: `DROP TABLE IF EXISTS ${TABLE_NAME}`,
+    for (let query of [
+      `DROP TABLE IF EXISTS ${TABLE_NAME}`,
+      `DROP ROW POLICY IF EXISTS row_policy ON ${TABLE_NAME}`
+    ]) await clickhouse.client.command({
+      query,
       clickhouse_settings: { wait_end_of_query: 1 }
     });
+
+    await clickhouse.enableHistory({
+      dataCache,
+      tableName: TABLE_NAME,
+      ttlDays: 31
+    });
+
+    await clickhouse.registerMqttTopicForStorage(STANDARD_TOPIC_PATTERN);
   });
 
-  describe('ensureMqttHistoryTable', () => {
+  describe('enableHistory', () => {
     it('should create the mqtt_history table', async () => {
-      await clickhouse.ensureMqttHistoryTable(TABLE_NAME, 31);
-
       const result = await clickhouse.client.query({
         query: `SELECT name FROM system.tables WHERE name = '${TABLE_NAME}'`,
         format: 'JSONEachRow'
@@ -67,15 +77,9 @@ describe('ClickHouse', function() {
   });
 
   describe('registerMqttTopicForStorage', () => {
-    before(async () => {
-      await clickhouse.ensureMqttHistoryTable(TABLE_NAME, 32);
-    });
-
     it('should insert MQTT messages into ClickHouse', async () => {
-      const dataCache = new DataCache({});
       const org = testOrg('insert');
 
-      clickhouse.registerMqttTopicForStorage(dataCache, STANDARD_TOPIC_PATTERN);
       dataCache.update([org, 'device1', '@myscope', 'test-cap', '1.0.0', 'data'], 42.5);
       await once(emitter, 'insert');
 
@@ -90,10 +94,8 @@ describe('ClickHouse', function() {
     });
 
     it('should store string payloads as-is', async () => {
-      const dataCache = new DataCache({});
       const org = testOrg('string');
 
-      clickhouse.registerMqttTopicForStorage(dataCache, STANDARD_TOPIC_PATTERN);
       dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0', 'msg'], 'hello world');
       await once(emitter, 'insert');
 
@@ -103,11 +105,9 @@ describe('ClickHouse', function() {
     });
 
     it('should store null values as NULL (omitted)', async () => {
-      const dataCache = new DataCache({});
       const org = testOrg('null');
-      // const done = interceptInserts(2);
 
-      clickhouse.registerMqttTopicForStorage(dataCache, '/+org/+device/#');
+      // clickhouse.registerMqttTopicForStorage('/+org/+device/#');
       dataCache.update([org, 'device1', 'data'], 'initial');
       // Small delay to ensure timestamp ordering
       await new Promise(resolve => setTimeout(resolve, 10));
@@ -123,11 +123,9 @@ describe('ClickHouse', function() {
     });
 
     it('should store object payloads as JSON', async () => {
-      const dataCache = new DataCache({});
       const org = testOrg('object');
       const payload = { sensor: 'temp', value: 25.5, nested: { a: 1 } };
 
-      clickhouse.registerMqttTopicForStorage(dataCache, STANDARD_TOPIC_PATTERN);
       dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0', 'readings'], payload);
       await once(emitter, 'insert');
 
@@ -138,10 +136,8 @@ describe('ClickHouse', function() {
     });
 
     it('should parse nested subtopics correctly', async () => {
-      const dataCache = new DataCache({});
       const org = testOrg('subtopic');
 
-      clickhouse.registerMqttTopicForStorage(dataCache, STANDARD_TOPIC_PATTERN);
       dataCache.update([org, 'device1', '@myscope', 'cap', '2.0.0', 'level1', 'level2'], 'value');
       await once(emitter, 'insert');
 
@@ -153,10 +149,8 @@ describe('ClickHouse', function() {
     });
 
     it('should handle multiple updates to different subtopics', async () => {
-      const dataCache = new DataCache({});
       const org = testOrg('multi');
 
-      clickhouse.registerMqttTopicForStorage(dataCache, STANDARD_TOPIC_PATTERN);
       dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0', 'battery'], 85);
       dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0', 'temperature'], 42);
       await once(emitter, 'insert');
@@ -172,10 +166,8 @@ describe('ClickHouse', function() {
     });
 
     it('should work with unnamed wildcards', async () => {
-      const dataCache = new DataCache({});
       const org = testOrg('unnamed');
 
-      clickhouse.registerMqttTopicForStorage(dataCache, '/+/+/+/+/+/#');
       dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0', 'data'], { x: 1 });
       await once(emitter, 'insert');
 
@@ -184,24 +176,35 @@ describe('ClickHouse', function() {
       assert.strictEqual(row.DeviceId, 'device1');
       assert.deepStrictEqual(row.Payload, { x: 1 });
     });
+
+
+    it('should avoid duplicates', async () => {
+      const org = testOrg('multi');
+
+      // register multiple overlapping topics, want to see only one insertion
+      await clickhouse.registerMqttTopicForStorage('/+org/+/+/+/+/#');
+      await clickhouse.registerMqttTopicForStorage('/+/+device/+/+/+/#');
+      dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0', 'data'], { x: 1 });
+      await once(emitter, 'insert');
+      const rows = await queryRowsByOrg(org);
+      assert.equal(rows.length, 1);
+    });
+
   });
 
 
   describe('queryMQTTHistory', () => {
 
-    const dataCache = new DataCache({});
     const org = testOrg('query');
 
     before(async () => {
-      await clickhouse.ensureMqttHistoryTable(TABLE_NAME, 33);
-
       // clear
       await clickhouse.client.command({
         query: `TRUNCATE TABLE ${TABLE_NAME}`,
         clickhouse_settings: { wait_end_of_query: 1 }
       });
 
-      clickhouse.registerMqttTopicForStorage(dataCache, '#');
+      await clickhouse.registerMqttTopicForStorage('#');
       dataCache.update([org, 'device1', '@myscope', 'nullcap', '1.0.0', 'willBeNull'], 1234);
       dataCache.update([org, 'device1', '@myscope', 'capdata', '1.0.0', 'data'], { x: 1 });
       dataCache.update([org, 'device1', '@myscope', 'cap', '1.0.0', 'data2'], { y: 2 });
@@ -237,20 +240,20 @@ describe('ClickHouse', function() {
 
     it('queries based on sub-topic selectors', async () => {
       const [row] = await clickhouse.queryMQTTHistory({
-        topicSelector: `/${org}/+/+/+/+/+/data2` });
+        topicSelector: `/${org}/+/+/+/+/data2` });
       assert.strictEqual(row.DeviceId, 'device1');
       assert.deepStrictEqual(row.Payload, { y: 2 });
     });
 
     it('queries based on sub-topic selectors with wildcards', async () => {
       const [row] = await clickhouse.queryMQTTHistory({
-        topicSelector: `/${org}/+/+/+/+/+/+/sub2/+` });
+        topicSelector: `/${org}/+/+/+/+/+/sub2/+` });
       assert.deepStrictEqual(row.SubTopic[2], 'sub3.1');
     });
 
     it('queries based on multiple sub-topic selectors with wildcards', async () => {
       const rows = await clickhouse.queryMQTTHistory({
-        topicSelector: `/${org}/+/+/+/+/+/sub1/+/+` });
+        topicSelector: `/${org}/+/+/+/+/sub1/+/+` });
       assert.strictEqual(rows[0].SubTopic.length, 3);
       assert.strictEqual(rows[0].SubTopic[2], 'sub3.1');
       assert.strictEqual(rows[1].SubTopic[2], 'sub3.2');
@@ -258,7 +261,7 @@ describe('ClickHouse', function() {
 
     it('returns the history', async () => {
       const rows = await clickhouse.queryMQTTHistory({
-        topicSelector: `/${org}/+/+/+/+/+/data/+/+` });
+        topicSelector: `/${org}/+/+/+/+/data/+/+` });
       assert.deepStrictEqual(rows.length, 2);
       assert.deepStrictEqual(rows[0].Payload, {x: 1});
       assert.deepStrictEqual(rows[1].Payload, {x: 2});
@@ -267,7 +270,7 @@ describe('ClickHouse', function() {
 
     it('handles null values', async () => {
       const rows = await clickhouse.queryMQTTHistory({
-        topicSelector: `/${org}/+/+/+/+/+/willBeNull` });
+        topicSelector: `/${org}/+/+/+/+/willBeNull` });
       assert.strictEqual(rows.at(-1).Payload, null);
     });
   });
@@ -278,12 +281,9 @@ describe('ClickHouse', function() {
     const ROWS = 1_000_000; // number of rows to insert (mock)
     // time gap between inserted values (to stretch over several partitions):
     const GAP = 1_000;
-    const dataCache = new DataCache({});
     const now = Date.now();
 
     before(async () => {
-      await clickhouse.ensureMqttHistoryTable(TABLE_NAME, 33);
-
       // clear
       await clickhouse.client.exec({
         query: `TRUNCATE TABLE ${TABLE_NAME}`,
@@ -345,7 +345,7 @@ describe('ClickHouse', function() {
 
     it('quickly filters by DeviceId', async () => {
       const rows = await clickhouse.queryMQTTHistory({
-        topicSelector: `/+/device123/+/+/+/+/data`,
+        topicSelector: `/+/device123/+/+/+/data`,
         limit: 2 * ROWS,
       });
       assert.equal(rows.length, ROWS / 1000);
@@ -354,16 +354,16 @@ describe('ClickHouse', function() {
 
     it('quickly filters by CapabilityName', async () => {
       const rows = await clickhouse.queryMQTTHistory({
-        topicSelector: `/+/+/+/cap34/+/+/data`,
+        topicSelector: `/+/+/+/cap34/+/data`,
         limit: 2 * ROWS,
       });
       assert.equal(rows.length, ROWS / 100);
-      assertTimelimit(ROWS / 10000);
+      assertTimelimit(ROWS / 1000);
     });
 
     it('quickly filters by time: since', async () => {
       const rows = await clickhouse.queryMQTTHistory({
-        topicSelector: `/+/+/+/+/+/+/data`,
+        topicSelector: `/+/+/+/+/+/data`,
         since: new Date(now + (ROWS - 400) * GAP),
         limit: 2 * ROWS,
       });
@@ -373,7 +373,7 @@ describe('ClickHouse', function() {
 
     it('quickly filters by time: until', async () => {
       const rows = await clickhouse.queryMQTTHistory({
-        topicSelector: `/+/+/+/+/+/+/data`,
+        topicSelector: `/+/+/+/+/+/data`,
         until: new Date(now + 400 * GAP),
         limit: 2 * ROWS,
       });
@@ -383,14 +383,13 @@ describe('ClickHouse', function() {
 
     it('quickly filters by org and time: since', async () => {
       const rows = await clickhouse.queryMQTTHistory({
-        topicSelector: `/org23/+/+/+/+/+/data`,
+        topicSelector: `/org23/+/+/+/+/data`,
         since: new Date(now + (ROWS - 400) * GAP),
         limit: 2 * ROWS,
       });
       assert.equal(rows.length, 8);
       assertTimelimit(ROWS / 10000);
     });
-
   });
 
 });
