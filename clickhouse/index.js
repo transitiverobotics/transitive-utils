@@ -1,5 +1,7 @@
 const _ = require('lodash');
+const waitPort = require('wait-port');
 const { createClient } = require('@clickhouse/client');
+
 const { topicToPath, topicMatch } = require('@transitive-sdk/datacache');
 
 // Default TTL in days for mqtt_history table
@@ -43,10 +45,20 @@ class ClickHouse {
   topics = {}; // list of topics registered for storage, as object for de-duplication
 
   /** Create the client, connecting to Clickhouse */
-  init({ url, dbName, user, password } = {}) {
+  async init({ url, dbName, user, password } = {}) {
+
     const _url = url || process.env.CLICKHOUSE_URL || 'http://clickhouse:8123';
     const _dbName = dbName || process.env.CLICKHOUSE_DB || 'default';
     const _user = user || process.env.CLICKHOUSE_USER || 'default';
+
+    const {hostname, port} = URL.parse(_url);
+    const interval = 200;
+    await waitPort({
+        host: hostname,
+        port: port || 80,
+        interval
+      }, 10000);
+    await new Promise(done => setTimeout(done, 200));
 
     // console.debug(`Creating ClickHouse client for URL: ${_url}, DB: ${_dbName}, User: ${_user}`);
 
@@ -72,6 +84,8 @@ class ClickHouse {
         // asterisk_include_materialized_columns: 1
       },
     });
+
+    await this._client.query({ query: 'SELECT 1' });
   }
 
   /** Get the Clickhouse client (from @clickhouse/client) */
@@ -81,6 +95,15 @@ class ClickHouse {
       throw new Error('ClickHouse client not initialized');
     }
     return this._client;
+  }
+
+  /* sets up default row level security policies in ClickHouse */
+  async ensureDefaultPermissions() {
+    const cmd = 'CREATE ROW POLICY IF NOT EXISTS';
+    for (let query of [
+      `${cmd} default_users ON default.* USING OrgId = splitByString('_', currentUser())[2] TO ALL`,
+      `${cmd} default_admin ON default.* USING 1 TO ${process.env.CLICKHOUSE_USER || 'default'}`
+    ]) await this.client.command({ query });
   }
 
   /** Create a table if it does not already exist adding OrgId and DeviceId
