@@ -1,3 +1,4 @@
+const URL = require('node:url');
 const _ = require('lodash');
 const waitPort = require('wait-port');
 const { createClient } = require('@clickhouse/client');
@@ -53,11 +54,7 @@ class ClickHouse {
 
     const {hostname, port} = URL.parse(_url);
     const interval = 200;
-    await waitPort({
-        host: hostname,
-        port: port || 80,
-        interval
-      }, 10000);
+    await waitPort({ host: hostname, port: port || 80, interval }, 10000);
     await new Promise(done => setTimeout(done, 200));
 
     // console.debug(`Creating ClickHouse client for URL: ${_url}, DB: ${_dbName}, User: ${_user}`);
