@@ -1,4 +1,5 @@
 
+const { describe, it, before, after, beforeEach } = require('node:test');
 const assert = require('assert');
 const fs = require('fs');
 const {expect} = require('expect'); // from jest
@@ -121,7 +122,7 @@ describe('DataCache', function() {
     assert.deepEqual(changes, {'/a/b/c/d': null});
   });
 
-  it('should emit update events to subscribers', function(done) {
+  it('should emit update events to subscribers', function(t, done) {
     const d = new DataCache({a: {b: {c: {d: 1}}}, a2: 1});
     let changes;
     d.subscribe((_changes) => setTimeout(() => {
@@ -133,7 +134,7 @@ describe('DataCache', function() {
     changes = d.update(['a', 'b', 'c', 'd'], 3);
   });
 
-  it('should relay tags to event listeners on update', function(done) {
+  it('should relay tags to event listeners on update', function(t, done) {
     const d = new DataCache({a: {b: {c: {d: 1}}}, a2: 1});
     let triggered = false;
     d.subscribe((_changes, tags) => {
@@ -194,25 +195,25 @@ describe('DataCache', function() {
     assert.deepEqual(d1.get(), d2.get());
   });
 
-  it('should emit null change events once', function(done) {
+  it('should emit null change events once', function(t, done) {
     const d1 = new DataCache({a: 1});
     d1.subscribe(changes => done());
     d1.update(['a'], null);
   });
 
-  it('should emit null change events once, with subobject', function(done) {
+  it('should emit null change events once, with subobject', function(t, done) {
     const d1 = new DataCache({a: {b: 1}});
     d1.subscribe(changes => done());
     d1.update(['a'], null);
   });
 
-  it('should emit null change event from topic string', function(done) {
+  it('should emit null change event from topic string', function(t, done) {
     const d1 = new DataCache({a: {b: 1}});
     d1.subscribe(changes => done());
     d1.update('/a', null);
   });
 
-  it('should not emit repeated null change events', function(done) {
+  it('should not emit repeated null change events', function(t, done) {
     const d1 = new DataCache({});
     let error;
     d1.subscribe(changes => error = 'repeated change event on null root');
@@ -221,7 +222,7 @@ describe('DataCache', function() {
   });
 
   it('should not emit repeated null change events for sub-trees either',
-    function(done) {
+    function(t, done) {
       const d1 = new DataCache({a: {b: {c: 1}, d: 2}});
       d1.update(['a', 'b', 'c'], null);
 
@@ -270,7 +271,7 @@ describe('DataCache', function() {
   //
   });
 
-  it('should ignore non-changes', function(done) {
+  it('should ignore non-changes', function(t, done) {
     const d = new DataCache({a: {b: 1}});
     let error = false;
     d.subscribe(() => error = 'non-change update was not ignored');
@@ -281,7 +282,7 @@ describe('DataCache', function() {
 
   /** --- subscribePath */
   describe('subscribePath', function() {
-    it('should trigger subscribePath callbacks on relevent change', function(done) {
+    it('should trigger subscribePath callbacks on relevent change', function(t, done) {
       const d = new DataCache({a: {b: 1, c: 2}, d: 3});
       d.subscribePath('/a/b', (value, key) => {
         assert.equal(value, 2);
@@ -291,7 +292,7 @@ describe('DataCache', function() {
       d.update(['a', 'b'], 2);
     });
 
-    it('should trigger subscribePath callbacks on sub-key changes', function(done) {
+    it('should trigger subscribePath callbacks on sub-key changes', function(t, done) {
       const d = new DataCache({a: {b: 1, c: 2}, d: 3});
       d.subscribePath('/a/b', (value, key) => {
         assert.equal(value, 2);
@@ -301,7 +302,7 @@ describe('DataCache', function() {
       d.update(['a', 'b', 'e'], 2);
     });
 
-    it('should trigger subscribePath callbacks on sub-key changes with wildcards', function(done) {
+    it('should trigger subscribePath callbacks on sub-key changes with wildcards', function(t, done) {
       const d = new DataCache({a: {b: 1, c: 2}, d: 3});
       d.subscribePath('/+/b', (value, key) => {
         assert.equal(value, 2);
@@ -312,7 +313,7 @@ describe('DataCache', function() {
     });
 
     it('should trigger a single subscribePath callback when doing atomic update',
-      function(done) {
+      function(t, done) {
         const d = new DataCache({a: {b: 1, c: 2}, d: 3});
         const keys = [];
         d.subscribePath('/a/b', (value, key) => {
@@ -326,7 +327,7 @@ describe('DataCache', function() {
           }, 30);
       });
 
-    it('should trigger subscribePath callbacks on relevent change', function(done) {
+    it('should trigger subscribePath callbacks on relevent change', function(t, done) {
       const d = new DataCache({a: {b: 1, c: 2}, d: 3});
       let error = false;
       d.subscribePath('/a/b', () => done('triggered an irrelevant change'));
@@ -334,7 +335,7 @@ describe('DataCache', function() {
       setTimeout(() => done(error), 1);
     });
 
-    it('should trigger subscribePath callbacks only on change', function(done) {
+    it('should trigger subscribePath callbacks only on change', function(t, done) {
       const d = new DataCache({a: {b: 1, c: 2}, d: 3});
       let error = false;
       d.subscribePath('/a/b', () => error = 'triggered on non-change');
@@ -342,7 +343,7 @@ describe('DataCache', function() {
       setTimeout(() => done(error), 1);
     });
 
-    it('should trigger subscribePath callbacks with matches', function(done) {
+    it('should trigger subscribePath callbacks with matches', function(t, done) {
       const d = new DataCache({a: {b: 1, c: 2}, d: 3});
       d.subscribePath('/a/+l2/e', (value, key, match) => {
         assert.equal(value, 2);
@@ -352,7 +353,7 @@ describe('DataCache', function() {
       d.update(['a', 'b', 'e'], 2);
     });
 
-    it('should trigger subscribePath callbacks also on first value', function(done) {
+    it('should trigger subscribePath callbacks also on first value', function(t, done) {
       const d = new DataCache();
       d.subscribePath('/a/+l2', (value, key, match) => {
         assert.equal(value, 1);
@@ -364,7 +365,7 @@ describe('DataCache', function() {
 
 
     describe('triggers subscribePath callbacks on null (clear)', function() {
-      it('with matches', function(done) {
+      it('with matches', function(t, done) {
         const d = new DataCache({a: {b: {c: 2}}, d: 3});
         d.subscribePath('/a/+l2/c', (value, key, match) => {
           assert.equal(value, null);
@@ -374,7 +375,7 @@ describe('DataCache', function() {
         d.update(['a', 'b', 'c'], null);
       });
 
-      it('on root', function(done) {
+      it('on root', function(t, done) {
         const d = new DataCache({a: {b: {c: 2}}, d: 3});
         d.subscribePath('/a', (value, key, match) => {
           assert.equal(value, null);
@@ -384,7 +385,7 @@ describe('DataCache', function() {
         d.update(['a'], null);
       });
 
-      it('on /a/b', function(done) {
+      it('on /a/b', function(t, done) {
         const d = new DataCache({a: {b: {c: 2}}});
         d.subscribePath('/a/b', (value, key, match) => {
           assert.equal(value, null);
@@ -394,7 +395,7 @@ describe('DataCache', function() {
         d.update(['a', 'b'], null);
       });
 
-      it('on null of parent document', function(done) {
+      it('on null of parent document', function(t, done) {
         const d = new DataCache({a: {b: {c: 2}}, d: 3});
         d.subscribePath('/a/b/c', (value, key, match) => {
           assert.equal(value, null);
@@ -407,7 +408,7 @@ describe('DataCache', function() {
   });
 
   describe('subscribePathFlat', function() {
-    it('should flatten atomic changes', function(done) {
+    it('should flatten atomic changes', function(t, done) {
       const d = new DataCache({});
       // gets atomic updates
       d.subscribePath('/a', (value, key) => {
@@ -423,7 +424,7 @@ describe('DataCache', function() {
       d.update(['a'], {b: 1});
     });
 
-    it('should still populate matched', function(done) {
+    it('should still populate matched', function(t, done) {
       const d = new DataCache({});
       d.subscribePathFlat('/a/+second/c', (value, key, matched) => {
         assert.equal(value, 2);
@@ -434,7 +435,7 @@ describe('DataCache', function() {
       d.update(['a'], {b: {c: 2}});
     });
 
-    it('should ignore irrelevant changes', function(done) {
+    it('should ignore irrelevant changes', function(t, done) {
       const d = new DataCache({});
       let error = false;
       d.subscribePathFlat('/a/b/c', (value, key, matched) => {
@@ -444,7 +445,7 @@ describe('DataCache', function() {
       setTimeout(() => done(error), 100);
     });
 
-    it('should match on all places', function(done) {
+    it('should match on all places', function(t, done) {
       const d = new DataCache({});
       d.subscribePathFlat('/+first/+second/+third', (value, key, matched) => {
         assert.equal(value, 2);
@@ -455,7 +456,7 @@ describe('DataCache', function() {
       d.update(['a'], {b: {c: 2}});
     });
 
-    it('should match on all places with flat updates', function(done) {
+    it('should match on all places with flat updates', function(t, done) {
       const d = new DataCache({});
       d.subscribePathFlat('/+first/+second/+third', (value, key, matched) => {
         assert.equal(value, 2);
@@ -494,7 +495,7 @@ describe('DataCache', function() {
     assert.deepEqual(d.get(), {a: {'0.1.2': {c: 2}}});
   });
 
-  it('should trigger correctly on paths with dots', function(done) {
+  it('should trigger correctly on paths with dots', function(t, done) {
     const d = new DataCache();
     d.subscribePath('/a/+l1/#', (value, key, match) => {
       assert.equal(value, 2);
@@ -505,7 +506,7 @@ describe('DataCache', function() {
     d.update(['a', '0.1.2', 'c'], 2);
   });
 
-  it('should trigger correctly on paths with dots at the end', function(done) {
+  it('should trigger correctly on paths with dots at the end', function(t, done) {
     const d = new DataCache();
     d.subscribePath('/+l0/+l1', (value, key, match) => {
       assert.equal(value, 2);
@@ -541,7 +542,7 @@ describe('DataCache', function() {
       a2: 1
     });
 
-    it('should visit each match', function(done) {
+    it('should visit each match', function(t, done) {
       let count = 0;
       d.forMatch('/+first/+second/c/#', (value, topic, {first, second}) => {
         assert.equal(first, 'a');
@@ -551,7 +552,7 @@ describe('DataCache', function() {
       });
     });
 
-    it('should ignore unnamed wildcards +', function(done) {
+    it('should ignore unnamed wildcards +', function(t, done) {
       let count = 0;
       d.forMatch('/+/+/c/#', (value, topic, matched) => {
         assert.deepEqual(matched, {});
@@ -560,7 +561,7 @@ describe('DataCache', function() {
       });
     });
 
-    it('should ignore unnamed wildcards *', function(done) {
+    it('should ignore unnamed wildcards *', function(t, done) {
       let count = 0;
       d.forMatch('/*/*/c/#', (value, topic, matched) => {
         assert.deepEqual(matched, {});
@@ -569,7 +570,7 @@ describe('DataCache', function() {
       });
     });
 
-    it('should imply a trailing hash', function(done) {
+    it('should imply a trailing hash', function(t, done) {
       let count = 0;
       d.forMatch('/*/*/c/', (value, topic, matched) => {
         assert.deepEqual(matched, {});
@@ -1084,7 +1085,7 @@ describe('forMatchIterator', function() {
     }
   };
 
-  it('matches static values', function(done) {
+  it('matches static values', function(t, done) {
     forMatchIterator(obj, ['b', 'c'], (value, path, match) => {
       assert.equal(value, 'bc');
       assert.deepEqual(path, ['b', 'c']);
@@ -1092,7 +1093,7 @@ describe('forMatchIterator', function() {
     });
   });
 
-  it('matches wildcards', function(done) {
+  it('matches wildcards', function(t, done) {
     forMatchIterator(obj, ['+first', 'b', 'c'], (value, path, match) => {
       assert.equal(value, 'abc');
       assert.equal(match.first, 'a');

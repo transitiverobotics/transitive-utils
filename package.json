@@ -17,9 +17,9 @@
   },
   "main": "index.js",
   "scripts": {
-    "test": "mocha -w test/*.test.js -b",
-    "testMqttSync": "mocha -w test/MqttSync.test.js -b",
-    "testCloud": "cd cloud && mocha -w *.test.js -b",
+    "test": "node --test --watch test/*.test.js",
+    "testMqttSync": "node --test --watch test/MqttSync.test.js",
+    "testCloud": "cd cloud && node --test --watch *.test.js",
     "prepack": "cat docs.js | node --input-type=module - server common"
   },
   "dependencies": {
@@ -35,8 +35,7 @@
     "aedes": "^0.46.2",
     "documentation": "^14.0.2",
     "expect": "^28.1.0",
-    "jest": "^28.0.3",
-    "mocha": "^8.3.2"
+    "jest": "^28.0.3"
   },
   "bin": {
     "auto-update": "./bin/auto-update.js"

@@ -1,7 +1,8 @@
-
+const { describe, it, before, after, beforeEach, afterEach } = require('node:test');
 const assert = require('assert');
 const Aedes = require('aedes');
 const mqtt = require('mqtt');
+const { default: why } = require('why-is-node-running');
 
 // const MqttSync = require('../common/MqttSync');
 const { getLogger, DataCache, parseMQTTTopic, randomId, topicToPath, wait,
@@ -36,17 +37,32 @@ const inSync = (a, b, done, delay = 150) => {
 
 /* --------------------------- */
 
+/** We write our own `it` function to set a default timeout (instead of Infinity). */
+// const it = (...args) => {
+//   const name = args[0];
+//   let options = {timeout: 2000};
+//   let fn;
+//   if (args[1] instanceof Function) {
+//     fn = args[1];
+//   } else {
+//     options = args[1];
+//     fn = args[2];
+//   }
+
+//   test(name, options, fn);
+// }
+
 describe('MqttSync', function() {
 
   let server;
-  let mqttClientA, mqttClientB, mqttClientRobot;
-  let clientA, clientB, clientRobot;
+  let mqttClientA, mqttClientB, mqttClientRobot, mqttClientMeta;
+  let clientA, clientB, clientRobot, clientMeta;
   let interval;
   let aedes;
 
-  beforeEach(function(done) {
+  beforeEach(function(t, done) {
     // Start the local mqtt broker
-    console.log('\n    ▶ ', this.currentTest?.title);
+    // console.log('\n    ▶ ', this.currentTest?.title);
 
     aedes = Aedes({
       authenticate: (client, username, password, callback) => {
@@ -71,6 +87,7 @@ describe('MqttSync', function() {
     // aedes.on('publish', (packet, client) => {
     //   console.log('[aedes] publishing', packet);
     // });
+
     server = require('net').createServer(aedes.handle);
     server.listen(port, function () {
       // console.log('mqtt server started and listening on port ', port);
@@ -82,7 +99,8 @@ describe('MqttSync', function() {
 
       const initAll = () => {
         if (mqttClientA.connected && mqttClientB.connected &&
-          mqttClientRobot.connected && !clientA && !clientB && !clientRobot) {
+          mqttClientRobot.connected && mqttClientMeta.connected &&
+          !clientA && !clientB && !clientRobot && !clientMeta) {
           clientA = new MqttSync({mqttClient: mqttClientA, ignoreRetain: true});
           clientB = new MqttSync({mqttClient: mqttClientB, ignoreRetain: true});
           clientRobot = new MqttSync({mqttClient: mqttClientRobot});
@@ -103,9 +121,10 @@ describe('MqttSync', function() {
           payload: String((Date.now() - start)/1e3) + ' seconds'
         }), HEARTBEAT_MS);
     });
-  });
 
-  afterEach(function(done) {
+  }, {timeout: 2000});
+
+  afterEach(function(t, done) {
     clearInterval(interval);
     mqttClientA.end();
     mqttClientB.end();
@@ -119,21 +138,20 @@ describe('MqttSync', function() {
     clientB = null;
     clientRobot = null;
     clientMeta = null;
-
-    // console.log('shutting down mqtt server');
+    aedes.close();
     server && server.listening && server.close(done);
-  });
+  }, {timeout: 2000});
 
   /* ---------------------------------------------------------------- */
 
-  it('does simple sync', function(done) {
+  it('does simple sync', function(t, done) {
     clientA.publish('/a/#');
     clientB.subscribe('/a/#');
     clientA.data.update('a', {b: 1});
     inSync(clientA, clientB, done);
   });
 
-  it('does simple sync with 0\'s', function(done) {
+  it('does simple sync with 0\'s', function(t, done) {
     clientA.publish('/a/#');
     clientB.subscribe('/a/#');
     clientA.data.updateFromArray(['a', 'b'], 0);
@@ -142,14 +160,14 @@ describe('MqttSync', function() {
     inSync(clientA, clientB, done);
   });
 
-  it('truncates huge messages in log', function(done) {
+  it('truncates huge messages in log', function(t, done) {
     clientA.publish('/a/#');
     clientB.subscribe('/a/#');
     clientA.data.update('a', {b: randomId(10000)});
     inSync(clientA, clientB, done);
   });
 
-  it('does not bleed from test to test', function(done) {
+  it('does not bleed from test to test', function(t, done) {
     clientB.subscribe('/a/#');
     setTimeout(() => {
         assert.deepEqual(clientB.data.get(), {});
@@ -157,7 +175,7 @@ describe('MqttSync', function() {
       }, 30);
   });
 
-  it('keeps track of published messages', function(done) {
+  it('keeps track of published messages', function(t, done) {
     clientA.publish('/a/#');
     clientA.data.update('/a', {b: 1});
     clientA.data.update('/a/b', 2);
@@ -174,7 +192,7 @@ describe('MqttSync', function() {
   });
 
   it('removes sub-document messages when setting sub-document (flat to atomic)',
-    function(done) {
+    function(t, done) {
       clientA.publish('/a/#');
       clientB.subscribe('/a/#');
       clientA.data.update('/a/b/c', 1);
@@ -191,7 +209,7 @@ describe('MqttSync', function() {
       });
     });
 
-  it('syncs nulls on sub-documents (atomic to flat, to atomic)', function(done) {
+  it('syncs nulls on sub-documents (atomic to flat, to atomic)', function(t, done) {
     clientA.publish('/a/#');
     clientB.subscribe('/a/#');
     clientA.data.update('/a', {d: 1});
@@ -200,7 +218,7 @@ describe('MqttSync', function() {
     inSync(clientA, clientB, done);
   });
 
-  it('replaces super-document messages (atomic to flat)', function(done) {
+  it('replaces super-document messages (atomic to flat)', function(t, done) {
     clientA.publish('/a/#');
     clientB.subscribe('/a/#');
     clientA.data.update('/a/b', {c: 2});
@@ -215,7 +233,7 @@ describe('MqttSync', function() {
     });
   });
 
-  it('stays atomic on re-publish', function(done) {
+  it('stays atomic on re-publish', function(t, done) {
     clientA.publish('/a/#');
     // clientA.setThrottle(10);
     clientB.subscribe('/a/#');
@@ -231,7 +249,7 @@ describe('MqttSync', function() {
     }, 30);  // works with 1, not with 0 (because the self-published 2 will overwrite the 3), #FIX
   });
 
-  it('syncs correctly when switching from atomic to flat', function(done) {
+  it('syncs correctly when switching from atomic to flat', function(t, done) {
     clientA.publish('/a');
     clientB.subscribe('/a');
     clientA.data.update('/a', {b: {c: 1, d: 4}});
@@ -241,14 +259,14 @@ describe('MqttSync', function() {
   });
 
 
-  it('syncs when subscribing to super-document', function(done) {
+  it('syncs when subscribing to super-document', function(t, done) {
     clientA.publish('/a/b');
     clientB.subscribe('/a');
     clientA.data.update('/a', {b: {c: 1}});
     inSync(clientA, clientB, done);
   });
 
-  it('syncs when subscribing to sub-document once flat', function(done) {
+  it('syncs when subscribing to sub-document once flat', function(t, done) {
     clientA.publish('/a/#');
     clientB.subscribe('/a/b/#');
     clientA.data.update('/a', {b: {c: 1, d: 4}});
@@ -258,7 +276,7 @@ describe('MqttSync', function() {
     inSync(clientA, clientB, done);
   });
 
-  it('syncs when updating sub-document', function(done) {
+  it('syncs when updating sub-document', function(t, done) {
     clientA.publish('/a');
     clientB.subscribe('/a');
     clientA.data.update('/a', {b: {c: 1, d: 4}, e: 1});
@@ -266,7 +284,7 @@ describe('MqttSync', function() {
     inSync(clientA, clientB, done);
   });
 
-  it('syncs when using atomic', function(done) {
+  it('syncs when using atomic', function(t, done) {
     clientA.publish('/a', {atomic: true});
     clientB.subscribe('/a');
     clientA.data.update('/a', {b: {c: 1, d: 4}});
@@ -275,7 +293,7 @@ describe('MqttSync', function() {
     inSync(clientA, clientB, done);
   });
 
-  it('should ignore repeated publish calls for the same topic', function(done) {
+  it('should ignore repeated publish calls for the same topic', function(t, done) {
     let clientC = new MqttSync({mqttClient: clientB.mqtt});
     clientA.publish('/a');
     assert(!clientA.publish('/a'));
@@ -283,14 +301,14 @@ describe('MqttSync', function() {
   });
 
 
-  it('publishs topics with wildcards', function(done) {
+  it('publishs topics with wildcards', function(t, done) {
     clientA.publish('/+/b');
     clientB.subscribe('/a');
     clientA.data.update('/a/b/c', 2);
     inSync(clientA, clientB, done);
   });
 
-  it('publishs topics with wildcards (atomic)', function(done) {
+  it('publishs topics with wildcards (atomic)', function(t, done) {
     clientA.publish('/+/b', {atomic: true});
     clientB.subscribe('/a');
     clientA.data.update('/a/b', {c: 1});
@@ -299,7 +317,7 @@ describe('MqttSync', function() {
     inSync(clientA, clientB, done);
   });
 
-  it('triggers onChange callback', function(done) {
+  it('triggers onChange callback', function(t, done) {
     let clientC = new MqttSync({mqttClient: clientB.mqtt,
       onChange: () => done()
     });
@@ -308,7 +326,7 @@ describe('MqttSync', function() {
     clientA.data.update('/a', 1);
   });
 
-  it('triggers onChange callback (atomic)', function(done) {
+  it('triggers onChange callback (atomic)', function(t, done) {
     let clientC = new MqttSync({mqttClient: clientB.mqtt,
       onChange: () => done()
     });
@@ -317,7 +335,7 @@ describe('MqttSync', function() {
     clientA.data.update('/a', 1);
   });
 
-  it('triggers onChange callback on null', function(done) {
+  it('triggers onChange callback on null', function(t, done) {
     clientA.publish('/a');
     clientA.data.update('/a/b', 1);
     clientA.data.update('/a/c', 2);
@@ -331,12 +349,11 @@ describe('MqttSync', function() {
     clientC.subscribe('/a');
   });
 
-  it('waits for heartbeats', function(done) {
-    this.timeout(5000);
+  it('waits for heartbeats', {timeout: 5000}, function(t, done) {
     clientA.waitForHeartbeatOnce(done);
   });
 
-  it('triggers subscribePath callbacks on null (atomic)', function(done) {
+  it('triggers subscribePath callbacks on null (atomic)', function(t, done) {
     clientA.publish('/a/b', {atomic: true});
     clientB.subscribe('/a/b');
     clientA.data.update('/a/b', {c: 1});
@@ -346,7 +363,7 @@ describe('MqttSync', function() {
       }, 100);
   });
 
-  it('triggers subscribePath callbacks on topics with slashes', function(done) {
+  it('triggers subscribePath callbacks on topics with slashes', function(t, done) {
     clientA.publish('/a');
     clientB.subscribe('/a');
     setTimeout(() => {
@@ -356,7 +373,7 @@ describe('MqttSync', function() {
   });
 
   describe('migrate data', function() {
-    it('migrates single topic', function(done) {
+    it('migrates single topic', function(t, done) {
       clientA.publish('/uId/dId/@scope/capname/1.0.0');
       clientA.publish('/uId/dId/@scope/capname/1.1.0');
       clientA.subscribe('/uId/dId/@scope/capname/1.2.0/b/#');
@@ -385,7 +402,7 @@ describe('MqttSync', function() {
         }, 100);
     });
 
-    it('migrates single topic, base values', function(done) {
+    it('migrates single topic, base values', function(t, done) {
       clientA.publish('/uId/dId/@scope/capname/1.0.0');
       clientA.publish('/uId/dId/@scope/capname/1.1.0');
       clientA.subscribe('/uId/dId/@scope/capname/1.2.0/b/#');
@@ -416,7 +433,7 @@ describe('MqttSync', function() {
         }, 100);
     });
 
-    it('migrates nothing when nothing applies', function(done) {
+    it('migrates nothing when nothing applies', function(t, done) {
       clientA.publish('/uId/dId/@scope/capname/1.0.0');
       clientA.subscribe('/#');
       clientA.data.update('/uId/dId/@scope/capname/1.0.0/b', {c: 1, d: 1});
@@ -441,7 +458,7 @@ describe('MqttSync', function() {
         }, 100);
     });
 
-    it('migrates single topic with transform', function(done) {
+    it('migrates single topic with transform', function(t, done) {
       clientA.publish('/uId/dId/@scope/capname/1.0.0');
       clientA.publish('/uId/dId/@scope/capname/1.1.0');
       clientA.subscribe('/uId/dId/@scope/capname/1.2.0/b/#');
@@ -475,7 +492,7 @@ describe('MqttSync', function() {
         }, 100);
     });
 
-    it('migrates single topic flat', function(done) {
+    it('migrates single topic flat', function(t, done) {
       clientA.publish('/uId/dId/@scope/capname/1.0.0');
       clientA.publish('/uId/dId/@scope/capname/1.1.0');
       clientA.subscribe('/uId/dId/@scope/capname/1.2.0/b/#');
@@ -510,7 +527,7 @@ describe('MqttSync', function() {
         }, 100);
     });
 
-    it('migrates multiple topics', function(done) {
+    it('migrates multiple topics', function(t, done) {
       clientA.publish('/uId/dId/@scope/capname/1.0.0');
       clientA.publish('/uId/dId/@scope/capname/1.1.0');
       clientA.subscribe('/uId/dId/@scope/capname/1.2.0/b/#');
@@ -545,7 +562,7 @@ describe('MqttSync', function() {
         }, 100);
     });
 
-    it('migrates topics at lower levels separately', function(done) {
+    it('migrates topics at lower levels separately', function(t, done) {
       clientA.publish('/uId/dId/@scope/capname/1.0.0');
       clientA.publish('/uId/dId/@scope/capname/1.1.0');
       clientA.subscribe('/uId/dId/@scope/capname/1.2.0/b/#');
@@ -589,7 +606,7 @@ describe('MqttSync', function() {
         }, 100);
     });
 
-    it('correctly migrates topics with escaped slashes', function(done) {
+    it('correctly migrates topics with escaped slashes', function(t, done) {
       clientA.publish('/uId/dId/@scope/capname/1.0.0');
       clientA.publish('/uId/dId/@scope/capname/1.1.0');
       clientA.subscribe('/uId/dId/@scope/capname/1.2.0/b/#');
@@ -617,7 +634,7 @@ describe('MqttSync', function() {
         }, 100);
     });
 
-    it('ignores future versions', function(done) {
+    it('ignores future versions', function(t, done) {
       clientA.publish('/uId/dId/@scope/capname/1.0.0');
       clientA.publish('/uId/dId/@scope/capname/1.1.0');
       clientB.publish('/uId/dId/@scope/capname/1.3.0');
@@ -646,7 +663,7 @@ describe('MqttSync', function() {
         }, 100);
     });
 
-    it('cleans up after migration', function(done) {
+    it('cleans up after migration', function(t, done) {
       clientA.publish('/uId/dId/@scope/capname/1.0.0');
       clientA.publish('/uId/dId/@scope/capname/1.1.0');
       clientA.subscribe('/uId/dId/@scope/capname/1.2.0/b/#');
@@ -677,7 +694,7 @@ describe('MqttSync', function() {
         }, 100);
     });
 
-    it('does not fail on empty data', function(done) {
+    it('does not fail on empty data', function(t, done) {
       setTimeout(() => {
           let mqttClientC = mqtt.connect(mqttURL);
           let clientC = new MqttSync({
@@ -695,7 +712,7 @@ describe('MqttSync', function() {
     });
 
 
-    it('migrates topics with wildcards', function(done) {
+    it('migrates topics with wildcards', function(t, done) {
       clientA.publish('/+/dId/@scope/capname/+');
       clientA.subscribe('/#'); // result
       clientA.data.update('/uId1/dId/@scope/capname/1.0.0/b', {c: 1, d: 1});
@@ -744,7 +761,7 @@ describe('MqttSync', function() {
         }, 100);
     });
 
-    it('migrates topics with wildcards, flat', function(done) {
+    it('migrates topics with wildcards, flat', function(t, done) {
       clientA.publish('/+/dId/@scope/capname/+');
       clientA.subscribe('/+/dId/@scope/capname/1.2.0/b/#'); // result
       clientA.data.update('/uId1/dId/@scope/capname/1.0.0/b', {c: 1, d: 1});
@@ -781,7 +798,7 @@ describe('MqttSync', function() {
     });
   });
 
-  it('migrates topics with multiple wildcards', function(done) {
+  it('migrates topics with multiple wildcards', function(t, done) {
     clientA.publish('/+/+/@scope/capname/+');
     clientA.subscribe('/#'); // result
     clientA.data.update('/uId1/dId1/@scope/capname/1.0.0/b', {c: 1, d: 1});
@@ -830,7 +847,7 @@ describe('MqttSync', function() {
       }, 100);
   });
 
-  it('migrates topics with wildcards and empty sets', function(done) {
+  it('migrates topics with wildcards and empty sets', function(t, done) {
     clientA.publish('/+/dId/@scope/capname/+');
     clientA.subscribe('/#'); // result
     clientA.data.update('/uId1/dId/@scope/capname/1.0.0/b', {c: 1, d: 1});
@@ -881,7 +898,7 @@ describe('MqttSync', function() {
     - see same topic updates merged
     - see no more than RATE updates per minute per topic
   */
-  it('does throttle', function(done) {
+  it('does throttle', function(t, done) {
     clientA.publish('/a/#');
     clientA.setThrottle(300);
     clientB.subscribe('/a/#');
@@ -899,13 +916,13 @@ describe('MqttSync', function() {
         clientA.data.update('a', {b: 7});
       }, 100);
     inSync(clientA, clientB, () => {
-        assert.equal(messages, 3);
+        assert.equal(messages, 2);
         // 2 would be ideal, but there seems to be some duplicate messages
         done();
       }, 500);
   });
 
-  it('calls onReady', function(done) {
+  it('calls onReady', function(t, done) {
     mqttClientA.end();
     mqttClientB.end();
     clientA = null;
@@ -923,7 +940,7 @@ describe('MqttSync', function() {
     });
   });
 
-  it('calls onReady with migrate', function(done) {
+  it('calls onReady with migrate', function(t, done) {
     clientA.publish('/uId/dId/@scope/capname/1.0.0');
     clientA.publish('/uId/dId/@scope/capname/1.1.0');
     clientA.subscribe('/uId/dId/@scope/capname/1.2.0/b/#');
@@ -952,7 +969,7 @@ describe('MqttSync', function() {
     });
   });
 
-  it('does sliceTopic', function(done) {
+  it('does sliceTopic', function(t, done) {
     clientA.publish('/#');
     let mqttClientC = mqtt.connect(mqttURL);
     let clientC = new MqttSync({
@@ -971,7 +988,7 @@ describe('MqttSync', function() {
     clientA.data.update('/a/a/b', {c: 1})
   });
 
-  it('key-prefixes do not break key', function(done) {
+  it('key-prefixes do not break key', function(t, done) {
     clientA.publish('/a/#');
     clientB.subscribe('/a/#');
     clientA.data.update('/a/b', 'good');
@@ -987,8 +1004,8 @@ describe('MqttSync', function() {
 
     /** checks that we record external changes to the data such that when we
     subsequently make another change to it, e.g., deleting it, we will publish
-  that. */
-    it('detects changes to external updates', function(done) {
+    that. */
+    it('detects changes to external updates', function(t, done) {
       clientA.publish('/a/#');
       clientB.publish('/a/#'); // implies subscribing to
       clientA.data.update('/a/b', 'good');
@@ -1002,7 +1019,7 @@ describe('MqttSync', function() {
         }, 100);
     });
 
-    it('does not republish changes received from subscription', function(done) {
+    it('does not republish changes received from subscription', function(t, done) {
       clientA.publish('/a/#');
       clientA.data.update('/a/b', 'good');
       let failed = false;
@@ -1024,7 +1041,7 @@ describe('MqttSync', function() {
         }, 100);
     });
 
-    it('does not republish (atomic) changes received from subscription', function(done) {
+    it('does not republish (atomic) changes received from subscription', function(t, done) {
       clientA.publish('/a');
       clientA.data.update('/a/b', 'good');
       let failed = false;
@@ -1049,7 +1066,7 @@ describe('MqttSync', function() {
   });
 
   describe('clear', function() {
-    it('does simple clears', function(done) {
+    it('does simple clears', function(t, done) {
       clientA.publish('/#');
       clientB.subscribe('/#');
       clientA.data.update('/uId/dId/@scope/capname/1.0.0/a', {d: 1});
@@ -1065,7 +1082,7 @@ describe('MqttSync', function() {
       });
     });
 
-    it('applies filters when clearing', function(done) {
+    it('applies filters when clearing', function(t, done) {
       clientA.publish('/#');
       clientB.subscribe('/#');
       clientA.data.update('/uId/dId/@scope/capname/1.0.0/a', {d: 1});
@@ -1084,7 +1101,7 @@ describe('MqttSync', function() {
     });
 
 
-    it('does not retrigger listeners with values during clear', function(done) {
+    it('does not retrigger listeners with values during clear', function(t, done) {
       clientA.publish('/#');
       clientB.subscribe('/uId/dId/@scope/capname/1.0.0/a');
       clientB.publish('/uId/dId/@scope/capname/1.0.0/b');
@@ -1105,7 +1122,7 @@ describe('MqttSync', function() {
         }, 200);
     });
 
-    it('clears yet-unknown sub-topics', function(done) {
+    it('clears yet-unknown sub-topics', function(t, done) {
       clientA.publish('/#');
       clientA.data.update('/uId/dId/@scope/capname/1.0.0/a', {d: 1});
       clientA.data.update('/uId/dId/@scope/capname/1.0.0/b', {c: 1});
@@ -1123,7 +1140,7 @@ describe('MqttSync', function() {
     /* Note that the aedes mqtt broker seems to behave slightly differently here
     than mosquitto: In mosquitto, it seems we do not receive the already
     subscribed topics again when we call clear, while in aedes we do. */
-    it('clears already known sub-topics', function(done) {
+    it('clears already known sub-topics', function(t, done) {
       clientA.publish('/#');
       clientB.subscribe('/#');
       clientA.data.update('/uId/dId/@scope/capname/1.0.0/a', {d: 1});
@@ -1141,7 +1158,7 @@ describe('MqttSync', function() {
         }, 400);
     });
 
-    it('clears already known parent topics', function(done) {
+    it('clears already known parent topics', function(t, done) {
       clientA.publish('/#');
       clientB.subscribe('/#');
       clientA.data.update('/uId/dId/@scope/capname/1.0.0/a', {d: 1});
@@ -1158,7 +1175,7 @@ describe('MqttSync', function() {
         }, 400);
     });
 
-    it('applies filters when clearing already known sub-topics', function(done) {
+    it('applies filters when clearing already known sub-topics', function(t, done) {
       clientA.publish('/#');
       clientB.subscribe('/#');
       clientA.data.update('/uId/dId/@scope/capname/1.0.0/a', {d: 1});
@@ -1184,8 +1201,7 @@ describe('MqttSync', function() {
     });
 
 
-    it('does not repeatedly clear the same topics', async function() {
-      this.timeout(4000);
+    it('does not repeatedly clear the same topics', {timeout: 4000}, async function() {
 
       clientA.publish('/#');
       clientB.subscribe('/#');
@@ -1211,15 +1227,14 @@ describe('MqttSync', function() {
     });
   });
 
-  it('calls onBeforeDisconnect hooks', function(done) {
+  it('calls onBeforeDisconnect hooks', function(t, done) {
     clientA.onBeforeDisconnect(() => done());
     clientA.beforeDisconnect();
   });
 
 
   describe('does not block queue processing', function() {
-    it('.. when client disconnects and reconnects', function(done) {
-      this.timeout(10000);
+    it('.. when client disconnects and reconnects', {timeout: 10000}, function(t, done) {
       clientA.publish('/a/#');
       clientB.subscribe('/a/#');
       clientA.mqtt.end(() => {
@@ -1235,7 +1250,7 @@ describe('MqttSync', function() {
       })
     });
 
-    it('.. when publish non-permitted topic/message', function(done) {
+    it('.. when publish non-permitted topic/message', function(t, done) {
       clientA.publish('/a/#');
       clientA.data.update('a/notAllowed', 1);
       setTimeout(() => {
@@ -1244,8 +1259,7 @@ describe('MqttSync', function() {
         }, 100);
     });
 
-    // it('.. when broker restarts', function(done) {
-    //   this.timeout(5000);
+    // it('.. when broker restarts', {timeout: 5000}, function(t, done) {
     //   clientA.publish('/a/#');
     //   server.close(() => {
     //     delete server;
@@ -1265,8 +1279,7 @@ describe('MqttSync', function() {
   });
 
   describe('multiple publishers', function() {
-    it('producer and destructive consumer', function(done) {
-      this.timeout(10000);
+    it('producer and destructive consumer', {timeout: 10000}, function(t, done) {
       clientA.publish('/#');
       clientB.publish('/#');
       clientA.data.update('a', {b: 1});
@@ -1285,7 +1298,7 @@ describe('MqttSync', function() {
     const command = '/command1';
     const command2 = '/commands/subcom1/mycommand2';
 
-    it('send simple RPC', function(done) {
+    it('send simple RPC', function(t, done) {
       clientA.register(command, arg => arg * arg);
 
       setTimeout(() => {
@@ -1360,7 +1373,7 @@ describe('MqttSync', function() {
   });
 
 
-  it('ignores (binary) data sent and subscribed directly on client', function(done) {
+  it('ignores (binary) data sent and subscribed directly on client', function(t, done) {
     clientA.publish('/a/#');
     clientB.subscribe('/a/#');
 
@@ -1371,10 +1384,11 @@ describe('MqttSync', function() {
       }
     });
 
-    const buffer = Buffer.from([200, 201, 202, 203]); // some binary data
-    clientA.mqtt.publish('/binary/b', buffer);
-
-    clientA.data.update('a', {b: 1});
+    setTimeout(() => {
+        const buffer = Buffer.from([200, 201, 202, 203]); // some binary data
+        clientA.mqtt.publish('/binary/b', buffer);
+        clientA.data.update('a', {b: 1});
+      }, 50);
   });
 
   it('requests history storage without data change', async function() {
