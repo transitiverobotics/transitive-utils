@@ -67,6 +67,19 @@ describe('ClickHouse', function() {
     await clickhouse.registerMqttTopicForStorage(STANDARD_TOPIC_PATTERN);
   });
 
+  describe('basics', () => {
+    it('creates tables without crashing', async () => {
+      const result = await clickhouse.createTable('test_tmp',
+        ['text String']);
+
+      // clean up
+      await clickhouse.client.command({
+        query: `DROP TABLE IF EXISTS test_tmp`,
+        clickhouse_settings: { wait_end_of_query: 1 }
+      })
+    });
+  });
+
   describe('enableHistory', () => {
     it('should create the mqtt_history table', async () => {
       const result = await clickhouse.client.query({

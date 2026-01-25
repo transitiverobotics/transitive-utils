@@ -8,7 +8,7 @@ const { topicToPath, topicMatch } = require('@transitive-sdk/datacache');
 // Default TTL in days for mqtt_history table
 const DEFAULT_TTL_DAYS = 30;
 
-// Shared multi-tenant schema components used by createTable and ensureMqttHistoryTable
+// Shared multi-tenant schema components used by createTable and enableHistory
 const MULTI_TENANT_SCHEMA = {
   // Column definitions for OrgId and DeviceId
   columns: [
@@ -109,13 +109,15 @@ class ClickHouse {
    * @param {Array<string>} columns - array of column definitions and indexes, e.g. ['Timestamp DateTime CODEC(ZSTD(1))', 'Value Float32 CODEC(ZSTD(1))']
    * @param {Array<string>} settings - array of table settings, e.g. ['ENGINE = MergeTree()', 'ORDER BY (Timestamp)']
    */
-  async createTable(tableName, columns, settings = []) {
+  async createTable(tableName, columns, settings = ['ORDER BY (OrgId, DeviceId)']) {
     const fullSchema = [
       ...columns,
       ...MULTI_TENANT_SCHEMA.columns,
       ...MULTI_TENANT_SCHEMA.indexes
     ];
-    const query = `CREATE TABLE IF NOT EXISTS ${tableName} (${fullSchema.join(', ')}) ${settings.join(' ')}`;
+    const query = `CREATE TABLE IF NOT EXISTS ${tableName}
+      (${fullSchema.join(', ')})
+      ${settings.join(' ')}`;
 
     try {
       return await this.client.exec({
