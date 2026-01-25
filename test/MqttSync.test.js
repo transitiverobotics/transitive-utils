@@ -78,6 +78,7 @@ describe('MqttSync', function() {
       mqttClientA = mqtt.connect(mqttURL);
       mqttClientB = mqtt.connect(mqttURL);
       mqttClientRobot = mqtt.connect(mqttURL);
+      mqttClientMeta = mqtt.connect(mqttURL);
 
       const initAll = () => {
         if (mqttClientA.connected && mqttClientB.connected &&
@@ -85,6 +86,7 @@ describe('MqttSync', function() {
           clientA = new MqttSync({mqttClient: mqttClientA, ignoreRetain: true});
           clientB = new MqttSync({mqttClient: mqttClientB, ignoreRetain: true});
           clientRobot = new MqttSync({mqttClient: mqttClientRobot});
+          clientMeta = new MqttSync({mqttClient: mqttClientMeta, inclMeta: true});
           done();
         }
       }
@@ -92,6 +94,7 @@ describe('MqttSync', function() {
       mqttClientA.on('connect', initAll);
       mqttClientB.on('connect', initAll);
       mqttClientRobot.on('connect', initAll);
+      mqttClientMeta.on('connect', initAll);
 
       // Aedes doesn't by itself send these, so we will, like mosquitto does
       const start = Date.now();
@@ -107,12 +110,15 @@ describe('MqttSync', function() {
     mqttClientA.end();
     mqttClientB.end();
     mqttClientRobot.end();
+    mqttClientMeta.end();
     mqttClientA = null;
     mqttClientB = null;
     mqttClientRobot = null;
+    mqttClientMeta = null;
     clientA = null;
     clientB = null;
     clientRobot = null;
+    clientMeta = null;
 
     // console.log('shutting down mqtt server');
     server && server.listening && server.close(done);
@@ -1354,7 +1360,6 @@ describe('MqttSync', function() {
   });
 
 
-
   it('ignores (binary) data sent and subscribed directly on client', function(done) {
     clientA.publish('/a/#');
     clientB.subscribe('/a/#');
@@ -1370,6 +1375,24 @@ describe('MqttSync', function() {
     clientA.mqtt.publish('/binary/b', buffer);
 
     clientA.data.update('a', {b: 1});
+  });
+
+  it('requests history storage without data change', async function() {
+    clientA.publish('/#');
+    clientB.subscribe('/#');
+    clientA.requestHistoryStorage('/+/+/scope/cap/+/mydata', 13);
+    await wait(10);
+    assert.deepEqual(clientA.data.get(), {});
+    assert.deepEqual(clientB.data.get(), {});
+  });
+
+  it('receives storage requests only when requesting meta-data', async function() {
+    clientMeta.subscribe('/$store/#');
+    clientA.requestHistoryStorage('/+/+/scope/cap/+/mydata', 13);
+    clientB.subscribe('/#');
+    await wait(50);
+    assert.equal(clientMeta.data.get().$store.$store.scope.cap.$store.mydata, 13);
+    assert.deepEqual(clientB.data.get(), {});
   });
 
 });

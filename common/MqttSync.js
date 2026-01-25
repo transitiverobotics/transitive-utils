@@ -3,9 +3,10 @@
 const _ = require('lodash');
 
 const { mqttParsePayload, topicMatch, topicToPath, pathToTopic,
-toFlatObject, getLogger, mergeVersions, parseMQTTTopic, isSubTopicOf,
-versionCompare, encodeTopicElement, visitAncestor, getRandomId }
-  = require('./common');
+  toFlatObject, getLogger, mergeVersions, parseMQTTTopic, isSubTopicOf,
+  versionCompare, encodeTopicElement, visitAncestor, getRandomId,
+  selectorToStorageRequest
+} = require('./common');
 const { DataCache } = require('./datacache/DataCache');
 
 
@@ -107,7 +108,7 @@ class MqttSync {
   rpcCallbacks = {}; // callback for RPC requests we've sent
 
   constructor({mqttClient, onChange, ignoreRetain, migrate, onReady,
-    sliceTopic, onHeartbeatGranted }) {
+    sliceTopic, onHeartbeatGranted, inclMeta }) {
 
     this.mqtt = mqttClient;
     this.sliceTopic = sliceTopic;
@@ -138,6 +139,11 @@ class MqttSync {
         if (sliceTopic) {
           path = path.slice(sliceTopic);
           topic = pathToTopic(path);
+        }
+
+        // filter meta-topics unless explicitly requested
+        if (!inclMeta && path.some(field => field[0] == '$')) {
+          return;
         }
 
         if (this.rpcHandlers[topic]) {
@@ -385,20 +391,20 @@ class MqttSync {
   };
 
 
-  /** register a callback for the next heartbeat from the broker */
+  /** Register a callback for the next heartbeat from the broker */
   waitForHeartbeatOnce(callback) {
     // need to wait a tick, in case we are still in the callback tree
     // of a previous heartbeat waiter
     setTimeout(() => this.heartbeatWaitersOnce.push(callback), 1);
   }
 
-  /** check whether we are subscribed to the given topic */
+  /* check whether we are subscribed to the given topic */
   isSubscribed(topic) {
     return Object.keys(this.subscribedPaths).some(subscribedTopic =>
       topicMatch(subscribedTopic, topic));
   }
 
-  /** Check whether we are publishing the given topic in a non-atomic way.
+  /* Check whether we are publishing the given topic in a non-atomic way.
   This is used to determine whether to store the published value or not. */
   isPublished(topic) {
     return Object.keys(this.publishedPaths).some(subscribedTopic =>
@@ -439,7 +445,7 @@ class MqttSync {
     }
   }
 
-  /** Publish retained to MQTT, store as published, and return a promise */
+  /* Publish retained to MQTT, store as published, and return a promise */
   _actuallyPublish(topic, value) {
     // return new Promise((resolve, reject) =>
     //   this.mqtt.publish(topic,
@@ -470,7 +476,7 @@ class MqttSync {
     return true;
   }
 
-  /** Send all items in the queue in sequence, if any and if not already
+  /* Send all items in the queue in sequence, if any and if not already
   running. */
   // async _processQueue() {
   //   if (this._processing) return; // already running (and probably waiting)
@@ -532,7 +538,7 @@ class MqttSync {
     this.publishQueue.set(topic, value);
   }
 
-  /** Add to publication queue */
+  /* Add to publication queue */
   _enqueue(topic, value) {
     log.debug('enqueuing', topic);
     this.addToQueue(topic, value);
@@ -778,6 +784,15 @@ class MqttSync {
         this.rpcCallbacks[responseTopic] = resolve;
       });
     }
+  }
+
+  /** Request the history of the described topics (selector with wildcards) to
+  * be stored in ClickHouse for the `ttl` number of days (if the mqtt2clickhouse
+  * service is running -- as it usually is inside the
+  * transitiverobotics/clickhouse docker image). */
+  requestHistoryStorage(topic, ttl = 1) {
+    const storageRequest = selectorToStorageRequest(topic);
+    this.mqtt.publish(storageRequest, String(ttl), {retain: true});
   }
 }
 

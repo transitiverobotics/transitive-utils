@@ -8,7 +8,8 @@ const { updateObject, DataCache, toFlatObject, topicToPath, topicMatch,
   mergeVersions, isSubTopicOf,
   setFromPath, getLogger, fetchURL, visit, wait, formatBytes,
   formatDuration, findPath, tryJSONParse,
-  forMatchIterator
+  forMatchIterator,
+  storageRequestToSelector, selectorToStorageRequest
 } = require('../index');
 const Mongo = require('../mongo/index');
 
@@ -1098,5 +1099,20 @@ describe('forMatchIterator', function() {
       assert.deepEqual(path, ['a', 'b', 'c']);
       done();
     });
+  });
+});
+
+
+describe('storage request topics', function() {
+  it('is inverse', function() {
+    for (let topic of [
+      '/$store/a',
+      '/$store/a/$storage',
+      '/$store/a/$storage/b',
+      '/$store/#',
+      '/$store/a/$storage/b/#',
+    ]) {
+      assert(storageRequestToSelector(selectorToStorageRequest(topic)), topic);
+    }
   });
 });

@@ -200,6 +200,7 @@ feature over the latter. Relies on retained messages in mqtt for persistence.
         slice the topic, i.e., only use a suffix. Used in robot-capabilities to slice
         off the topic prefix (namespaces).
     *   `options.onHeartbeatGranted` &#x20;
+    *   `options.inclMeta` &#x20;
 
 ### beforeDisconnect
 
@@ -210,15 +211,24 @@ Run all registered hooks before disconnecting
 Make an RPC request. Example:
 
 ```js
-mqttSync.call('/mySquare', 11, result => {
+mqttSync.call('/orgId/deviceId/@capScope/capName/capVersion/mySquare', 11, result => {
   log.debug(`Called /mySquare with arg 11 and got ${result}`);
 });
 ```
 
+This would call the RPC 'mySquare' registered by version `capVersion` of the
+capability `@capScope/capName` running on device `deviceId` by user `orgId`.
+That RPC would have been registered on the device using
+`mqttSync.register('/mySquare', ...)` as shown above (because namespaces
+on the device are auto-extended to the org, device and capability).
+
+RPCs are typically registered on the robot and called from the web or cloud
+but the inverse is also possible, with the same namespace caveat.
+
 Alternative you can omit the callback and use async/await:
 
 ```js
-const result = await mqttSync.call('/mySquare', 11);
+const result = await mqttSync.call('${prefix}/mySquare', 11);
 log.debug(`Called /mySquare with arg 11 and got ${result}`);
 ```
 
@@ -257,23 +267,6 @@ subscription by localMQTT.
 ### clearThrottle
 
 Clear the set throttling delay.
-
-### isPublished
-
-Check whether we are publishing the given topic in a non-atomic way.
-This is used to determine whether to store the published value or not.
-
-##### Parameters
-
-*   `topic` &#x20;
-
-### isSubscribed
-
-check whether we are subscribed to the given topic
-
-##### Parameters
-
-*   `topic` &#x20;
 
 ### migrate
 
@@ -358,6 +351,18 @@ handler before responding to the RPC request client.
 *   `command` &#x20;
 *   `handler` &#x20;
 
+### requestHistoryStorage
+
+Request the history of the described topics (selector with wildcards) to
+be stored in ClickHouse for the `ttl` number of days (if the mqtt2clickhouse
+service is running -- as it usually is inside the
+transitiverobotics/clickhouse docker image).
+
+##### Parameters
+
+*   `topic` &#x20;
+*   `ttl`   (optional, default `1`)
+
 ### setThrottle
 
 Set delay between processing of publishing queue in milliseconds. This
@@ -382,7 +387,7 @@ indicate success/failure, *not* a message on the topic.
 
 ### waitForHeartbeatOnce
 
-register a callback for the next heartbeat from the broker
+Register a callback for the next heartbeat from the broker
 
 ##### Parameters
 
@@ -521,6 +526,15 @@ to only contain elements matched by the path, e.g.,
 *   `path` **[array][4]** An array specifying the path to select, potentially
     containing mqtt wildcards ('+').
 
+## selectorToStorageRequest
+
+Given a selector with wildcards, return a storage request topic (inverse
+of storageRequestToSelector.
+
+#### Parameters
+
+*   `topic` &#x20;
+
 ## setFromPath
 
 Like \_.set but without arrays. This allows using numbers as keys.
@@ -530,6 +544,14 @@ Like \_.set but without arrays. This allows using numbers as keys.
 *   `obj` &#x20;
 *   `path` &#x20;
 *   `value` &#x20;
+
+## storageRequestToSelector
+
+Given a storage request topic, replace the meta-data fields into wildcards
+
+#### Parameters
+
+*   `topic` &#x20;
 
 ## toBase52
 

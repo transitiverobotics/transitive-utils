@@ -192,6 +192,17 @@ const mqttClearRetained = (mqttClient, prefixes, callback, delay = 1000) => {
 //   return payload.length == 0 ? null : JSON.parse(payload.toString('utf-8'));
 // };
 
+/** Given a storage request topic, replace the meta-data fields into wildcards */
+const storageRequestToSelector = (topic) => pathToTopic(topicToPath(topic)
+    .map(value => value == '$store' ? '+' : value)
+    .map(value => value == '$storeTail' ? '#' : value));
+
+/** Given a selector with wildcards, return a storage request topic (inverse
+ * of storageRequestToSelector. */
+const selectorToStorageRequest = (topic) => pathToTopic(topicToPath(topic)
+    .map(value => value[0] == '+' ? '$store' : value)
+    .map(value => value[0] == '#' ? '$storeTail' : value));
+
 
 // -------------------------------------------------------------------------
 
@@ -293,5 +304,6 @@ module.exports = { parseMQTTUsername, parseMQTTTopic,
   mergeVersions, mqttClearRetained, isSubTopicOf, clone, setFromPath,
   forMatchIterator, encodeTopicElement, decodeTopicElement, constants, visit,
   wait, formatBytes, formatDuration, tryJSONParse,
-  decodeJWT, visitAncestor
+  decodeJWT, visitAncestor,
+  storageRequestToSelector, selectorToStorageRequest
 };
