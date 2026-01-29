@@ -146,9 +146,10 @@ class MqttSync {
           return;
         }
 
-        if (this.rpcHandlers[topic]) {
+        const rpcHandler = this.getRPCHandler(topic);
+        if (rpcHandler) {
           const json = mqttParsePayload(payload);
-          this.handleRPCRequest(topic, json);
+          this.handleRPCRequest(path, rpcHandler, json);
 
         } else if (this.rpcCallbacks[topic]) {
           const json = mqttParsePayload(payload);
@@ -675,13 +676,20 @@ class MqttSync {
   *  Remote Procedure Calls (RPC)
   */
 
-  /* Handle RPC requests  */
-  async handleRPCRequest(topic, json) {
-    log.debug('handling RPC request for', topic, json);
-    const handler = this.rpcHandlers[topic];
-    const result = handler(json.args);
+  /** Given a (ground) topic find the matching RPC handler, if any. This is
+  * needed because RPC topics can include wildcards. */
+  getRPCHandler(topic) {
+    return _.find(this.rpcHandlers, (_handler, topicSelector) =>
+      topicMatch(topicSelector, topic));
+  }
 
-    const responseTopic = `${topic.replace('/request', '/response')}/${json.id}`;
+  /* Handle RPC requests  */
+  async handleRPCRequest(path, handler, json) {
+    log.debug('handling RPC request for', path, json);
+    const commandTopic = pathToTopic(path.slice(0, -1));
+    const result = handler(json.args, commandTopic);
+
+    const responseTopic = `${commandTopic}/response/${json.id}`;
 
     if (result instanceof Promise) {
       result.then( resultValue => this.mqtt.publish(responseTopic,
@@ -703,24 +711,29 @@ class MqttSync {
   }
 
   /** Register an RPC request handler. Example:
-   * ```js
-   * mqttSync.register('/mySquare', arg => {
-   *   log.debug('running /mySquare with args', arg);
-   *   return arg * arg;
-   * });
-   * ```
-   * Note that the command topic needs to be in the capabilities namespace like
-   * any other topic. In robot capabilities, as usual, these can start in `/`
-   * because the local mqtt bridge operated by the robot agent will place all
-   * topics in their respective namespace. In the cloud and on the web you will
-   * need to use the respective namespace, i.e.,
-   * `/orgId/deviceId/@scope/capName/capVersion/`.
-   *
-   * #### Async/Await
-   * Yes, you can make the handler `async` and use `await` inside of it. This
-   * will be handled correctly, i.e., MqttSync will await the result of the
-   * handler before responding to the RPC request client.
-   */
+  * ```js
+  * mqttSync.register('/mySquare', (arg, commandTopic) => {
+  *   log.debug('we got request on topic', commandTopic);
+  *   log.debug('running /mySquare with args', arg);
+  *   return arg * arg;
+  * });
+  * ```
+  * Note that the command topic needs to be in the capabilities namespace like
+  * any other topic. In robot capabilities, as usual, these can start in `/`
+  * because the local mqtt bridge operated by the robot agent will place all
+  * topics in their respective namespace. In the cloud and on the web you will
+  * need to use the respective namespace, i.e.,
+  * `/orgId/deviceId/@scope/capName/capVersion/`.
+  *
+  * You can use wildcards in the registered topic. The handler will receive the
+  * actual, ground topic the request was made on as the second argument. This
+  * allows you to make the RPCs behavior depend on the topic.
+  *
+  * #### Async/Await
+  * Yes, you can make the handler `async` and use `await` inside of it. This
+  * will be handled correctly, i.e., MqttSync will await the result of the
+  * handler before responding to the RPC request client.
+  */
   register(command, handler) {
     log.debug('registering RPC handler for', command);
     const requestTopic = `${command}/request`;

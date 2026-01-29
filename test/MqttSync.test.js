@@ -2,7 +2,6 @@ const { describe, it, before, after, beforeEach, afterEach } = require('node:tes
 const assert = require('assert');
 const Aedes = require('aedes');
 const mqtt = require('mqtt');
-const { default: why } = require('why-is-node-running');
 
 // const MqttSync = require('../common/MqttSync');
 const { getLogger, DataCache, parseMQTTTopic, randomId, topicToPath, wait,
@@ -1294,7 +1293,7 @@ describe('MqttSync', function() {
     });
   });
 
-  describe('RPCs', function() {
+  describe('RPCs', {timeout: 10000}, function() {
     const command = '/command1';
     const command2 = '/commands/subcom1/mycommand2';
 
@@ -1368,6 +1367,15 @@ describe('MqttSync', function() {
       clientA.register(command, arg => arg * arg * arg * arg * arg);
       await wait(10);
       assert.equal(await clientRobot.call(command, 2), 32);
+    });
+
+    it('supports RPCs with wildcards', {timeout: 1000}, async function() {
+      clientA.register('/service/+/+/rpc/command',
+        (arg, commandTopic) => `${commandTopic}: ${arg}`);
+      await wait(10);
+      assert.equal(
+        await clientRobot.call('/service/foo/bar/rpc/command', 2),
+        '/service/foo/bar/rpc/command: 2');
     });
 
   });
