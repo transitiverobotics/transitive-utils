@@ -268,6 +268,15 @@ subscription by localMQTT.
 
 Clear the set throttling delay.
 
+### getRPCHandler
+
+Given a (ground) topic find the matching RPC handler, if any. This is
+needed because RPC topics can include wildcards.
+
+##### Parameters
+
+*   `topic` &#x20;
+
 ### migrate
 
 Migrate a list of `{topic, newVersion, transform}`. The version number in
@@ -327,7 +336,8 @@ TODO: Is this OK, or do we need to go through this.publish?
 Register an RPC request handler. Example:
 
 ```js
-mqttSync.register('/mySquare', arg => {
+mqttSync.register('/mySquare', (arg, commandTopic) => {
+  log.debug('we got request on topic', commandTopic);
   log.debug('running /mySquare with args', arg);
   return arg * arg;
 });
@@ -339,6 +349,10 @@ because the local mqtt bridge operated by the robot agent will place all
 topics in their respective namespace. In the cloud and on the web you will
 need to use the respective namespace, i.e.,
 `/orgId/deviceId/@scope/capName/capVersion/`.
+
+You can use wildcards in the registered topic. The handler will receive the
+actual, ground topic the request was made on as the second argument. This
+allows you to make the RPCs behavior depend on the topic.
 
 #### Async/Await
 
