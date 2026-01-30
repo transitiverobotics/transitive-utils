@@ -314,7 +314,8 @@ describe('ClickHouse', function() {
       for (let i = 0; i < ROWS; i++) {
        rows.push({
           Timestamp: new Date(now + i * GAP), // use current date to avoid immediate TTL cleanup
-          TopicParts: [`org${i % 50}`, `device${i % 1000}`, '@myscope', `cap${i % 100}`, `1.${i % 100}.0`, 'data', i],
+          TopicParts: [`org${i % 50}`, `device${i % 1000}`, '@myscope',
+            `cap${i % 100}`, `1.${i % 100}.0`, `data_${i % 1000}`, i],
           Payload: { i },
        })
       }
@@ -360,7 +361,7 @@ describe('ClickHouse', function() {
 
     it('quickly filters by DeviceId', async () => {
       const rows = await clickhouse.queryMQTTHistory({
-        topicSelector: `/+/device123/+/+/+/data`,
+        topicSelector: `/+/device123/+/+/+/+`,
         limit: 2 * ROWS,
       });
       assert.equal(rows.length, ROWS / 1000);
@@ -369,16 +370,25 @@ describe('ClickHouse', function() {
 
     it('quickly filters by CapabilityName', async () => {
       const rows = await clickhouse.queryMQTTHistory({
-        topicSelector: `/+/+/+/cap34/+/data`,
+        topicSelector: `/+/+/+/cap34/+/+`,
         limit: 2 * ROWS,
       });
       assert.equal(rows.length, ROWS / 100);
       assertTimelimit(ROWS / 1000);
     });
 
+    it('quickly filters by SubTopic', async () => {
+      const rows = await clickhouse.queryMQTTHistory({
+        topicSelector: `/+/+/+/+/+/data_123`,
+        limit: 2 * ROWS,
+      });
+      assert.equal(rows.length, ROWS / 1000);
+      assertTimelimit(ROWS / 1000);
+    });
+
     it('quickly filters by time: since', async () => {
       const rows = await clickhouse.queryMQTTHistory({
-        topicSelector: `/+/+/+/+/+/data`,
+        topicSelector: `/+/+/+/+/+/+`,
         since: new Date(now + (ROWS - 400) * GAP),
         limit: 2 * ROWS,
       });
@@ -388,7 +398,7 @@ describe('ClickHouse', function() {
 
     it('quickly filters by time: until', async () => {
       const rows = await clickhouse.queryMQTTHistory({
-        topicSelector: `/+/+/+/+/+/data`,
+        topicSelector: `/+/+/+/+/+/+`,
         until: new Date(now + 400 * GAP),
         limit: 2 * ROWS,
       });
@@ -398,7 +408,7 @@ describe('ClickHouse', function() {
 
     it('quickly filters by org and time: since', async () => {
       const rows = await clickhouse.queryMQTTHistory({
-        topicSelector: `/org23/+/+/+/+/data`,
+        topicSelector: `/org23/+/+/+/+/+`,
         since: new Date(now + (ROWS - 400) * GAP),
         limit: 2 * ROWS,
       });
