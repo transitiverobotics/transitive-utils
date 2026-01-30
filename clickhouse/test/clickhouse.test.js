@@ -33,6 +33,7 @@ const interceptInserts = () => {
 const queryRowsByOrg = async (org, options = {}) =>
   await clickhouse.queryMQTTHistory({
     topicSelector: `/${org}/+/+/+/+/+`,
+    orderBy: 'Timestamp ASC',
     ...options
   });
 
@@ -245,12 +246,14 @@ describe('ClickHouse', function() {
 
     it('queries with wild cards', async () => {
       const rows = await clickhouse.queryMQTTHistory({
+        orderBy: 'Timestamp ASC',
         topicSelector: `/${org}/+/+/+/+/+` });
       assert(rows.length > 0);
     });
 
     it('queries with multiple selectors', async () => {
       const [row] = await clickhouse.queryMQTTHistory({
+        orderBy: 'Timestamp ASC',
         topicSelector: `/${org}/+/+/capdata/+/+` });
       assert.strictEqual(row.DeviceId, 'device1');
       assert.deepEqual(row.SubTopic, ['data']);
@@ -260,6 +263,7 @@ describe('ClickHouse', function() {
 
     it('queries based on sub-topic selectors', async () => {
       const [row] = await clickhouse.queryMQTTHistory({
+        orderBy: 'Timestamp ASC',
         topicSelector: `/${org}/+/+/+/+/data2` });
       assert.strictEqual(row.DeviceId, 'device1');
       assert.deepStrictEqual(row.Payload, { y: 2 });
@@ -267,12 +271,14 @@ describe('ClickHouse', function() {
 
     it('queries based on sub-topic selectors with wildcards', async () => {
       const [row] = await clickhouse.queryMQTTHistory({
+        orderBy: 'Timestamp ASC',
         topicSelector: `/${org}/+/+/+/+/+/sub2/+` });
       assert.deepStrictEqual(row.SubTopic[2], 'sub3.1');
     });
 
     it('queries based on multiple sub-topic selectors with wildcards', async () => {
       const rows = await clickhouse.queryMQTTHistory({
+        orderBy: 'Timestamp ASC',
         topicSelector: `/${org}/+/+/+/+/sub1/+/+` });
       assert.strictEqual(rows[0].SubTopic.length, 3);
       assert.strictEqual(rows[0].SubTopic[2], 'sub3.1');
@@ -281,6 +287,7 @@ describe('ClickHouse', function() {
 
     it('returns the history', async () => {
       const rows = await clickhouse.queryMQTTHistory({
+        orderBy: 'Timestamp ASC',
         topicSelector: `/${org}/+/+/+/+/data/+/+` });
       assert.deepStrictEqual(rows.length, 2);
       assert.deepStrictEqual(rows[0].Payload, {x: 1});
@@ -290,6 +297,7 @@ describe('ClickHouse', function() {
 
     it('handles null values', async () => {
       const rows = await clickhouse.queryMQTTHistory({
+        orderBy: 'Timestamp ASC',
         topicSelector: `/${org}/+/+/+/+/willBeNull` });
       assert.strictEqual(rows.at(-1).Payload, null);
     });
@@ -346,7 +354,7 @@ describe('ClickHouse', function() {
         limit: 2 * ROWS,
       });
       assert.equal(rows.length, ROWS);
-      assert(rows[0].Timestamp < rows[1].Timestamp);
+      assert(rows[0].Timestamp > rows[1].Timestamp);
       assertTimelimit(ROWS / 100);
     });
 

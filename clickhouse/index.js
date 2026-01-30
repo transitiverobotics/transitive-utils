@@ -348,29 +348,17 @@ class ClickHouse {
       topicSelector,
       since = undefined,
       until = undefined,
-      orderBy = 'Timestamp ASC',
+      orderBy = 'Timestamp DESC',
       limit = 1000
     } = options;
 
     const path = topicToPath(topicSelector);
 
     // interpret wildcards
-    // const where = [];
-    // _.forEach(path, (value, i) => {
-    //   if (!['+','#'].includes(value[0])) {
-    //     // it's a constant, filter by it
-    //     where.push(`TopicParts[${i + 1}] = '${value}'`);
-    //     // Note that ClickHouse/SQL index starting at 1, not 0
-    //   }
-    // });
     const where = path2where(path);
-
     since && where.push(`Timestamp >= fromUnixTimestamp64Milli(${since.getTime()})`);
     until && where.push(`Timestamp <= fromUnixTimestamp64Milli(${until.getTime()})`);
-
-    const whereStatement = where.length > 0
-      ? `WHERE ${where.join(' AND ')}`
-      : '';
+    const whereStatement = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
 
     const result = await this.client.query({
       query: `SELECT Payload,TopicParts,Timestamp FROM default.${this.mqttHistoryTable} ${
