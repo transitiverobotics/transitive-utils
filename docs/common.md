@@ -491,6 +491,30 @@ where the latest version of each subfield overwrites any previous
 *   `subTopic`   (optional, default `undefined`)
 *   `options`   (optional, default `{}`)
 
+## metaPathToSelectorPath
+
+Given a storage request topic, replace the meta-data fields into wildcards
+
+#### Parameters
+
+*   `path` &#x20;
+
+## metaPathToSelectorPath
+
+Given a meta path, return path with encoded meta fields turned into wildcards
+
+#### Parameters
+
+*   `path` &#x20;
+
+## metaTopicToSelector
+
+Given a meta topic, return topic with encoded meta fields turned into wildcards
+
+#### Parameters
+
+*   `topic` &#x20;
+
 ## mqttClearRetained
 
 delete all retained messages in a certain topic prefix, waiting for
@@ -540,10 +564,19 @@ to only contain elements matched by the path, e.g.,
 *   `path` **[array][4]** An array specifying the path to select, potentially
     containing mqtt wildcards ('+').
 
-## selectorToStorageRequest
+## selectorPathToMetaPath
 
-Given a selector with wildcards, return a storage request topic (inverse
-of storageRequestToSelector.
+Given a selector path with wildcards, return path with wildcards turned
+into encoded meta fields (inverse of metaTopicToSelector)
+
+#### Parameters
+
+*   `path` &#x20;
+
+## selectorToMetaTopic
+
+Given a selector topic with wildcards, return topic with wildcards turned
+into encoded meta fields (inverse of metaTopicToSelector)
 
 #### Parameters
 
@@ -558,14 +591,6 @@ Like \_.set but without arrays. This allows using numbers as keys.
 *   `obj` &#x20;
 *   `path` &#x20;
 *   `value` &#x20;
-
-## storageRequestToSelector
-
-Given a storage request topic, replace the meta-data fields into wildcards
-
-#### Parameters
-
-*   `topic` &#x20;
 
 ## toBase52
 
