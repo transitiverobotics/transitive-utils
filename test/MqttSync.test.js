@@ -5,7 +5,7 @@ const mqtt = require('mqtt');
 
 // const MqttSync = require('../common/MqttSync');
 const { getLogger, DataCache, parseMQTTTopic, randomId, topicToPath, wait,
-  MqttSync } = require('../index');
+  MqttSync, metaPathToSelectorPath, pathToTopic } = require('../index');
 
 const loglevel = require('loglevel');
 // log.getLogger('MqttSync.js').setLevel('debug');
@@ -1399,22 +1399,38 @@ describe('MqttSync', function() {
       }, 50);
   });
 
-  it('requests history storage without data change', async function() {
-    clientA.publish('/#');
-    clientB.subscribe('/#');
-    clientA.requestHistoryStorage('/+/+/scope/cap/+/mydata', 13);
-    await wait(10);
-    assert.deepEqual(clientA.data.get(), {});
-    assert.deepEqual(clientB.data.get(), {});
-  });
 
-  it('receives storage requests only when requesting meta-data', async function() {
-    clientMeta.subscribe('/$store/#');
-    clientA.requestHistoryStorage('/+/+/scope/cap/+/mydata', 13);
-    clientB.subscribe('/#');
-    await wait(50);
-    assert.equal(clientMeta.data.get().$store.$store.scope.cap.$store.mydata, 13);
-    assert.deepEqual(clientB.data.get(), {});
+  describe('history', function() {
+    it('requests history storage without data change', async function() {
+      clientA.publish('/#');
+      clientB.subscribe('/#');
+      clientA.requestHistoryStorage('/+/+/scope/cap/+/mydata', 13);
+      await wait(10);
+      assert.deepEqual(clientA.data.get(), {});
+      assert.deepEqual(clientB.data.get(), {});
+    });
+
+    it('receives history storage requests only when requesting meta-data',
+      {timeout: 1000},
+      function(t, done) {
+        clientA.publish('/#');
+        clientB.subscribe('/#');
+        clientMeta.subscribe('/+/+/+/+/+/$store/#');
+
+        const metaTopic = '/+/+/scope/cap/+/mydata';
+
+        clientMeta.data.subscribePath('/+/+/+scope/+capName/+/$store/#',
+          (ttl, topic, {scope, capName}) => {
+            const dataPath = topicToPath(topic);
+            dataPath.splice(5,1); // remove the $store instruction
+            const receivedMetaTopic = pathToTopic(metaPathToSelectorPath(dataPath));
+            t.assert.equal(ttl, 13);
+            t.assert.deepEqual(receivedMetaTopic, metaTopic);
+            done();
+          });
+
+        clientA.requestHistoryStorage(metaTopic, 13);
+      });
   });
 
 });

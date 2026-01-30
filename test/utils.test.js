@@ -10,7 +10,7 @@ const { updateObject, DataCache, toFlatObject, topicToPath, topicMatch,
   setFromPath, getLogger, fetchURL, visit, wait, formatBytes,
   formatDuration, findPath, tryJSONParse,
   forMatchIterator,
-  storageRequestToSelector, selectorToStorageRequest
+  metaTopicToSelector, selectorToMetaTopic
 } = require('../index');
 const Mongo = require('../mongo/index');
 
@@ -1104,16 +1104,62 @@ describe('forMatchIterator', function() {
 });
 
 
-describe('storage request topics', function() {
-  it('is inverse', function() {
+// describe('storage request topics', function() {
+//   it('is inverse', function() {
+//     for (let topic of [
+//       '/$store/a',
+//       '/$store/a/$storage',
+//       '/$store/a/$storage/b',
+//       '/$store/#',
+//       '/$store/a/$storage/b/#',
+//     ]) {
+//       // assert(storageRequestToSelector(selectorToStorageRequest(topic)), topic);
+//       assert(storageRequestToSelector(selectorToStorageRequest(topic)), topic);
+//     }
+//   });
+describe('meta topics', function() {
+  it('is bijective', function() {
     for (let topic of [
-      '/$store/a',
-      '/$store/a/$storage',
-      '/$store/a/$storage/b',
-      '/$store/#',
-      '/$store/a/$storage/b/#',
+      '/+/a',
+      '/+/a/$store',
+      '/+/a/$store/b',
+      '/+/#',
+      '/+/a/$store/b/#',
     ]) {
-      assert(storageRequestToSelector(selectorToStorageRequest(topic)), topic);
+      assert(metaTopicToSelector(selectorToMetaTopic(topic)), topic);
+    }
+
+    for (let topic of [
+      '/$%2B/a',
+      '/$%2B/a/$service',
+      '/$%2B/a/$service/b',
+      '/$%2B/$%23',
+      '/$%2B/a/$service/b/#',
+    ]) {
+      assert(selectorToMetaTopic(metaTopicToSelector(topic)), topic);
+    }
+  });
+
+  it('is stable (applying encode/decode multiple times does not change it)', function() {
+    for (let topic of [
+      '/+/a',
+      '/+/a/$store',
+      '/+/a/$store/b',
+      '/+/#',
+      '/+/a/$store/b/#',
+    ]) {
+      assert(metaTopicToSelector(selectorToMetaTopic(selectorToMetaTopic(topic))), topic);
+    }
+
+    for (let topic of [
+      '/$%2B/a',
+      '/$%2B/a/$service',
+      '/$%2B/a/$service/b',
+      '/$%2B/$%23',
+      '/$%2B/a/$service/b/#',
+    ]) {
+      assert(selectorToMetaTopic(selectorToMetaTopic(metaTopicToSelector(topic))), topic);
     }
   });
 });
+// });

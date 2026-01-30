@@ -193,15 +193,28 @@ const mqttClearRetained = (mqttClient, prefixes, callback, delay = 1000) => {
 // };
 
 /** Given a storage request topic, replace the meta-data fields into wildcards */
-const storageRequestToSelector = (topic) => pathToTopic(topicToPath(topic)
-    .map(value => value == '$store' ? '+' : value)
-    .map(value => value == '$storeTail' ? '#' : value));
+// const storageRequestToSelector = (topic) => pathToTopic(topicToPath(topic)
+//     .map(value => value == '$store' ? '+' : value)
+//     .map(value => value == '$storeTail' ? '#' : value));
 
-/** Given a selector with wildcards, return a storage request topic (inverse
- * of storageRequestToSelector. */
-const selectorToStorageRequest = (topic) => pathToTopic(topicToPath(topic)
-    .map(value => value[0] == '+' ? '$store' : value)
-    .map(value => value[0] == '#' ? '$storeTail' : value));
+/** Given a meta path, return path with encoded meta fields turned into wildcards */
+const metaPathToSelectorPath = (path) => path
+    .map(value => value[0] == '$' ? decodeURIComponent(value.slice(1)) : value);
+
+/** Given a meta topic, return topic with encoded meta fields turned into wildcards */
+const metaTopicToSelector = (topic) =>
+  pathToTopic(metaPathToSelectorPath(topicToPath(topic)));
+
+/** Given a selector path with wildcards, return path with wildcards turned
+ * into encoded meta fields (inverse of metaTopicToSelector) */
+const selectorPathToMetaPath = (path) => path
+    .map(value => ['+','#'].includes(value[0]) ?
+      `$${encodeURIComponent(value)}` : value);
+
+/** Given a selector topic with wildcards, return topic with wildcards turned
+ * into encoded meta fields (inverse of metaTopicToSelector) */
+const selectorToMetaTopic = (topic) =>
+  pathToTopic(selectorPathToMetaPath(topicToPath(topic)));
 
 
 // -------------------------------------------------------------------------
@@ -305,5 +318,7 @@ module.exports = { parseMQTTUsername, parseMQTTTopic,
   forMatchIterator, encodeTopicElement, decodeTopicElement, constants, visit,
   wait, formatBytes, formatDuration, tryJSONParse,
   decodeJWT, visitAncestor,
-  storageRequestToSelector, selectorToStorageRequest
+  // storageRequestToSelector, selectorToStorageRequest
+  metaPathToSelectorPath, selectorPathToMetaPath,
+  metaTopicToSelector, selectorToMetaTopic
 };

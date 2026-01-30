@@ -5,7 +5,7 @@ const _ = require('lodash');
 const { mqttParsePayload, topicMatch, topicToPath, pathToTopic,
   toFlatObject, getLogger, mergeVersions, parseMQTTTopic, isSubTopicOf,
   versionCompare, encodeTopicElement, visitAncestor, getRandomId,
-  selectorToStorageRequest
+  selectorPathToMetaPath
 } = require('./common');
 const { DataCache } = require('./datacache/DataCache');
 
@@ -804,7 +804,9 @@ class MqttSync {
   * service is running -- as it usually is inside the
   * transitiverobotics/clickhouse docker image). */
   requestHistoryStorage(topic, ttl = 1) {
-    const storageRequest = selectorToStorageRequest(topic);
+    const path = selectorPathToMetaPath(topicToPath(topic));
+    path.splice(5,0, '$store'); // inject the instruction
+    const storageRequest = pathToTopic(path);
     this.mqtt.publish(storageRequest, String(ttl), {retain: true});
   }
 }
