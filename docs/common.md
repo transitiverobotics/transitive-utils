@@ -331,6 +331,15 @@ TODO: Is this OK, or do we need to go through this.publish?
 *   `value` &#x20;
 *   `level` &#x20;
 
+### queryHistory
+
+Query a topics history (if stored). Convenience function to make RPC call
+to the mqtt2clickhouse service.
+
+##### Parameters
+
+*   `params`  = {topic, since, until, orderBy, limit}
+
 ### register
 
 Register an RPC request handler. Example:
