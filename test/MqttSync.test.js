@@ -1405,7 +1405,7 @@ describe('MqttSync', function() {
       clientA.publish('/#');
       clientB.subscribe('/#');
       clientA.requestHistoryStorage('/+/+/scope/cap/+/mydata', 13);
-      await wait(10);
+      await wait(50);
       assert.deepEqual(clientA.data.get(), {});
       assert.deepEqual(clientB.data.get(), {});
     });
@@ -1431,6 +1431,23 @@ describe('MqttSync', function() {
 
         clientA.requestHistoryStorage(metaTopic, 13);
       });
-  });
 
+    it('receives history query results, without inclMeta', {timeout: 1000}, async function() {
+
+      clientMeta.register('/+/+/+/+/+/$queryMQTTHistory', async (params, topic) => {
+        log.debug({params, topic});
+        return 'ok';
+      });
+
+      await wait(50);
+
+      const result = await clientA.queryHistory({
+        topic: '/a/b/c/d/+/ignore',
+        since: new Date(),
+        limit: 10
+      });
+
+      assert.equal(result, 'ok');
+    });
+  });
 });

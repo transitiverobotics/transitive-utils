@@ -5,7 +5,7 @@ const _ = require('lodash');
 const { mqttParsePayload, topicMatch, topicToPath, pathToTopic,
   toFlatObject, getLogger, mergeVersions, parseMQTTTopic, isSubTopicOf,
   versionCompare, encodeTopicElement, visitAncestor, getRandomId,
-  selectorPathToMetaPath
+  selectorPathToMetaPath, selectorToMetaTopic
 } = require('./common');
 const { DataCache } = require('./datacache/DataCache');
 
@@ -141,11 +141,6 @@ class MqttSync {
           topic = pathToTopic(path);
         }
 
-        // filter meta-topics unless explicitly requested
-        if (!inclMeta && path.some(field => field[0] == '$')) {
-          return;
-        }
-
         const rpcHandler = this.getRPCHandler(topic);
         if (rpcHandler) {
           const json = mqttParsePayload(payload);
@@ -156,6 +151,11 @@ class MqttSync {
           this.handleRPCResponse(topic, json);
 
         } else if (packet.retain || ignoreRetain) {
+
+          // filter meta-topics unless explicitly requested
+          if (!inclMeta && path.slice(0,5).some(field => field[0] == '$')) {
+            return;
+          }
 
           if (this.isPublished(topic)) {
             const json = mqttParsePayload(payload);
@@ -808,6 +808,26 @@ class MqttSync {
     path.splice(5,0, '$store'); // inject the instruction
     const storageRequest = pathToTopic(path);
     this.mqtt.publish(storageRequest, String(ttl), {retain: true});
+  }
+
+  /** Query a topics history (if stored). Convenience function to make RPC call
+   * to the mqtt2clickhouse service.
+  * @param params = {topic, since, until, orderBy, limit} */
+  async queryHistory(params) {
+    const path = topicToPath(params.topic);
+    const rpc =
+      selectorToMetaTopic(`${pathToTopic(path.slice(0,5))}/$queryMQTTHistory`);
+    const query = {
+      subtopic: pathToTopic(path.slice(5)),
+      ...params
+    };
+    delete query.topic;
+    query.since && (query.since = query.since.getTime());
+    query.until && (query.until = query.until.getTime());
+
+    log.info('queryHistory', {rpc, query});
+    const result = await this.call(rpc, query);
+    return result;
   }
 }
 
