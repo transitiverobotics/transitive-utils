@@ -301,6 +301,16 @@ describe('ClickHouse', function() {
         topicSelector: `/${org}/+/+/+/+/willBeNull` });
       assert.strictEqual(rows.at(-1).Payload, null);
     });
+
+    it('extracts sub-values', async () => {
+      const rows = await clickhouse.queryMQTTHistory({
+        orderBy: 'Timestamp ASC',
+        topicSelector: `/${org}/device1/@myscope/cap/+/sub1/sub2/sub3.2`,
+        path: ['data', 'aNumber'],
+        type: 'int'
+      });
+      assert.strictEqual(rows[0].value, 1234);
+    });
   });
 
   /** Test performance of the table (index). */
@@ -323,7 +333,7 @@ describe('ClickHouse', function() {
        rows.push({
           Timestamp: new Date(now + i * GAP), // use current date to avoid immediate TTL cleanup
           TopicParts: [`org${i % 50}`, `device${i % 1000}`, '@myscope',
-            `cap${i % 100}`, `1.${i % 100}.0`, `data_${i % 1000}`, i],
+            `cap${i % 100}`, `1.${i % 100}.0`, `data_${i % 1000}`],
           Payload: { i },
        })
       }
@@ -423,6 +433,45 @@ describe('ClickHouse', function() {
       assert.equal(rows.length, 8);
       assertTimelimit(ROWS / 10000);
     });
-  });
 
+    it('quickly filters and aggregates by time', async () => {
+      const rows = await clickhouse.queryMQTTHistory({
+        topicSelector: `/org0/device0/@myscope/cap0/1.0.0/data_0`,
+        since: new Date(now),
+        until: new Date(now + ROWS * GAP),
+        bins: 60,
+        limit: 2 * ROWS,
+      });
+      // there can be one-off errors due to rounding down to start of interval:
+      assert(Math.abs(rows.length - 60) < 2);
+      assertTimelimit(ROWS / 10000);
+    });
+
+    it('quickly filters, aggregates by time, extracts value, and averages', async () => {
+      const aggSeconds = 1000;
+      const rows = await clickhouse.queryMQTTHistory({
+        topicSelector: `/org0/device0/@myscope/cap0/1.0.0/data_0`,
+        aggSeconds,
+        path: ['i'],
+        type: 'int',
+        agg: 'avg',
+        limit: 2 * ROWS,
+      });
+      assert.equal(rows.length, ROWS / aggSeconds);
+      assertTimelimit(ROWS / 1000);
+    });
+
+    it('quickly filters, aggregates by time, extracts value, and averages, per device and sub-value', async () => {
+      const rows = await clickhouse.queryMQTTHistory({
+        topicSelector: `/org0/+/@myscope/cap0/1.0.0/+`,
+        aggSeconds: 1000,
+        path: ['i'],
+        type: 'int',
+        agg: 'avg',
+        limit: 2 * ROWS,
+      });
+      assert.equal(rows.length, 10000);
+      assertTimelimit(ROWS / 1000);
+    });
+  });
 });

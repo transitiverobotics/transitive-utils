@@ -26,14 +26,17 @@ const MULTI_TENANT_SCHEMA = {
  * WHERE clause. */
 const path2where = (path) => {
   const where = [];
+  const wildIndices = [];
   _.forEach(path, (value, i) => {
     if (!['+','#'].includes(value[0])) {
       // it's a constant, filter by it
       where.push(`TopicParts[${i + 1}] = '${value}'`);
       // Note that ClickHouse/SQL index starting at 1, not 0
+    } else {
+      wildIndices.push(i);
     }
   });
-  return where;
+  return {where, wildIndices};
 };
 
 
@@ -297,7 +300,7 @@ class ClickHouse {
     // Set/update TTL for this capability and sub-topic
 
     // Derive WHERE conditions for TTL expression from non-wildcards
-    const where = path2where(path);
+    const { where } = path2where(path);
 
     if (where.length == 0) {
       // underspecified, don't set TTL
@@ -348,23 +351,81 @@ class ClickHouse {
       topicSelector,
       since = undefined,
       until = undefined,
-      orderBy = 'Timestamp DESC',
-      limit = 1000
+      // if provided, extract this sub-value of the payload-json, requires type
+      path = undefined,
+      // type of element to extract using `path`: for available types, see https://clickhouse.com/docs/sql-reference/data-types
+      type = 'String',
+      orderBy = 'time DESC',
+      limit = 1000, // end result limit (i.e., after grouping)
+
+      bins = undefined, // into how many bins to aggregate (if given, requires since)
+      // Aggregation function to use (if aggSeconds or bins is given)
+      // if `bins` or `aggregateSeconds` is given, which operator to use to compute
+      // aggregate value. Default is `count` (which works for any data type).
+      // See https://clickhouse.com/docs/sql-reference/aggregate-functions/reference.
+      agg = 'count',
     } = options;
 
-    const path = topicToPath(topicSelector);
+    let {
+      // how many seconds to group together (alternative to bins + time interval)
+      aggSeconds
+    } = options;
+
+    /* some useful queries we'd like to support:
+
+    # get avg `i` value for each minute of the last hour (limit: 60)
+    ```sql
+    select toStartOfInterval(Timestamp, INTERVAL 60 SECOND) as time,
+      avg(JSONExtractInt(Payload,'i')) as agg
+    from mqtt_history_tests
+    GROUP BY (time)
+    ORDER BY time
+    LIMIT 60
+    ```
+    ->
+    ```js
+    { aggregateSeconds: 60, path: ['i'], type: 'Int', agg: 'avg', limit: 60 }
+    ```
+    */
+
+    const pathSelector = topicToPath(topicSelector);
 
     // interpret wildcards
-    const where = path2where(path);
+    const { where, wildIndices } = path2where(pathSelector);
     since && where.push(`Timestamp >= fromUnixTimestamp64Milli(${since.getTime()})`);
     until && where.push(`Timestamp <= fromUnixTimestamp64Milli(${until.getTime()})`);
     const whereStatement = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
 
-    const result = await this.client.query({
-      query: `SELECT Payload,TopicParts,Timestamp FROM default.${this.mqttHistoryTable} ${
-      whereStatement} ORDER BY ${orderBy} ${limit ? ` LIMIT ${limit}` : ''}`,
-      format: 'JSONEachRow'
-    });
+    const extractValue = path && type
+      ? `JSONExtract(Payload, ${path.map(s => `'${s}'`).join(', ')}, '${type}')`
+      : 'Payload';
+
+    let select = [`${extractValue} as value`, 'Payload', 'TopicParts',
+      'Timestamp', 'Timestamp as time'];
+
+    let group = '';
+    if (bins > 1 && since) {
+      // compute aggSeconds from desired number of bins and `since`
+      const duration = (until || Date.now()) - since.getTime();
+      aggSeconds = Math.floor((duration/1000)/(bins - 1));
+    }
+
+    // if aggregation is requested, build the GROUP BY expression and update SELECT
+    if (aggSeconds) {
+      // SQL sub-string to extract the desired value from the JSON payload
+      const wildParts = wildIndices.map(i => `TopicParts[${i + 1}]`);
+      // update SELECT statement with aggregations
+      select = [`${agg}(${extractValue}) as aggValue`,
+        ...wildParts,
+        `toStartOfInterval(Timestamp, INTERVAL ${aggSeconds} SECOND) as time`
+      ];
+      group = `GROUP BY (time,${wildParts.join(',')})`
+    }
+
+    const query = `SELECT ${select.join(',')} FROM default.${this.mqttHistoryTable} ${
+      whereStatement} ${group} ORDER BY ${orderBy} ${limit ? ` LIMIT ${limit}` : ''}`;
+    // console.log(query);
+    const result = await this.client.query({ query, format: 'JSONEachRow' });
 
     const rows = await result.json();
 
@@ -373,12 +434,12 @@ class ClickHouse {
     return rows.map(row => {
       row.Payload = row.Payload ? JSON.parse(row.Payload) : null;
       row.Timestamp = new Date(row.Timestamp);
-      row.OrgId = row.TopicParts[0];
-      row.DeviceId = row.TopicParts[1];
-      row.Scope = row.TopicParts[2];
-      row.CapabilityName = row.TopicParts[3];
-      row.CapabilityVersion = row.TopicParts[4];
-      row.SubTopic = row.TopicParts.slice(5);
+      row.OrgId = row.TopicParts?.[0];
+      row.DeviceId = row.TopicParts?.[1];
+      row.Scope = row.TopicParts?.[2];
+      row.CapabilityName = row.TopicParts?.[3];
+      row.CapabilityVersion = row.TopicParts?.[4];
+      row.SubTopic = row.TopicParts?.slice(5);
       return row;
     });
   }
