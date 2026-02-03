@@ -415,7 +415,12 @@ class ClickHouse {
       // SQL sub-string to extract the desired value from the JSON payload
       // const wildParts = wildIndices.map(i => `TopicParts[${i + 1}]`);
       // update SELECT statement with aggregations
-      select = [`${agg}(${extractValue}) as aggValue`,
+
+      select = [
+        // Cast `count` result to Float64 to avoid UInt64 which ClickHouse turns
+        // into a string in JSON.
+        agg == 'count' ? `CAST(${agg}(${extractValue}), 'Float64') as aggValue`
+        : `${agg}(${extractValue}) as aggValue`,
         // ...wildParts,
         'TopicParts',
         `toStartOfInterval(Timestamp, INTERVAL ${aggSeconds} SECOND) as time`
@@ -428,7 +433,6 @@ class ClickHouse {
       whereStatement} ${group} ORDER BY ${orderBy} ${limit ? ` LIMIT ${limit}` : ''}`;
     // console.log(query);
     const result = await this.client.query({ query, format: 'JSONEachRow' });
-
     const rows = await result.json();
 
     // map payloads back from JSON; this is the inverse of what we do in

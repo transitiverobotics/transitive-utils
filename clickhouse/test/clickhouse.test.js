@@ -443,6 +443,7 @@ describe('ClickHouse', function() {
         limit: 2 * ROWS,
       });
       // there can be one-off errors due to rounding down to start of interval:
+      assert.strictEqual(typeof rows[0].aggValue, 'number');
       assert(Math.abs(rows.length - 60) < 2);
       assertTimelimit(ROWS / 10000);
     });
@@ -471,6 +472,7 @@ describe('ClickHouse', function() {
         limit: 2 * ROWS,
       });
       console.log(rows[0]);
+      assert.strictEqual(typeof rows[0].aggValue, 'number');
       assert.equal(rows.length, 10000);
       assertTimelimit(ROWS / 1000);
     });
