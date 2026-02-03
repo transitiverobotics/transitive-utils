@@ -435,7 +435,7 @@ class ClickHouse {
     // registerMqttTopicForStorage
     return rows.map(row => {
       row.Payload = row.Payload ? JSON.parse(row.Payload) : null;
-      row.Timestamp = new Date(row.Timestamp);
+      row.Timestamp = new Date(`${row.time}Z`);
       row.OrgId = row.TopicParts[0];
       row.DeviceId = row.TopicParts[1];
       row.Scope = row.TopicParts[2];

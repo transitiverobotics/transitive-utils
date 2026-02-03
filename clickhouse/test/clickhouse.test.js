@@ -470,6 +470,7 @@ describe('ClickHouse', function() {
         agg: 'avg',
         limit: 2 * ROWS,
       });
+      console.log(rows[0]);
       assert.equal(rows.length, 10000);
       assertTimelimit(ROWS / 1000);
     });
