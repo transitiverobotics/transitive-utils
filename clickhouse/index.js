@@ -391,7 +391,7 @@ class ClickHouse {
     const pathSelector = topicToPath(topicSelector);
 
     // interpret wildcards
-    const { where, wildIndices } = path2where(pathSelector);
+    const { where } = path2where(pathSelector);
     since && where.push(`Timestamp >= fromUnixTimestamp64Milli(${since.getTime()})`);
     until && where.push(`Timestamp <= fromUnixTimestamp64Milli(${until.getTime()})`);
     const whereStatement = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
@@ -413,13 +413,15 @@ class ClickHouse {
     // if aggregation is requested, build the GROUP BY expression and update SELECT
     if (aggSeconds) {
       // SQL sub-string to extract the desired value from the JSON payload
-      const wildParts = wildIndices.map(i => `TopicParts[${i + 1}]`);
+      // const wildParts = wildIndices.map(i => `TopicParts[${i + 1}]`);
       // update SELECT statement with aggregations
       select = [`${agg}(${extractValue}) as aggValue`,
-        ...wildParts,
+        // ...wildParts,
+        'TopicParts',
         `toStartOfInterval(Timestamp, INTERVAL ${aggSeconds} SECOND) as time`
       ];
-      group = `GROUP BY (time,${wildParts.join(',')})`
+      // group = `GROUP BY (time,${wildParts.join(',')})`
+      group = `GROUP BY (time,TopicParts)`
     }
 
     const query = `SELECT ${select.join(',')} FROM default.${this.mqttHistoryTable} ${
@@ -434,12 +436,12 @@ class ClickHouse {
     return rows.map(row => {
       row.Payload = row.Payload ? JSON.parse(row.Payload) : null;
       row.Timestamp = new Date(row.Timestamp);
-      row.OrgId = row.TopicParts?.[0];
-      row.DeviceId = row.TopicParts?.[1];
-      row.Scope = row.TopicParts?.[2];
-      row.CapabilityName = row.TopicParts?.[3];
-      row.CapabilityVersion = row.TopicParts?.[4];
-      row.SubTopic = row.TopicParts?.slice(5);
+      row.OrgId = row.TopicParts[0];
+      row.DeviceId = row.TopicParts[1];
+      row.Scope = row.TopicParts[2];
+      row.CapabilityName = row.TopicParts[3];
+      row.CapabilityVersion = row.TopicParts[4];
+      row.SubTopic = row.TopicParts.slice(5);
       return row;
     });
   }
