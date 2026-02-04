@@ -188,8 +188,8 @@ feature over the latter. Relies on retained messages in mqtt for persistence.
         to first migrate existing topics to a new version namespace, publishing at the
         designated level down from the version level. For example:```js
         [{ topic: `/myorg/mydevice/@local/my-cap/+/config`,
-        newVersion: this.version,
-        level: 1
+           newVersion: this.version,
+           level: 1
         }]
         ```Would migrate any existing data in the capability's `config` namespace to the
         current version of the package, publishing at the `config/+` level (rather than
@@ -323,7 +323,6 @@ Returns **any** true if publication added (false, e.g., when already present)
 
 Publish all values at the given level of the given object under the given
 topic (plus sub-key, of course).
-TODO: Is this OK, or do we need to go through this.publish?
 
 ##### Parameters
 
@@ -334,11 +333,34 @@ TODO: Is this OK, or do we need to go through this.publish?
 ### queryHistory
 
 Query a topics history (if stored). Convenience function to make RPC call
-to the mqtt2clickhouse service.
+to the mqtt2clickhouse service. For details see `clickhouse.queryMQTTHistory`
+in utils/clickhouse.
 
 ##### Parameters
 
-*   `params`  = {topic, since, until, orderBy, limit}
+*   `params` **[object][1]**&#x20;
+
+    *   `params.topicSelector` **[object][1]** A topic with wildcards selecting what
+        to retrieve.
+    *   `params.since` **[number][5]?** A time (seconds since epoch) from when on
+        to retrieve history.
+    *   `params.until` **[number][5]?** A time (seconds since epoch) until when on
+        to retrieve history.
+    *   `params.path` **\[[string][7]]?** A path into the payload to extract, e.g.,
+        `['a', 'b']` would retrieve the value 123 from `{a: {b: 123}}`. Requires `type`.
+    *   `params.type` **[string][7]?** Type of element to extract using `path`.
+        For available types, see [https://clickhouse.com/docs/sql-reference/data-types][8].
+    *   `params.orderBy` **[string][7]?** an `ORDER BY` statement to use for sorting
+        results.
+    *   `params.limit` **integer?** Max number of results to return, after grouping.
+    *   `params.bins` **integer?** Into how many bins to aggregate (if given,
+        requires `since`).
+    *   `params.agg` **[string][7]?** Aggregation function to use (if `aggSeconds`
+        or `bins` and `since` are given). Defaults to `count` (which works for any
+        data type). See
+        [https://clickhouse.com/docs/sql-reference/aggregate-functions/reference][9].
+    *   `params.aggSeconds` **integer?** How many seconds to group together
+        (alternative to `bins` + `since`).
 
 ### register
 
@@ -461,7 +483,7 @@ Get a base52 representation \[a-zA-Z] of the current date (ms since epoch)
 
 Get a new loglevel logger; call with a name, e.g., `module.id`. The returned
 logger has methods trace, debug, info, warn, error. See
-[https://www.npmjs.com/package/loglevel][7] for details.
+[https://www.npmjs.com/package/loglevel][10] for details.
 
 ## getRandomId
 
@@ -729,4 +751,10 @@ Wait for delay ms, for use in async functions.
 
 [6]: https://github.com/chfritz/transitive/issues/85
 
-[7]: https://www.npmjs.com/package/loglevel
+[7]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String
+
+[8]: https://clickhouse.com/docs/sql-reference/data-types
+
+[9]: https://clickhouse.com/docs/sql-reference/aggregate-functions/reference
+
+[10]: https://www.npmjs.com/package/loglevel

@@ -38,33 +38,33 @@ const resolveDoubleSlashes = (path) => path.replace(/\/\//g, '/');
 
 
 /** A class that combines DataCache and MQTT to implement a data synchronization
-feature over the latter. Relies on retained messages in mqtt for persistence.
+* feature over the latter. Relies on retained messages in mqtt for persistence.
 * @param {object} options
 * @param {object} options.mqttClient - An already connected mqtt.js client.
 * @param {boolean} [options.ignoreRetain] - retain all messages, ignorant of the retain
 * flag.
 * @param {number} [options.sliceTopic] - a number indicating at what level to
 * slice the topic, i.e., only use a suffix. Used in robot-capabilities to slice
-off the topic prefix (namespaces).
+* off the topic prefix (namespaces).
 * @param {array} [options.migrate] - an array of objects of the form
 * `{topic, newVersion, level}`. Only meaningful in the cloud. Instructs MQTTSync
-to first migrate existing topics to a new version namespace, publishing at the
-designated level down from the version level. For example:
-```js
-[{ topic: `/myorg/mydevice/@local/my-cap/+/config`,
-   newVersion: this.version,
-   level: 1
-}]
-```
-Would migrate any existing data in the capability's `config` namespace to the
-current version of the package, publishing at the `config/+` level (rather than
-atomically at the config level itself).
+* to first migrate existing topics to a new version namespace, publishing at the
+* designated level down from the version level. For example:
+* `
+* [{ topic: `/myorg/mydevice/@local/my-cap/+/config`,
+*    newVersion: this.version,
+*    level: 1
+* }]
+* `
+* Would migrate any existing data in the capability's `config` namespace to the
+* current version of the package, publishing at the `config/+` level (rather than
+* atomically at the config level itself).
 * @param {function} [options.onReady] - A function that is called when the MQTTSync
-client is ready and has completed any requested migrations.
+* client is ready and has completed any requested migrations.
 * @param {function} [options.onChange] - A function that is called any time there
-is a change to the shared data. This is not usually used. It's usually better to
-use the finer grained `MqttSync.data.subscribePath` instead, that allows you to
-subscribe to changes just on a specific sun-object instead, see DataCache.
+* is a change to the shared data. This is not usually used. It's usually better to
+* use the finer grained `MqttSync.data.subscribePath` instead, that allows you to
+* subscribe to changes just on a specific sun-object instead, see DataCache.
 */
 class MqttSync {
 
@@ -81,7 +81,7 @@ class MqttSync {
   achieve the "should-be" state. Note that we cannot use a structured document
   for storing these publishedMessages since we need to be able to store separate
   values at non-leaf nodes in the object (just like mqtt, where you can have
-  /a/b = 1 and /a/b/c = 1 at the same time). Note: not used in atomic mode.
+  `/a/b = 1` and `/a/b/c = 1` at the same time). Note: not used in atomic mode.
   Note: we use specialKey in this DataCache to allow overlapping
   topics (e.g., `/a/b/$_ = 1` and `/a/$_ = {b: 2}`)
   */
@@ -199,8 +199,8 @@ class MqttSync {
   /**
   * Publish all values at the given level of the given object under the given
   * topic (plus sub-key, of course).
-  * TODO: Is this OK, or do we need to go through this.publish?
   */
+  // TODO: Is this OK, or do we need to go through this.publish?
   publishAtLevel(topic, value, level) {
     log.debug(`publishingAtLevel ${level}`, topic, value);
 
@@ -811,8 +811,31 @@ class MqttSync {
   }
 
   /** Query a topics history (if stored). Convenience function to make RPC call
-   * to the mqtt2clickhouse service.
-  * @param params = {topic, since, until, orderBy, limit} */
+   * to the mqtt2clickhouse service. For details see `clickhouse.queryMQTTHistory`
+   * in utils/clickhouse.
+  * @param {object} params
+  * @param {object} params.topicSelector - A topic with wildcards selecting what
+  * to retrieve.
+  * @param {number} [params.since] - A time (seconds since epoch) from when on
+  * to retrieve history.
+  * @param {number} [params.until] - A time (seconds since epoch) until when on
+  * to retrieve history.
+  * @param {[string]} [params.path] - A path into the payload to extract, e.g.,
+  * `['a', 'b']` would retrieve the value 123 from `{a: {b: 123}}`. Requires `type`.
+  * @param {string} [params.type] - Type of element to extract using `path`.
+  * For available types, see https://clickhouse.com/docs/sql-reference/data-types.
+  * @param {string} [params.orderBy] - an `ORDER BY` statement to use for sorting
+  * results.
+  * @param {integer} [params.limit] - Max number of results to return, after grouping.
+  * @param {integer} [params.bins] - Into how many bins to aggregate (if given,
+  * requires `since`).
+  * @param {string} [params.agg] - Aggregation function to use (if `aggSeconds`
+  * or `bins` and `since` are given). Defaults to `count` (which works for any
+  * data type). See
+  * https://clickhouse.com/docs/sql-reference/aggregate-functions/reference.
+  * @param {integer} [params.aggSeconds] - How many seconds to group together
+  * (alternative to `bins` + `since`).
+  * */
   async queryHistory(params) {
     const path = topicToPath(params.topic);
     const rpc =
