@@ -48,7 +48,7 @@ describe('ClickHouse', function() {
   const dataCache = new DataCache({});
 
   before(async () => {
-    await clickhouse.init({ url: CLICKHOUSE_URL });
+    await clickhouse.init({ url: CLICKHOUSE_URL, interval: 100 });
     /* Register for `insert` events on ClickHouse client */
     emitter = interceptInserts();
 

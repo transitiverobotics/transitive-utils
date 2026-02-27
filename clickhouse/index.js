@@ -48,21 +48,20 @@ class ClickHouse {
   mqttHistoryTable = null; // name of the table used for MQTT history, if used
   topics = {}; // list of topics registered for storage, as object for de-duplication
   rowCache = {}; // cache of rows awaiting insertion, by table
-  insertionInterval = null; // the actual interval
 
   /** Create the client, connecting to Clickhouse */
-  async init({ url, dbName, user, password } = {}) {
+  async init({ url, dbName, user, password, interval } = {}) {
 
     const _url = url || process.env.CLICKHOUSE_URL || 'http://clickhouse:8123';
     const _dbName = dbName || process.env.CLICKHOUSE_DB || 'default';
     const _user = user || process.env.CLICKHOUSE_USER || 'default';
+    interval ||= 10_000;
 
     const {hostname, port} = URL.parse(_url);
-    const interval = 200;
-    await waitPort({ host: hostname, port: Number(port || 80), interval }, 10000);
+    const waitInterval = 200;
+    await waitPort({ host: hostname, port: Number(port || 80), waitInterval },
+      10000);
     await new Promise(done => setTimeout(done, 200));
-
-    // console.debug(`Creating ClickHouse client for URL: ${_url}, DB: ${_dbName}, User: ${_user}`);
 
     this._client = createClient({
       url: _url,
@@ -88,6 +87,9 @@ class ClickHouse {
     });
 
     await this._client.query({ query: 'SELECT 1' });
+
+    // start interval for batch insertion
+    setInterval(this.batchInsertCache.bind(this), interval);
   }
 
   /** Get the Clickhouse client (from @clickhouse/client) */
@@ -165,7 +167,7 @@ class ClickHouse {
    * @param {object} options = {dataCache, tableName, ttlDays}
    * @param {number} interval = ms interval between batch insertions
    */
-  async enableHistory(options, interval = 10_000) {
+  async enableHistory(options) {
     const { dataCache, tableName = 'mqtt_history' } = options;
 
     if (this.mqttHistoryTable != tableName) {
@@ -263,18 +265,12 @@ class ClickHouse {
     }
 
     this.mqttHistoryTable = tableName;
-
-    // start interval for batch insertion
-    if (!this.insertionInterval) {
-      this.insertionInterval =
-        setInterval(this.batchInsertCache.bind(this), interval);
-    }
   }
 
   /** Add the given rows to the cache for batch-insertion to the given table */
   addToCache(table, rows) {
-    this.rowCache[this.mqttHistoryTable] ||= [];
-    this.rowCache[this.mqttHistoryTable].push(...rows);
+    this.rowCache[table] ||= [];
+    this.rowCache[table].push(...rows);
   }
 
   /** Function responsible fgor inserting all cached rows */
