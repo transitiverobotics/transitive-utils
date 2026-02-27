@@ -63,7 +63,7 @@ describe('ClickHouse', function() {
     await clickhouse.enableHistory({
       dataCache,
       tableName: TABLE_NAME
-    });
+    }, 100);
 
     await clickhouse.registerMqttTopicForStorage(STANDARD_TOPIC_PATTERN);
   });
@@ -129,7 +129,6 @@ describe('ClickHouse', function() {
       // Small delay to ensure timestamp ordering
       await new Promise(resolve => setTimeout(resolve, 10));
       dataCache.update([org, 'device1', 'data'], null);
-      await once(emitter, 'insert');
       await once(emitter, 'insert');
 
       const rows = await queryRowsByOrg(org);

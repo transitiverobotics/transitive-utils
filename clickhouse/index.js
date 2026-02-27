@@ -47,6 +47,8 @@ class ClickHouse {
 
   mqttHistoryTable = null; // name of the table used for MQTT history, if used
   topics = {}; // list of topics registered for storage, as object for de-duplication
+  rowCache = {}; // cache of rows awaiting insertion, by table
+  insertionInterval = null; // the actual interval
 
   /** Create the client, connecting to Clickhouse */
   async init({ url, dbName, user, password } = {}) {
@@ -142,7 +144,7 @@ class ClickHouse {
    * @param {string} orgId - organization ID to add to each row
    * @param {string} deviceId - device ID to add to each row
    */
-  async insert(tableName, rows, orgId, deviceId) {
+  insert(tableName, rows, orgId, deviceId) {
     // assert that orgId and deviceId are provided
     if (!orgId || !deviceId) {
       throw new Error('Both orgId and deviceId must be provided for multi-tenant insert');
@@ -155,18 +157,15 @@ class ClickHouse {
       DeviceId: deviceId
     }));
 
-    return await this.client.insert({
-      table: tableName,
-      values: rowsWithIds,
-      format: 'JSONEachRow'
-    });
+    return this.addToCache(tableName, rowsWithIds);
   }
 
   /* Enable history recording. Ensure the mqtt_history table exists with the
    * correct schema, set dataCache, and subscribe to changes.
    * @param {object} options = {dataCache, tableName, ttlDays}
+   * @param {number} interval = ms interval between batch insertions
    */
-  async enableHistory(options) {
+  async enableHistory(options, interval = 10_000) {
     const { dataCache, tableName = 'mqtt_history' } = options;
 
     if (this.mqttHistoryTable != tableName) {
@@ -241,7 +240,7 @@ class ClickHouse {
       // it matches any of the registered topics (this avoid duplicate triggers),
       // then store to ClickHouse with current timestamp.
       dataCache.subscribe((changes) => {
-        _.forEach(changes, async (value, topic) => {
+        _.forEach(changes, (value, topic) => {
 
           const matched =
             _.some(this.topics, (_true, selector) => topicMatch(selector, topic));
@@ -257,23 +256,45 @@ class ClickHouse {
             row.Payload = JSON.stringify(value);
           } // else: omit
 
-          try {
-            await this.client.insert({
-              table: this.mqttHistoryTable,
-              values: [row],
-              format: 'JSONEachRow'
-            });
-          } catch (error) {
-            console.error('Error inserting MQTT message into ClickHouse:', error.message);
-          }
+          // cache it for batch insertion
+          this.addToCache(this.mqttHistoryTable, [row]);
         })
       });
-
-
     }
 
     this.mqttHistoryTable = tableName;
+
+    // start interval for batch insertion
+    if (!this.insertionInterval) {
+      this.insertionInterval =
+        setInterval(this.batchInsertCache.bind(this), interval);
+    }
   }
+
+  /** Add the given rows to the cache for batch-insertion to the given table */
+  addToCache(table, rows) {
+    this.rowCache[this.mqttHistoryTable] ||= [];
+    this.rowCache[this.mqttHistoryTable].push(...rows);
+  }
+
+  /** Function responsible fgor inserting all cached rows */
+  batchInsertCache() {
+    _.forEach(this.rowCache, (rows, table) => {
+      if (rows.length == 0) return;
+
+      try {
+        this.rowCache[table] = [];
+        this.client.insert({
+          table,
+          values: rows,
+          format: 'JSONEachRow'
+        });
+      } catch (error) {
+        console.error(`Error inserting ${rows.length} rows into ${table}`, error.message);
+      }
+    });
+  }
+
 
   /* Register an MQTT topic for storage in ClickHouse subscribes to the topic
   * and stores incoming messages JSON.stringify'd in a ClickHouse table.
