@@ -10,7 +10,8 @@ const { updateObject, DataCache, toFlatObject, topicToPath, topicMatch,
   setFromPath, getLogger, fetchURL, visit, wait, formatBytes,
   formatDuration, findPath, tryJSONParse,
   forMatchIterator,
-  metaTopicToSelector, selectorToMetaTopic
+  metaTopicToSelector, selectorToMetaTopic,
+  doOnce
 } = require('../index');
 const Mongo = require('../mongo/index');
 
@@ -1162,4 +1163,37 @@ describe('meta topics', function() {
     }
   });
 });
+
+describe('doOnce', function() {
+  it('calls it only once', function() {
+    let count = 0;
+    const fn = () => count++;
+    doOnce(fn, 'increment count');
+    doOnce(fn, 'increment count');
+    assert.equal(count, 1);
+  });
+
+  it('works with anonymous functions', function() {
+    let count = 0;
+    const doIt = () => {
+      doOnce(() => count++, 'increment count again');
+    }
+
+    doIt();
+    doIt();
+    assert.equal(count, 1);
+  });
+
+  it('works without a key', function() {
+    let count = 0;
+    const doIt = () => {
+      doOnce(() => count++);
+    }
+
+    doIt();
+    doIt();
+    assert.equal(count, 1);
+  });
+});
+
 // });

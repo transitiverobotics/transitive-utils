@@ -811,10 +811,10 @@ class MqttSync {
   }
 
   /** Query a topics history (if stored). Convenience function to make RPC call
-   * to the mqtt2clickhouse service. For details see `clickhouse.queryMQTTHistory`
-   * in utils/clickhouse.
+  * to the mqtt2clickhouse service. For details see `clickhouse.queryMQTTHistory`
+  * in utils/clickhouse.
   * @param {object} params
-  * @param {object} params.topicSelector - A topic with wildcards selecting what
+  * @param {object} params.topic - A topic with wildcards selecting what
   * to retrieve.
   * @param {number} [params.since] - A time (seconds since epoch) from when on
   * to retrieve history.

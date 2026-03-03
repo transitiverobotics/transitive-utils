@@ -310,6 +310,28 @@ const formatDuration = (seconds) => {
 
 // -------------------------------------------------------------------------
 
+const doOnceCache = {}
+/** Call the provided function the first time doOnce is called with the given
+ * key, but never again afterward. This is useful, e.g., to log warnings and
+ * errors only once. Example:
+ *
+ * ```js
+ * const warning = 'Something went wrong here!';
+ * doOnce(() => log.warn(warning), warning);
+ * ```
+ *
+ * If no `key` is provided, then the function uses the string representation of
+ * `fn`, i.e., `fn`'s body`, instead as a key.
+ *  */
+const doOnce = (fn, key = undefined) => {
+  key ||= fn.toString()
+  if (doOnceCache[key]) return;
+  fn();
+  doOnceCache[key] = true;
+};
+
+// -------------------------------------------------------------------------
+
 module.exports = { parseMQTTUsername, parseMQTTTopic,
   pathToTopic, topicToPath, toFlatObject, topicMatch,
   mqttParsePayload, getRandomId, toBase52, getDateBase52, versionCompare,
@@ -320,5 +342,6 @@ module.exports = { parseMQTTUsername, parseMQTTTopic,
   decodeJWT, visitAncestor,
   // storageRequestToSelector, selectorToStorageRequest
   metaPathToSelectorPath, selectorPathToMetaPath,
-  metaTopicToSelector, selectorToMetaTopic
+  metaTopicToSelector, selectorToMetaTopic,
+  doOnce
 };
