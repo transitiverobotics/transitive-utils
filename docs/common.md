@@ -186,12 +186,13 @@ feature over the latter. Relies on retained messages in mqtt for persistence.
     *   `options.migrate` **[array][4]?** an array of objects of the form
         `{topic, newVersion, level}`. Only meaningful in the cloud. Instructs MQTTSync
         to first migrate existing topics to a new version namespace, publishing at the
-        designated level down from the version level. For example:```js
-        [{ topic: `/myorg/mydevice/@local/my-cap/+/config`,
+        designated level down from the version level. For example:
+        `[{ topic:`/myorg/mydevice/@local/my-cap/+/config`,
            newVersion: this.version,
            level: 1
         }]
-        ```Would migrate any existing data in the capability's `config` namespace to the
+        `
+        Would migrate any existing data in the capability's `config` namespace to the
         current version of the package, publishing at the `config/+` level (rather than
         atomically at the config level itself).
     *   `options.onReady` **[function][2]?** A function that is called when the MQTTSync
@@ -340,7 +341,7 @@ in utils/clickhouse.
 
 *   `params` **[object][1]**&#x20;
 
-    *   `params.topicSelector` **[object][1]** A topic with wildcards selecting what
+    *   `params.topic` **[object][1]** A topic with wildcards selecting what
         to retrieve.
     *   `params.since` **[number][5]?** A time (seconds since epoch) from when on
         to retrieve history.
@@ -453,6 +454,25 @@ Parse JWT and return the decoded payload (JSON).
 #### Parameters
 
 *   `jwt` &#x20;
+
+## doOnce
+
+Call the provided function the first time doOnce is called with the given
+key, but never again afterward. This is useful, e.g., to log warnings and
+errors only once. Example:
+
+```js
+const warning = 'Something went wrong here!';
+doOnce(() => log.warn(warning), warning);
+```
+
+If no `key` is provided, then the function uses the string representation of
+`fn`, i.e., `fn`'s body\`, instead as a key.
+
+#### Parameters
+
+*   `fn` &#x20;
+*   `key`   (optional, default `undefined`)
 
 ## dropWildcardIds
 
