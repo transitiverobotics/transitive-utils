@@ -5,6 +5,17 @@ const { createClient } = require('@clickhouse/client');
 
 const { topicToPath, topicMatch } = require('@transitive-sdk/datacache');
 
+/** Generate a random id (base36) */
+const getRandomId = (bytes = 6) => {
+  const buffer = new Uint8Array(bytes);
+  crypto.getRandomValues(buffer);
+  return buffer.reduce((memo, i) => memo + i.toString(36), '');
+};
+
+const log = {
+  debug: console.log
+}
+
 // Default TTL in days for mqtt_history table
 const DEFAULT_TTL_DAYS = 30;
 
@@ -466,7 +477,67 @@ class ClickHouse {
       return row;
     });
   }
+
+  /* Creates ClickHouse user for an organisation/user with SELECT access for all
+  dbs and tables. `accountsCollection` is the mongo accounts collection and
+  needs to be provided, only optional for testing. */
+  async ensureClickHouseOrgUser(orgId, accountsCollection = undefined) {
+    const orgUser = `org_${orgId}_user`;
+
+    // Check if user exists
+    const userExists = await ClickHouse.client.query({
+      query: `SELECT name FROM system.users WHERE name = '${orgUser}'`,
+      format: 'JSONEachRow'
+    });
+
+    const users = await userExists.json();
+
+    if (users.length > 0) {
+      log.debug(`ClickHouse user for organization ${orgId} already exists`);
+      if (!accountsCollection) return;
+      const orgDoc = await accountsCollection.findOne({ _id: orgId });
+      const { user: orgUser, password } = orgDoc.clickhouseCredentials;
+      if (!password) {
+        throw new Error(`ClickHouse user for organization ${orgId} exists but no password found in mongo`);
+      } else {
+        log.debug(`retrieved ClickHouse credentials for organization ${orgId} from mongo: ${orgUser} / ${password}`);
+        return {
+          user: orgUser,
+          password: password
+        };
+      }
+    }
+
+    const orgPassword = getRandomId(15);
+
+    log.debug(`creating ClickHouse user for organization ${orgId} : ${orgUser} / ${orgPassword}`);
+
+    for (let query of [
+      // Create user:
+      `CREATE USER IF NOT EXISTS ${orgUser} IDENTIFIED WITH plaintext_password BY '${orgPassword}'`,
+      // Grant read only access to all databases and tables - row level security
+      // will limit access to own org data:
+      `GRANT SELECT ON *.* TO ${orgUser}`,
+      // Immediately revoke select access to system tables again (see
+      // https://clickhouse.com/docs/sql-reference/statements/revoke#examples):
+      `REVOKE SELECT ON system.* FROM ${orgUser}`,
+    ]) await ClickHouse.client.command({ query });
+
+    // store user and password in mongo
+    if (accountsCollection) {
+      await accountsCollection.updateOne(
+        { _id: orgId },
+        { $set: { clickhouseCredentials: { user: orgUser, password: orgPassword } } }
+      );
+    }
+
+    return {
+      user: orgUser,
+      password: orgPassword
+    };
+  }
 }
+
 
 const instance = new ClickHouse();
 module.exports = instance;

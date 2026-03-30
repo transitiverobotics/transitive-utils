@@ -476,4 +476,15 @@ describe('ClickHouse', function() {
       assertTimelimit(ROWS / 1000);
     });
   });
+
+
+  describe('users', () => {
+    it('create a user', async () => {
+      const result = await clickhouse.ensureClickHouseOrgUser('test');
+      console.log({result});
+
+      const result2 = await clickhouse.ensureClickHouseOrgUser('test');
+      assert.equal(result2, undefined);
+    });
+  });
 });
