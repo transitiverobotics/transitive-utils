@@ -1,6 +1,6 @@
 {
   "name": "@transitive-sdk/mongo",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "A tiny MongoDB utility class for use in the Transitive framework.",
   "homepage": "https://transitiverobotics.com",
   "repository": {
@@ -20,11 +20,8 @@
     "access": "public"
   },
   "main": "index.js",
-  "scripts": {
-  },
+  "scripts": {},
   "dependencies": {
-    "mongodb": "^4.1.0"
-  },
-  "devDependencies": {
+    "mongodb": "^7.1.1"
   }
 }
