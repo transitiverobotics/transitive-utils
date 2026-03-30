@@ -485,7 +485,7 @@ class ClickHouse {
     const orgUser = `org_${orgId}_user`;
 
     // Check if user exists
-    const userExists = await ClickHouse.client.query({
+    const userExists = await this.client.query({
       query: `SELECT name FROM system.users WHERE name = '${orgUser}'`,
       format: 'JSONEachRow'
     });
@@ -521,7 +521,7 @@ class ClickHouse {
       // Immediately revoke select access to system tables again (see
       // https://clickhouse.com/docs/sql-reference/statements/revoke#examples):
       `REVOKE SELECT ON system.* FROM ${orgUser}`,
-    ]) await ClickHouse.client.command({ query });
+    ]) await this.client.command({ query });
 
     // store user and password in mongo
     if (accountsCollection) {
