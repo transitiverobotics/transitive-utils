@@ -97,7 +97,7 @@ class ClickHouse {
       },
     });
 
-    await this._client.query({ query: 'SELECT 1' });
+    await this._client.command({ query: 'SELECT 1' });
 
     // start interval for batch insertion
     setInterval(this.batchInsertCache.bind(this), interval);
@@ -138,7 +138,7 @@ class ClickHouse {
       ${settings.join(' ')}`;
 
     try {
-      return await this.client.exec({
+      return await this.client.command({
         query,
         clickhouse_settings: {
           wait_end_of_query: 1,
@@ -489,7 +489,6 @@ class ClickHouse {
       query: `SELECT name FROM system.users WHERE name = '${orgUser}'`,
       format: 'JSONEachRow'
     });
-
     const users = await userExists.json();
 
     if (users.length > 0) {

@@ -70,8 +70,7 @@ describe('ClickHouse', function() {
 
   describe('basics', () => {
     it('creates tables without crashing', async () => {
-      const result = await clickhouse.createTable('test_tmp',
-        ['text String']);
+      await clickhouse.createTable('test_tmp', ['text String']);
 
       // clean up
       await clickhouse.client.command({
