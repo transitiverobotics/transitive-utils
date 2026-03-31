@@ -513,13 +513,13 @@ class ClickHouse {
 
     for (let query of [
       // Create user:
-      `CREATE USER IF NOT EXISTS ${orgUser} IDENTIFIED WITH plaintext_password BY '${orgPassword}'`,
+      `CREATE USER IF NOT EXISTS '${orgUser}' IDENTIFIED WITH plaintext_password BY '${orgPassword}'`,
       // Grant read only access to all databases and tables - row level security
       // will limit access to own org data:
-      `GRANT SELECT ON *.* TO ${orgUser}`,
+      `GRANT SELECT ON *.* TO '${orgUser}'`,
       // Immediately revoke select access to system tables again (see
       // https://clickhouse.com/docs/sql-reference/statements/revoke#examples):
-      `REVOKE SELECT ON system.* FROM ${orgUser}`,
+      `REVOKE SELECT ON system.* FROM '${orgUser}'`,
     ]) await this.client.command({ query });
 
     // store user and password in mongo
