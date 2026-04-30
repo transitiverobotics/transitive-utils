@@ -336,12 +336,14 @@ describe('ClickHouse', function() {
        })
       }
 
+      console.time('insert');
       await clickhouse.client.insert({
         table: TABLE_NAME,
         values: [rows],
         format: 'JSONEachRow',
         clickhouse_settings: { wait_end_of_query: 1 }
       });
+      console.timeEnd('insert');
 
       console.log(`inserted ${rows.length} rows into ${TABLE_NAME}`);
     });

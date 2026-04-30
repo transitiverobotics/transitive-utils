@@ -324,7 +324,7 @@ const doOnceCache = {}
  * `fn`, i.e., `fn`'s body`, instead as a key.
  *  */
 const doOnce = (fn, key = undefined) => {
-  key ||= fn.toString()
+  key ||= fn.toString();
   if (doOnceCache[key]) return;
   fn();
   doOnceCache[key] = true;

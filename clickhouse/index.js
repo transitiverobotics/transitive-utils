@@ -224,6 +224,8 @@ class ClickHouse {
           'ENGINE = MergeTree()',
           'PARTITION BY toYYYYMMDD(Timestamp)',
           'ORDER BY (OrgId, toUnixTimestamp64Micro(Timestamp), TopicParts)',
+          // this is faster on query but slower on insert:
+          // 'ORDER BY (TopicParts, toUnixTimestamp64Micro(Timestamp))',
           'SETTINGS',
           '  index_granularity = 8192,',
           '  ttl_only_drop_parts = 1'
