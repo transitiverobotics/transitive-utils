@@ -3,6 +3,7 @@ const { describe, it, before, after, beforeEach } = require('node:test');
 const assert = require('assert');
 const fs = require('fs');
 const {expect} = require('expect'); // from jest
+const jwt = require('jsonwebtoken');
 
 const { updateObject, DataCache, toFlatObject, topicToPath, topicMatch,
   versionCompare, getPackageVersionNamespace, pathToTopic, decodeJWT,
@@ -748,6 +749,19 @@ describe('decodeJWT', function() {
       validity: 43200,
       iat: 1637097751
     });
+  });
+
+  it('should decode new JWTs', function() {
+    const payload = {
+      device: 'd_123',
+      capability: 'test-ing',
+      userId: 'some-user',
+      validity: 43200,
+    };
+    const token = jwt.sign(payload, 'abc123');
+    const decoded = decodeJWT(token);
+    delete decoded.iat;
+    assert.deepEqual(decoded, payload);
   });
 });
 
