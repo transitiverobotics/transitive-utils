@@ -401,16 +401,19 @@ class MqttSync {
 
   /* check whether we are subscribed to the given topic */
   isSubscribed(topic) {
-    return Object.keys(this.subscribedPaths).some(subscribedTopic =>
-      topicMatch(subscribedTopic, topic));
+    return this.subscribedPaths[topic] ||
+      Object.keys(this.subscribedPaths).some(subscribedTopic =>
+        topicMatch(subscribedTopic, topic));
   }
 
   /* Check whether we are publishing the given topic in a non-atomic way.
   This is used to determine whether to store the published value or not. */
   isPublished(topic) {
-    return Object.keys(this.publishedPaths).some(subscribedTopic =>
-      topicMatch(subscribedTopic, topic) &&
-      !this.publishedPaths[subscribedTopic].atomic
+    return (
+      (this.publishedPaths[topic] && !this.publishedPaths[topic].atomic)
+        || Object.keys(this.publishedPaths).some(subscribedTopic =>
+          topicMatch(subscribedTopic, topic)
+            && !this.publishedPaths[subscribedTopic].atomic)
     );
   }
 
@@ -425,13 +428,14 @@ class MqttSync {
       return;
     }
 
+    this.subscribedPaths[topic] = 1;
     this.mqtt.subscribe(topic, {rap: true}, (err, granted) => {
       log.debug('subscribe', topic, 'granted:', granted);
       if (granted && granted.some(grant => grant.topic == topic && grant.qos < 128)) {
         // granted
-        this.subscribedPaths[topic] = 1;
         callback(null);
       } else {
+        delete this.subscribedPaths[topic];
         // let user know (somehow) when we don't get permission
         callback(`not permitted to subscribe to topic ${topic}, ${JSON.stringify(granted)}`);
       }
