@@ -10,8 +10,6 @@ const AbstractROS = require('./abstractRos.js')
 const log = getLogger('ROS0');
 log.setLevel('debug');
 
-const config = JSON.parse(process.env.TRCONFIG || '{}');
-
 
 /** A class that is interface-compatible with our ROS and ROS2 classes, but
 * connects to ZeroMQ addresses for pub and sub instead. For non-ROS users. */
@@ -23,14 +21,17 @@ class ROS0 extends AbstractROS(EventEmitter) {
   address = null;
 
   /** Open two UNIX domain sockets: one for pushing and one for pulling */
-  async init() {
+  async init(config) {
     if (this.pub && this.sub) {
       log.info('already initialized');
       return;
     }
 
-    this.address = config?.global?.ros0?.address ||
-      'ipc:///tmp/transitive-zmq.sock';
+    this.config = config
+      || JSON.parse(process.env.TRCONFIG || '{}')?.global?.ros0
+      || {};
+
+    this.address = this.config.address || 'ipc:///tmp/transitive-zmq.sock';
 
     log.info('initializing, connecting to zeroMQ address:', this.address);
 

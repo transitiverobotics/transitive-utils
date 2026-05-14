@@ -12,8 +12,6 @@ const AbstractROS = require('./abstractRos.js')
 const log = getLogger('ROSfs');
 log.setLevel('debug');
 
-const config = JSON.parse(process.env.TRCONFIG || '{}');
-
 
 /** A class that is interface-compatible with our ROS and ROS2 classes, but
 * uses the filesystem for pub and sub instead. For non-ROS users, low rate. */
@@ -24,9 +22,25 @@ class ROSfs extends AbstractROS(EventEmitter) {
   publisherDirs = {}; // keep track of dirs we've already created
   watchedDirs = {}; // dirs and watchers
 
-  init() {
-    this.basePath = config?.global?.rosFs?.basePath || '/tmp/transitive-ros-fs/';
+  init(config = undefined) {
+    this.config = config
+      || JSON.parse(process.env.TRCONFIG || '{}')?.global?.rosFs
+      || {};
+    this.basePath = this.config.basePath || '/tmp/transitive-ros-fs/';
     fs.mkdirSync(this.basePath, {recursive: true});
+
+    /** Publish the given message (json) on the names "topic", i.e., filepath. */
+    this.publish = _.throttle((topic, _type, message, latching = true) => {
+        const filePath = path.join(this.basePath, topic);
+        const dir = path.dirname(filePath);
+        if (!this.publisherDirs[dir]) {
+          fs.mkdirSync(dir, {recursive: true});
+          this.publisherDirs[dir] = true;
+        }
+
+        fs.writeFileSync(filePath, JSON.stringify(message));
+      }, Math.max(this.config.publishInterval || 10000, 1000))
+
     log.info('done initializing');
   }
 
@@ -53,7 +67,7 @@ class ROSfs extends AbstractROS(EventEmitter) {
           log.warn(`Could not parse file API file content of ${filename}`, e.message);
         }
       }
-    }, 100)
+    }, 100, {maxWait: 1000})
 
   /** subscribe to topic: start watching the respective directory and register
   * event handler */
@@ -79,17 +93,6 @@ class ROSfs extends AbstractROS(EventEmitter) {
     // TODO: check if we can stop watching the corresponding folder
   }
 
-  /** Publish the given message (json) on the names "topic", i.e., filepath. */
-  async publish(topic, _type, message, latching = true) {
-    const filePath = path.join(this.basePath, topic);
-    const dir = path.dirname(filePath);
-    if (!this.publisherDirs[dir]) {
-      fs.mkdirSync(dir, {recursive: true});
-      this.publisherDirs[dir] = true;
-    }
-
-    fs.writeFileSync(filePath, JSON.stringify(message));
-  }
 
   shutdown() {
     for (let dir in this.watchedDirs) {

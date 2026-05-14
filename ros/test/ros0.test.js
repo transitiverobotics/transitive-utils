@@ -1,7 +1,8 @@
 const ros0 = require('../ros/ros0.js');
 
 const run = async () => {
-  await ros0.init('test');
+  await ros0.init();
+  // await ros0.init({address: 'tcp://localhost:4444'});
 
   ros0.subscribe('topic1', null, console.log);
   // ros0.subscribe('time');
