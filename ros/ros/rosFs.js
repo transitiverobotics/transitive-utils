@@ -14,7 +14,22 @@ log.setLevel('debug');
 
 
 /** A class that is interface-compatible with our ROS and ROS2 classes, but
-* uses the filesystem for pub and sub instead. For non-ROS users, low rate. */
+* uses the filesystem for pub and sub instead. For non-ROS users, low rate.
+* To enable, set `global.rosFs` to a truthy value in `config.json`.
+*
+* Config options:
+* - `basePath` (default: '/tmp/transitive-ros-fs/'): the root of the file-tree
+* where to publish and subscribe to "topics", i.e., files.
+* - `publishInterval` (default 10000, min: 1000): throttle interval (in ms) for
+* publishing.
+*
+* Example assuming default config:
+* - `publish('/my/topic', null, {mytime: 1778801349319})` would write the given JSON
+*   to `/tmp/transitive-ros-fs/my/topic`.
+* - `subscribe('/my/topic', null, console.log)` would watch
+*   `/tmp/transitive-ros-fs/my/topic` and, on changes, print the new content to
+*   the console (JSON parsed).
+*/
 class ROSfs extends AbstractROS(EventEmitter) {
 
   rosVersion = 'fs';
@@ -29,7 +44,7 @@ class ROSfs extends AbstractROS(EventEmitter) {
     this.basePath = this.config.basePath || '/tmp/transitive-ros-fs/';
     fs.mkdirSync(this.basePath, {recursive: true});
 
-    /** Publish the given message (json) on the names "topic", i.e., filepath. */
+    /** Publish the given message (json) on the named "topic", i.e., filepath. */
     this.publish = _.throttle((topic, _type, message, latching = true) => {
         const filePath = path.join(this.basePath, topic);
         const dir = path.dirname(filePath);
