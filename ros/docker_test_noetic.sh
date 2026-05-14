@@ -25,9 +25,11 @@ RUN apt update && apt install ros-noetic-actionlib-tutorials
 
 COPY --from=transitiverobotics/try_noetic /tmp/transitive_nodejs20.deb /tmp
 RUN dpkg -i /tmp/transitive_nodejs20.deb
+
+ENV ROS_DISTRO=noetic
 EOF
 
 docker run --rm -it -v $PWD:/ros -v $FILE:/entrypoint.sh \
 --entrypoint=/entrypoint.sh \
-utils-ros-test-noetic bash
+utils-ros-test-noetic bash -c "(cd /ros && node test/ros1.manual-test.js)"
 

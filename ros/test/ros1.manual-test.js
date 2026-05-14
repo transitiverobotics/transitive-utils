@@ -26,6 +26,14 @@ const run = async () => {
     console.log(msg.data.length);
   });
 
+  ros.subscribe('/time', 'std_msgs/String', (msg) => {
+    console.log('time:', msg.data);
+  });
+
+  setInterval(() => {
+      ros.publish('/time', 'std_msgs/String', {data: String(Date.now())});
+    }, 1000);
+
   const actions = await ros.getActions();
   log.debug('actions', actions);
 

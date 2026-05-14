@@ -45,6 +45,29 @@ if (releases[2]) {
   }
 }
 
+// if the user enables zeroMQ, aka ROS0, then we also add that
+if (config?.global?.ros0) {
+  log.debug('enabling ROS0 (zeroMQ)');
+  try {
+    const ros = require('./ros0');
+    ROSs.push(ros);
+  } catch (e) {
+    log.warn('Unable to load zeroMQ (ros0):', e.message);
+  }
+}
+
+// if enabled, add FS-based API
+if (config?.global?.rosFs) {
+  log.debug('enabling ROSfs');
+  try {
+    const ros = require('./rosFs');
+    ROSs.push(ros);
+  } catch (e) {
+    log.warn('Unable to load ROSfs:', e.message);
+  }
+}
+
+
 /** Get the correct instance for the given ROS version (1 or 2). */
 const getForVersion = (version) => {
   log.debug('getForVersion', version, ROSs);

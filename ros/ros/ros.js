@@ -6,6 +6,7 @@ const _ = require('lodash');
 const { getLogger, wait } = require('@transitive-sdk/utils');
 
 const { goalStatuses } = require('./common.js');
+const AbstractROS = require('./abstractRos.js')
 
 const log = getLogger('ROS1');
 log.setLevel('info');
@@ -32,7 +33,7 @@ const getROS2GoalStatus = (goalHandle) =>
 
 /** Small convenient singleton class for interfacing with ROS, including some
   auxiliary functions that come in handy in capabilities. Based on rosnodejs. */
-class ROS {
+class ROS extends AbstractROS() {
 
   publishers = {};
   isShutdown = false;

@@ -7,6 +7,7 @@ const EventEmitter = require('events');
 const { getLogger, wait } = require('@transitive-sdk/utils');
 
 const { goalStatuses } = require('./common.js');
+const AbstractROS = require('./abstractRos.js')
 
 const log = getLogger('ROS2');
 log.setLevel('info');
@@ -65,7 +66,7 @@ const toROS2Type = (type, category = 'msg') => {
 
 /** Small convenient singleton class for interfacing with ROS2, including some
   auxiliary functions that come in handy in capabilities. Based on rclnodejs. */
-class ROS2 {
+class ROS2 extends AbstractROS() {
 
   publishers = {};
   // subscriptions keyed by topic
