@@ -7,7 +7,8 @@ class Mongo {
     const url = dbUrl || process.env.MONGO_URL || 'mongodb://localhost';
     const name = dbName || process.env.MONGO_DB || 'transitive';
 
-    this.client = new MongoClient(url, {useUnifiedTopology: true});
+    // this.client = new MongoClient(url, {useUnifiedTopology: true});
+    this.client = new MongoClient(url);
 
     // Use connect method to connect to the server
     this.client.connect((err) => {
