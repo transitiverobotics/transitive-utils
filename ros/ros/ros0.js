@@ -86,7 +86,7 @@ class ROS0 extends AbstractROS(EventEmitter) {
   advertise the topic if not yet advertised. */
   async publish(topic, _type, message, latching = true) {
     this.requireInit();
-    await this.pub.send([topic, message]);
+    await this.pub.send([topic, JSON.stringify(message)]);
   }
 
   shutdown() {

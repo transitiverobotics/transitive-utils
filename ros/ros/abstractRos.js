@@ -1,7 +1,7 @@
 const { getLogger, wait } = require('@transitive-sdk/utils');
 
 const log = getLogger('AbstractROS');
-log.setLevel('info');
+log.setLevel('error');
 
 /** An abstract base class for all our ROS and pseudeo-ROS implementations. */
 const AbstractROS = (BaseClass = Object) => class extends BaseClass {

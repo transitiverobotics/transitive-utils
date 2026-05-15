@@ -8,7 +8,7 @@ const run = async () => {
   // ros0.subscribe('time');
 
   setInterval(() =>
-    ros0.publish('topic1', null, Date.now()), 1000);
+    ros0.publish('topic1', null, {data: Date.now()}), 1000);
 };
 
 run();
