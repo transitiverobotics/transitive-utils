@@ -15,7 +15,7 @@ log.setLevel('debug');
 * connects to ZeroMQ addresses for pub and sub instead. For non-ROS users.
 * To enable, set `global.rosFs` to a truthy value in `config.json`. Config options:
 * - `address` (default 'ipc:///tmp/transitive-zmq.sock'): the zeroMQ address to
-* bind (Publisher) and connect to (Subscriber).
+* connect Publisher (+`.pub` suffix) and connect Subscriber (+`.sub` suffix) to.
 */
 class ROS0 extends AbstractROS(EventEmitter) {
 
@@ -23,9 +23,11 @@ class ROS0 extends AbstractROS(EventEmitter) {
   pub = null;
   sub = null;
   address = null;
+  queue = [];
+  processing = false;
 
   /** Open two UNIX domain sockets: one for pushing and one for pulling */
-  async init(config) {
+  init(config) {
     if (this.pub && this.sub) {
       log.info('already initialized');
       return;
@@ -40,10 +42,10 @@ class ROS0 extends AbstractROS(EventEmitter) {
     log.info('initializing, connecting to zeroMQ address:', this.address);
 
     this.pub = new zmq.Publisher();
-    await this.pub.bind(this.address);
+    this.pub.connect(this.address + '.pub');
 
     this.sub = new zmq.Subscriber()
-    this.sub.connect(this.address);
+    this.sub.connect(this.address + '.sub');
 
     // Do NOT await
     this.watchForMessages().catch(err => log.error(err));
@@ -84,12 +86,25 @@ class ROS0 extends AbstractROS(EventEmitter) {
 
   /** Publish the given message (json) on the names topic of type. Will
   advertise the topic if not yet advertised. */
-  async publish(topic, _type, message, latching = true) {
+  publish(topic, _type, message, latching = true) {
     this.requireInit();
-    await this.pub.send([topic, JSON.stringify(message)]);
+    // this.pub.send([topic, JSON.stringify(message)]);
+    this.queue.push([topic, JSON.stringify(message)]);
+    this.processQueue();
+  }
+
+  /** (Re-)start queue processing if not already running */
+  async processQueue() {
+    if (this.processing || this.queue.length == 0) return;
+    this.processing = true;
+    do {
+      await this.pub.send(this.queue.shift());
+    } while (this.queue.length > 0);
+    this.processing = false;
   }
 
   shutdown() {
+    log.info('shutting down');
     this.isShutdown = true;
     this.pub.unbind(this.address);
     this.sub.disconnect(this.address);
