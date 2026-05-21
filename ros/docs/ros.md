@@ -245,7 +245,7 @@ connects to ZeroMQ addresses for pub and sub instead. For non-ROS users.
 To enable, set `global.rosFs` to a truthy value in `config.json`. Config options:
 
 *   `address` (default 'ipc:///tmp/transitive-zmq.sock'): the zeroMQ address to
-    bind (Publisher) and connect to (Subscriber).
+    connect Publisher (+`.pub` suffix) and connect Subscriber (+`.sub` suffix) to.
 
 ### init
 
@@ -254,6 +254,10 @@ Open two UNIX domain sockets: one for pushing and one for pulling
 ##### Parameters
 
 *   `config` &#x20;
+
+### processQueue
+
+(Re-)start queue processing if not already running
 
 ### publish
 
