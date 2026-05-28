@@ -13,7 +13,8 @@ if [[ $ROS_VERSION == 2 ]]; then
     $NPM i --no-save rclnodejs@0.27.0
   else
     echo 'Found ROS2, installing rclnodejs@1.6 (pre-built)'
-    $NPM i --no-save rclnodejs@1.6
+    # $NPM i --no-save rclnodejs@1.6
+    $NPM i --prefix $npm_config_local_prefix --save-optional rclnodejs@1.6
   fi
 else
   echo ROS2 not found

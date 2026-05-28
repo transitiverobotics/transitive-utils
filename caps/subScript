@@ -20,12 +20,26 @@ npmCommands["install"]=1
 npmCommands["update"]=1
 npmCommands["rebuild"]=1
 
+echo -e "\n--------------------------------------------------" >> /tmp/mylog
+date >> /tmp/mylog
+env | grep -e ^npm_ -e PWD | sort >> /tmp/mylog
+
 SUBSCRIPT=${subscripts[$npm_lifecycle_event]:-$npm_lifecycle_event}
 
+SUBPROJECT_TMPDIR=$npm_config_local_prefix/.robot
+PREFIX=
 if [[ $TRANSITIVE_IS_ROBOT ]]; then
   SUBPROJECT=robot
+  # if [[ -e robot/ ]]; then
+    # rm -rf $SUBPROJECT_TMPDIR
+  #   mkdir -p $SUBPROJECT_TMPDIR
+  #   cp -a robot/* $SUBPROJECT_TMPDIR;
+  # # fi;
+  # # PREFIX="--prefix $npm_config_local_prefix"
+  # PREFIX="--prefix $SUBPROJECT_TMPDIR"
 elif [[ $TRANSITIVE_IS_CLOUD ]]; then
   SUBPROJECT=cloud
+  # PREFIX="--prefix cloud"
 fi;
 
 if [[ $SUBPROJECT ]]; then
@@ -34,13 +48,13 @@ else
   PREFIX=
 fi;
 
-if [[ $SUBSCRIPT == "start" ]]; then
-  # ensure dependencies are installed
-  if [[ $SUBPROJECT ]]; then
-    rm -rf $SUBPROJECT/node_modules/.*-* $SUBPROJECT/node_modules/@*/.*-*
-  fi;
-  npm $PREFIX ls || npm $PREFIX update
-fi;
+# if [[ $SUBSCRIPT == "start" ]]; then
+#   # ensure dependencies are installed
+#   if [[ $SUBPROJECT ]]; then
+#     rm -rf $SUBPROJECT/node_modules/.*-* $SUBPROJECT/node_modules/@*/.*-*
+#   fi;
+#   npm $PREFIX ls || npm $PREFIX --no-save update
+# fi;
 
 if [[ $SUBPROJECT ]]; then
   if [[ ${npmCommands[$npm_lifecycle_event]} ]]; then
@@ -51,7 +65,11 @@ if [[ $SUBPROJECT ]]; then
       rm -rf $SUBPROJECT/node_modules
     fi;
 
-    npm $PREFIX $npm_lifecycle_event
+    # npm $PREFIX --no-save $npm_lifecycle_event
+    # npm $PREFIX --omit dev $npm_lifecycle_event $PWD/$SUBPROJECT
+    # npm $PREFIX --omit dev $npm_lifecycle_event $SUBPROJECT_TMPDIR
+    ls $PWD/robot >> /tmp/mylog
+    npm --prefix $npm_config_local_prefix --install-links --save-optional $npm_lifecycle_event $PWD/robot
   else
     echo "Invoking $SUBSCRIPT in $SUBPROJECT"
     npm $PREFIX run --if-present $SUBSCRIPT
