@@ -196,6 +196,22 @@ class MqttSync {
     });
   }
 
+  /** Reconstruct list of published (retained) topic paths from publishedMessages
+  * object and the specialKey marker.
+  */
+  getPublishedPaths(object = this.publishedMessages, path = []) {
+    const paths = [];
+    _.each(object, (value, key) => {
+      if (key == specialKey) {
+        paths.push(path);
+      } else {
+        const subPaths = this.getPublishedPaths(value, path.concat([key]));
+        subPaths.forEach(p => paths.push(p));
+      }
+    });
+    return paths;
+  }
+
   /**
   * Publish all values at the given level of the given object under the given
   * topic (plus sub-key, of course).
@@ -619,25 +635,23 @@ class MqttSync {
 
       // Check flat to atomic
       const publishedSub = this.publishedMessages.get(path);
+      // log.debug({publishedSub});
+
       _.each(publishedSub, (oldSubVal, oldSubKey) => {
         if (oldSubKey == specialKey) return true;
         // We are going from flat to atomic, i.e., we are publishing at a
         // higher level than before: clear out old sub-keys.
 
-        // Find all sub-sub-keys that end in `specialKey`:
-        const toClear = Object.keys(toFlatObject(oldSubVal))
-            .filter(subkey => subkey.endsWith(specialKey));
-
-        log.debug('flat->atomic: ', {toClear}, oldSubKey);
-        // Clear them all:
-        toClear.forEach(oldSubSubKey => {
-          const oldKey = oldSubSubKey.slice(0, -(specialKey.length + 1));
-          // Note: oldKey can be ''
-          const clearKey = [key, oldSubKey, oldKey].filter(Boolean).join('/');
-          // log.debug('flat->atomic: clear', clearKey);
+        // Get all actually published (retained) topics underneath this path.
+        const publishedPaths = this.getPublishedPaths(oldSubVal, [...path, oldSubKey]);
+        // log.debug('to clear', {publishedPaths});
+        publishedPaths.forEach( fullPath => {
+          const clearKey = pathToTopic(fullPath);
+          log.debug('flat->atomic: clear', clearKey);
           this._enqueue(clearKey, null);
         });
       });
+
 
       // Check atomic to flat
       const published = this.publishedMessages.get();

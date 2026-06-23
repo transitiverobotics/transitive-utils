@@ -242,14 +242,15 @@ describe('MqttSync', function() {
       clientB.subscribe('/a/#');
       clientA.data.update('/a/b/c', 1);
       clientA.data.update('/a/b/d', 2);
-      clientA.data.update('/a/b/e', 3);
+      clientA.data.update('/a/b/e/f', 3);
+      clientA.data.update('/a/b/obj', {o1: 1, o2: 2, o3: {o3_1: 1}});
       await clientA.heartbeatPromise();
       clientA.data.update('/a/b', null);
       await wait(100);
 
       // verify that all retained messages have been cleared
       const all = await getAllMessages();
-      assert(all.length == 0, 'messages not cleared');
+      assert(all.length == 0, `messages not cleared ${JSON.stringify(all)}`);
 
       await inSyncPromise(clientA, clientB);
       // also check that publishedMessages were updated
