@@ -19,6 +19,12 @@ const mqttURL = `mqtt://localhost:${port}`;
 
 const HEARTBEAT_MS = 200; // server: send mqtt heartbeat every this many ms
 
+// Some unhandled rejections do not lead to test failures and instead just hang.
+// Adding this catch-all to make them visible.
+process.on('unhandledRejection', (reason, promise) => {
+  log.error('**** Caught unhandled rejection:', promise, 'reason:', reason);
+});
+
 /* ---------------------------
   utility functions
 */
@@ -32,6 +38,28 @@ const inSync = (a, b, done, delay = 150) => {
       assert(a.publishQueue.size == 0);
       done();
     }, delay);
+};
+
+const inSyncPromise = async (a, b, delay) => {
+  await wait(delay);
+  log.debug('A', a.data.get());
+  log.debug('B', b.data.get());
+  assert.deepEqual(b.data.get(), a.data.get());
+  assert(a.publishQueue.size == 0);
+};
+
+/** peak into mqtt and get all retained messages, "on the wire" */
+const getAllMessages = async () => {
+  const client = mqtt.connect(mqttURL);
+  await new Promise((resolve, reject) => client.on('connect', resolve));
+  const list = [];
+  client.subscribe('/#');
+  client.on('message', (topic, value) => {
+    list.push(topic);
+  });
+  await wait(HEARTBEAT_MS);
+  client.end();
+  return list;
 };
 
 /* --------------------------- */
@@ -206,6 +234,27 @@ describe('MqttSync', function() {
           done();
         });
       });
+    });
+
+  it('clears all published messages when setting super topic to null (flat to null)',
+    async function() {
+      clientA.publish('/a/#');
+      clientB.subscribe('/a/#');
+      clientA.data.update('/a/b/c', 1);
+      clientA.data.update('/a/b/d', 2);
+      clientA.data.update('/a/b/e', 3);
+      await clientA.heartbeatPromise();
+      clientA.data.update('/a/b', null);
+      await wait(100);
+
+      // verify that all retained messages have been cleared
+      const all = await getAllMessages();
+      assert(all.length == 0, 'messages not cleared');
+
+      await inSyncPromise(clientA, clientB);
+      // also check that publishedMessages were updated
+      const published = clientA.publishedMessages.get();
+      assert.deepEqual(published, {});
     });
 
   it('syncs nulls on sub-documents (atomic to flat, to atomic)', function(t, done) {
@@ -1223,6 +1272,29 @@ describe('MqttSync', function() {
       log.debug('clearing, 2nd');
       const cleared2 = await clearPromise(['/+/+/@scope/capname/+/+/foo']);
       assert.equal(cleared2, 0);
+    });
+
+    it('handles concurrent clears', function(t, done) {
+      clientA.publish('/#');
+      clientB.subscribe('/#');
+      clientA.data.update('/uId/dId/@scope/capname/1.0.0/a', {d: 1});
+      clientA.data.update('/uId/dId/@scope/capname/1.0.0/b', {c: 1});
+      clientA.data.update('/uId/dId/@scope/capname/1.1.0/b', {c: 2});
+      clientA.data.update('/uId/dId/@scope/capname/1.2.0/b', {c: 3});
+      clientA.data.update('/uId/dId/@scope/capname/1.0.0/c', {e: 1});
+      clientA.clear(['/uId/dId/@scope/capname/+/b'], () => {
+        log.debug('cleared b');
+        setTimeout(() => {
+            assert.deepEqual(clientB.data.getByTopic('/uId/dId/@scope/capname/'),
+              {'1.0.0': {a: {d: 1}}});
+            done();
+          }, 200);
+      });
+      setTimeout(() => {
+          clientA.clear(['/uId/dId/@scope/capname/+/c'], () => {
+            log.debug('cleared c');
+          });
+        }, 100);
     });
   });
 

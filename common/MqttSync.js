@@ -399,6 +399,10 @@ class MqttSync {
     setTimeout(() => this.heartbeatWaitersOnce.push(callback), 1);
   }
 
+  heartbeatPromise() {
+    return new Promise((resolve, reject) => this.waitForHeartbeatOnce(resolve));
+  }
+
   /* check whether we are subscribed to the given topic */
   isSubscribed(topic) {
     return this.subscribedPaths[topic] ||
@@ -474,7 +478,9 @@ class MqttSync {
       log.warn('not connected, not publishing', topic);
       return false;
     }
-    log.debug('actually publishing', topic);
+
+    value == null ? log.debug('actually null-ing', topic)
+    : log.debug('actually publishing', topic);
     this.mqtt.publish(topic,
       value == null ? null : JSON.stringify(value), // aka "unparse payload"
       {retain: true});
@@ -626,7 +632,8 @@ class MqttSync {
         // Clear them all:
         toClear.forEach(oldSubSubKey => {
           const oldKey = oldSubSubKey.slice(0, -(specialKey.length + 1));
-          const clearKey = `${key}/${oldSubKey}/${oldKey}`
+          // Note: oldKey can be ''
+          const clearKey = [key, oldSubKey, oldKey].filter(Boolean).join('/');
           // log.debug('flat->atomic: clear', clearKey);
           this._enqueue(clearKey, null);
         });

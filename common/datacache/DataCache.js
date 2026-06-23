@@ -130,7 +130,7 @@ class DataCache {
     const topic = pathToTopic(path);
     const obj = {[topic]: value};
 
-    // flatten the value and combine eith topic (without reflattening the topic):
+    // flatten the value and combine with topic (without reflattening the topic):
     let flatChanges;
     if (value instanceof Object) {
       const flatValue = toFlatObject(value);

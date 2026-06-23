@@ -17,7 +17,7 @@
   },
   "main": "index.js",
   "scripts": {
-    "test": "node --test --watch test/*.test.js",
+    "test": "cd test && node --test --watch",
     "testMqttSync": "node --test --watch test/MqttSync.test.js",
     "testCloud": "cd cloud && node --test --watch *.test.js",
     "prepack": "cat docs.js | node --input-type=module - server common"
