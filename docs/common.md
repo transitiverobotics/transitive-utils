@@ -269,6 +269,16 @@ subscription by localMQTT.
 
 Clear the set throttling delay.
 
+### getPublishedPaths
+
+Reconstruct list of published (retained) topic paths from publishedMessages
+object and the specialKey marker.
+
+##### Parameters
+
+*   `object`   (optional, default `this.publishedMessages`)
+*   `path`   (optional, default `[]`)
+
 ### getRPCHandler
 
 Given a (ground) topic find the matching RPC handler, if any. This is
