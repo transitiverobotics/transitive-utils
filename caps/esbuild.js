@@ -22,6 +22,11 @@ const entryPoints = fs.readdirSync('./web', {withFileTypes: true})
 
 const isDevelopment = (process.env.npm_lifecycle_event != 'prepare');
 
+// Capability authors can set `config.esbuild.external` to a comma-separated list
+// of npm packages to exclude from the bundle, to keep the size small. See
+// https://esbuild.github.io/api/#external for details.
+const external = (process.env.npm_package_config_esbuild_external || '').split(',');
+
 const config = {
   entryPoints,
   metafile: true, // for bundle analyser
@@ -34,6 +39,7 @@ const config = {
   format: 'iife', // will be overwritten, see `formats` below
   // splitting: true,
   // external: ['react', 'react-dom'],
+  external,
   define: {
     TR_PKG_VERSION: JSON.stringify(process.env.npm_package_version),
     TR_PKG_NAME: JSON.stringify(process.env.npm_package_name),
