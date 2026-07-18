@@ -541,16 +541,32 @@ sub is a strict sub-topic of parent, and in particular not equal
 *   `sub` &#x20;
 *   `parent` &#x20;
 
+## mergeAllVersions
+
+Given a global MQTTSync data object, i.e., where the first level are orgIds,
+go through and for each capability level, merge the versions.
+
+#### Parameters
+
+*   `data` &#x20;
+*   `options` **[object][1]** : an object where the keys are capabilities, e.g.,
+    `@local/myNewCap`, and the values are options like the ones accepted by
+    mergeVersions, plus an also optional field `subTopic` given to the same. (optional, default `{}`)
+
 ## mergeVersions
 
-given an object where the keys are versions, merge this into one object
-where the latest version of each subfield overwrites any previous
+Given an object where the keys are versions, merge this into one object
+where the latest version of each subfield overwrites any previous.
 
 #### Parameters
 
 *   `versionsObject` &#x20;
-*   `subTopic`   (optional, default `undefined`)
-*   `options`   (optional, default `{}`)
+*   `subTopic` **[string][7]** : if given, merge versions only for this subTopic,
+    other subtopics will not be included in the result. (optional, default `undefined`)
+*   `options` **[object][1]**  (optional, default `{}`)
+
+    *   `options.minVersion` **[string][7]** : versions below this will be ignored,
+    *   `options.maxVersion` **[string][7]** : versions above this will be ignored
 
 ## metaPathToSelectorPath
 

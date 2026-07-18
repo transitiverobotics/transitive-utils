@@ -7,7 +7,7 @@ const jwt = require('jsonwebtoken');
 
 const { updateObject, DataCache, toFlatObject, topicToPath, topicMatch,
   versionCompare, getPackageVersionNamespace, pathToTopic, decodeJWT,
-  mergeVersions, isSubTopicOf,
+  mergeVersions, mergeAllVersions, isSubTopicOf,
   setFromPath, getLogger, fetchURL, visit, wait, formatBytes,
   formatDuration, findPath, tryJSONParse,
   forMatchIterator,
@@ -873,6 +873,39 @@ describe('mergeVersions', function() {
     });
 });
 
+describe('mergeAllVersions', function() {
+  it('should mergeVersions for all capabilities', function() {
+    const versionsData = {
+      '1.2.3': {x: {a: 1, b: 1}, y: 2},
+      '1.2.4-12': {x: {a: 3}},
+      '1.2.4': {x: {a: 2}},
+    };
+
+    // put that same versions object into verious devices and cap namespaces
+    const data = {};
+    ['org1', 'org2'].forEach(org => {
+      data[org] = {};
+      ['d1', 'd2'].forEach(d => {
+        data[org][d] = {};
+        ['@scope1', '@scope2'].forEach(scope => {
+          data[org][d][scope] = {};
+          ['@cap1', '@cap2'].forEach(cap => {
+            data[org][d][scope][cap] = structuredClone(versionsData);
+          })
+        })
+      })
+    });
+
+    const merged = mergeAllVersions(data);
+    let i = 0;
+
+    forMatchIterator(merged, ['+', '+', '+', '+'], mergedObject => {
+      i++;
+      assert.deepEqual(mergedObject.x, {a: 2, b: 1});
+    });
+    assert.equal(i, 16); // all 16 combinations still present
+  });
+});
 
 describe('isSubTopicOf', function() {
   it('should work on simple examples', function() {

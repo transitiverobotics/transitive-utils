@@ -251,8 +251,14 @@ const versionCompare = (a, b) =>
 
 // -------------------------------------------------------------------------
 
-/** given an object where the keys are versions, merge this into one object
-  where the latest version of each subfield overwrites any previous */
+/** Given an object where the keys are versions, merge this into one object
+* where the latest version of each subfield overwrites any previous.
+* @param {string} subTopic: if given, merge versions only for this subTopic,
+* other subtopics will not be included in the result.
+* @param {object} options
+* @param {string} options.minVersion: versions below this will be ignored,
+* @param {string} options.maxVersion: versions above this will be ignored
+*/
 const mergeVersions = (versionsObject, subTopic = undefined, options = {}) => {
   if (!versionsObject) {
     return subTopic ? _.set({}, subTopic, versionsObject) : versionsObject;
@@ -272,6 +278,22 @@ const mergeVersions = (versionsObject, subTopic = undefined, options = {}) => {
     _.merge(merged, newValue);
   });
   return subPath ? _.set({}, subPath, merged) : merged;
+};
+
+/** Given a global MQTTSync data object, i.e., where the first level are orgIds,
+* go through and for each capability level, merge the versions.
+* @param {object} options: an object where the keys are capabilities, e.g.,
+* `@local/myNewCap`, and the values are options like the ones accepted by
+* mergeVersions, plus an also optional field `subTopic` given to the same.
+ */
+const mergeAllVersions = (data, options = {}) => {
+  const rtv = {};
+  forMatchIterator(data, ['+org', '+device', '+scope', '+capName'],
+    (versionsObject, path) => {
+      const opt = options[path.slice(2).join('/')];
+      _.set(rtv, path, mergeVersions(versionsObject, opt?.subTopic, opt));
+    });
+  return rtv;
 };
 
 // -------------------------------------------------------------------------
@@ -336,7 +358,8 @@ module.exports = { parseMQTTUsername, parseMQTTTopic,
   pathToTopic, topicToPath, toFlatObject, topicMatch,
   mqttParsePayload, getRandomId, toBase52, getDateBase52, versionCompare,
   loglevel, getLogger,
-  mergeVersions, mqttClearRetained, isSubTopicOf, clone, setFromPath,
+  mergeVersions, mergeAllVersions,
+  mqttClearRetained, isSubTopicOf, clone, setFromPath,
   forMatchIterator, encodeTopicElement, decodeTopicElement, constants, visit,
   wait, formatBytes, formatDuration, tryJSONParse,
   decodeJWT, visitAncestor,
