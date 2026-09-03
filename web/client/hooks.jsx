@@ -35,8 +35,9 @@ export const useMqttSync = ({jwt, id, mqttUrl, appReact}) => {
       const payload = decodeJWT(jwt);
 
       // pre-check validity of JWT, don't use if expired
-      const { validity, iat } = payload;
-      if (!validity || !iat || (iat + validity) * 1e3 < Date.now()) {
+      const { validity, iat, exp } = payload;
+      const expiration = exp || (validity && iat && iat + validity); // in seconds
+      if (!expiration || expiration * 1e3 < Date.now()) {
         const error = 'The provided JWT is invalid or expired.';
         log.warn(error, payload);
         setStatus(`error: ${error}`);
@@ -62,7 +63,7 @@ export const useMqttSync = ({jwt, id, mqttUrl, appReact}) => {
       client.on('close', () => {
         reconnectPeriod = Math.min(reconnectPeriod * 2, RECONNECT_PERIOD_MAX);
 
-        if ((iat + validity) * 1e3 < Date.now()) {
+        if (expiration * 1e3 < Date.now()) {
           const error = 'MQTT connection closed and the JWT is expired by now. Not reconnecting.';
           log.warn(error, payload);
           setStatus(`error: ${error}`);

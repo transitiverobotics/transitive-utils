@@ -434,6 +434,14 @@ const Simple = () => {
 const FailMqtt = () => {
 
   const mqttUrl = `ws://${HOST}`;
+  const tokenWithExp = `ignore.${btoa(JSON.stringify({
+      id: 'mockUserExp',
+      device: `d_mock_exp`,
+      capability: '@transitive-robotics/mock',
+      exp: Math.floor(Date.now() / 1e3) + 3600,
+      iat: Math.floor(Date.now() / 1e3)
+    }))}.ignore`;
+
   const sectionConfigs = useMemo(() => [{
         // Fail to connect to MQTT entirely. Expected behavior: back off.
         description: 'test failing mqtt connection',
@@ -452,6 +460,10 @@ const FailMqtt = () => {
         // should connect and should say so in StatusComponent
         description: 'test valid JWT',
         jwt: mockJWT('mockUser', 0, 180000), id: 'ignore', mqttUrl
+      }, {
+        // should connect and should say so in StatusComponent
+        description: 'test valid JWT with exp instead of validity',
+        jwt: tokenWithExp, id: 'ignore', mqttUrl
       },
     ], []);
 
