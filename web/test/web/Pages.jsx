@@ -81,6 +81,7 @@ class Comp2 extends React.Component {
   render() {
     setTimeout(() => {
       this.props.setConfig({k2: new Date()});
+      this.props.setConfig(c => ({...c, f2: new Date()}));
     }, 1000);
 
     // console.log('comp2 render');
@@ -214,6 +215,7 @@ const KitchenSink = () => {
   if (myref2.current) {
     // log.debug(myref2.current.call('foo', 'abc', 123),
     //   myref2.current.getConfig());
+    log.debug('comp2 config:', myref2.current.getConfig());
   }
 
   const myref3 = useRef(null);

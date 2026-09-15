@@ -361,7 +361,14 @@ export const createWebComponent = (Component, name, version = '0.0.0',
       * itself). This config is retrieved by the portal for inclusion in the
       * embedding instructions. */
       setConfig(config) {
-        this.setState({config});
+        if (config instanceof Function) {
+          this.setState(current => ({
+            // call the provided update function with current:
+            config: config(current.config)
+          }));
+        } else {
+          this.setState({config});
+        }
       }
 
       render() {
