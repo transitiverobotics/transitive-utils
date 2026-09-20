@@ -42,12 +42,12 @@ const robotHooks = {
     }
   },
   start: () => {
+    if (!subProject) return;
+
     // ensure dependencies are installed before starting
-    if (subProject) {
-      /* Remove stale .*-* in `node_modules` and `node_modules/@*` */
-      sh.rm('-rf', `node_modules/.*-*`);
-      sh.rm('-rf', `node_modules/@*/.*-*`);
-    }
+    /* Remove stale .*-* in `node_modules` and `node_modules/@*` */
+    sh.rm('-rf', `${subProject}/node_modules/.*-*`);
+    sh.rm('-rf', `${subProject}/node_modules/@*/.*-*`);
     npm('ls', {subProject}) == 0 || npm('update', {subProject});
   },
   // --- for caching
