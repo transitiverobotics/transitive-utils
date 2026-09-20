@@ -10,11 +10,12 @@ NPM="$NODE $npm_execpath"
 if [[ $ROS_VERSION == 2 ]]; then
   if [[ $ROS_DISTRO == "galactic" ]]; then
     echo 'Found ROS2 galactic, installing and building rclnodejs@0.27'
-    $NPM i --no-save rclnodejs@0.27.0
+    VERSION=0.27.0
   else
     echo 'Found ROS2, installing rclnodejs@1.6 (pre-built)'
-    $NPM i --no-save rclnodejs@1.6
+    VERSION=1.6
   fi
+  $NPM --prefix $npm_config_local_prefix i --no-save rclnodejs@$VERSION
 else
   echo ROS2 not found
 fi
