@@ -1,6 +1,6 @@
 
 process.env.CMAKE_PREFIX_PATH += `:${process.env.PWD}/var/ros1`;
-const rosnodejs = require('rosnodejs');
+const rosnodejs = require('rosnodejs-cf');
 const _ = require('lodash');
 
 const { getLogger, wait } = require('@transitive-sdk/utils');

@@ -1,6 +1,6 @@
 {
   "name": "@transitive-sdk/utils-ros",
-  "version": "0.13.2",
+  "version": "0.14.0",
   "description": "Utils for using ROS with Transitive",
   "homepage": "https://transitiverobotics.com",
   "repository": {
@@ -35,7 +35,7 @@
   },
   "optionalDependencies": {
     "rclnodejs": "<=1.6",
-    "rosnodejs": "github:chfritz/rosjs",
+    "rosnodejs-cf": "^3.1.0",
     "zeromq": "^6.5.0"
   }
 }
