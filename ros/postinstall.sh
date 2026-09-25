@@ -7,17 +7,22 @@
 
 NPM="$NODE $npm_execpath"
 
-if [[ $ROS_VERSION == 2 ]]; then
-  if [[ $ROS_DISTRO == "galactic" ]]; then
-    echo 'Found ROS2 galactic, installing and building rclnodejs@0.27'
-    VERSION=0.27.0
-  else
-    echo 'Found ROS2, installing rclnodejs@1.6 (pre-built)'
-    VERSION=1.6
-  fi
-  echo " .. in $npm_config_local_prefix"
-  cd $npm_config_local_prefix
-  $NPM i --no-save rclnodejs@$VERSION
-else
-  echo ROS2 not found
-fi
+# if [[ $ROS_VERSION == 2 ]]; then
+#   if [[ $ROS_DISTRO == "galactic" ]]; then
+#     echo 'Found ROS2 galactic, installing and building rclnodejs@0.27'
+#     VERSION=0.27.0
+#   else
+#     echo 'Found ROS2, installing rclnodejs@1.6 (pre-built)'
+#     VERSION=1.6
+#   fi
+#   echo " .. in $npm_config_local_prefix"
+#   cd $npm_config_local_prefix
+#   npm ls -a
+#   ls -la node_modules
+#   ls -la node_modules/rclnodejs
+#   $NPM i --no-save rclnodejs@$VERSION
+# else
+#   echo ROS2 not found
+# fi
+
+echo "found ROS2: $ROS_DISTRO"

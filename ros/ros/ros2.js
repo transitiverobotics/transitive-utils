@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
-const rclnodejs = require('rclnodejs');
+const rclnodejs = (process.env.ROS_DISTRO == "galactic"
+  ? require('rclnodejs-galactic')
+  : require('rclnodejs'));
 const _ = require('lodash');
 const EventEmitter = require('events');
 
