@@ -689,6 +689,10 @@ describe('pathToTopic', function() {
     ];
     list2.forEach(topic => assert.equal(pathToTopic(topicToPath(topic)), topic));
   });
+
+  it('should not fail on numbers', function() {
+    assert.equal(pathToTopic(['foo', 0, 'bar', 1]), '/foo/0/bar/1');
+  });
 });
 
 

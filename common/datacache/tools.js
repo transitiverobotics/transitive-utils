@@ -29,7 +29,8 @@ const topicToPath = (topic) => {
 const pathToTopic = (pathArray) => {
   /** reduce wildcards with Ids, such as `+sessionId`, to just + */
   const dropWildcardIds = (x) => x.startsWith('+') ? '+' : x;
-  return `/${pathArray.map(dropWildcardIds).map(encodeTopicElement).join('/')}`;
+  return `/${pathArray.map(String).map(dropWildcardIds).map(encodeTopicElement)
+    .join('/')}`;
 };
 
 /**
