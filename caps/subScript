@@ -37,45 +37,44 @@ const cacheDir =
 const robotHooks = {
   install: () => {
     if (process.env.npm_command === 'ci') {
-      console.log(`ci: Removing ${subProject}/node_modules`);
-      sh.rm('-rf', path.join(subProject, 'node_modules'));
+      console.log(`ci: Removing node_modules`);
+      sh.rm('-rf', 'node_modules');
     }
   },
   start: () => {
     if (!subProject) return;
 
-    // ensure dependencies are installed before starting
-    /* Remove stale .*-* in `node_modules` and `node_modules/@*` */
-    sh.rm('-rf', `${subProject}/node_modules/.*-*`);
-    sh.rm('-rf', `${subProject}/node_modules/@*/.*-*`);
-    npm('ls', {subProject}) == 0 || npm('update', {subProject});
+    // Ensure dependencies are installed before starting.
+    // Remove stale `.*-*` in `node_modules` and `node_modules/@*`.
+    sh.rm('-rf', `node_modules/.*-*`);
+    sh.rm('-rf', `node_modules/@*/.*-*`);
+    npm('ls') == 0 || npm('update');
   },
   // --- for caching
   postinstall: () => {
     console.log('Caching node_modules');
     sh.rm('-rf', cacheDir);
-    sh.cp('-R', 'robot/node_modules', cacheDir);
+    sh.cp('-R', 'node_modules', cacheDir);
   },
   preinstall: () => {
     if (sh.test('-d', cacheDir)) {
       console.log('Restoring cached node_modules');
-      sh.rm('-rf', 'robot/node_modules');
-      sh.mv(cacheDir, 'robot/node_modules');
+      sh.rm('-rf', 'node_modules');
+      sh.mv(cacheDir, 'node_modules');
     }
   }
   // ---
 }
 
 /** Run npm command, in subProject if given */
-const npm = (cmd, {subProject = undefined} = {}) => {
-  console.log(`Invoking ${cmd} ${subProject ? `in ${subProject}` : ''}`);
+const npm = (cmd) => {
+  console.log(`Invoking ${cmd} in ${process.cwd()}`);
 
   const args = [];
   const options = {
     env: {...process.env},
     stdio: 'inherit'
   }
-  subProject && (options.cwd = path.resolve(subProject));
 
   if (['install', 'update', 'rebuild', 'ls'].includes(cmd)) {
     // It's a known npm command that should be invoked without `run`
@@ -105,8 +104,10 @@ if (!subProject) {
 // -------------
 // We are calling a command in a sub project (robot or cloud)
 
+process.chdir(subProject);
+
 process.env.TRANSITIVE_IS_ROBOT &&
   robotHooks[npmLifecycleEvent]?.();
 
-exitCode = npm(subscript, {subProject});
+exitCode = npm(subscript);
 process.exit(exitCode);
