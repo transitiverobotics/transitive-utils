@@ -48,7 +48,7 @@ const robotHooks = {
     // Remove stale `.*-*` in `node_modules` and `node_modules/@*`.
     sh.rm('-rf', `node_modules/.*-*`);
     sh.rm('-rf', `node_modules/@*/.*-*`);
-    npm('ls') == 0 || npm('update');
+    npm('ls') == 0 || npm('install');
   },
   // --- for caching
   postinstall: () => {
@@ -83,7 +83,7 @@ const npm = (cmd) => {
     args.push('run', '--if-present');
   }
 
-  // args.push('--foreground-scripts');
+  args.push('--foreground-scripts');
   args.push(cmd);
 
   // sh.exec can't start tmux (not a terminal); using spawn instead
