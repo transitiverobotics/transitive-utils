@@ -67,26 +67,28 @@ const robotHooks = {
 }
 
 /** Run npm command, in subProject if given */
-const npm = (cmd, {env = {}, subProject = undefined} = {}) => {
+const npm = (cmd, {subProject = undefined} = {}) => {
   console.log(`Invoking ${cmd} ${subProject ? `in ${subProject}` : ''}`);
 
   const args = [];
-  subProject && args.push('--prefix', subProject);
+  const options = {
+    env: {...process.env},
+    stdio: 'inherit'
+  }
+  subProject && (options.cwd = path.resolve(subProject));
 
   if (['install', 'update', 'rebuild', 'ls'].includes(cmd)) {
     // It's a known npm command that should be invoked without `run`
-    env.FORCE_COLOR = '0'; // force no ascii colors (can lead to crashes in gyp)
+    options.env.FORCE_COLOR = '0'; // force no ascii colors (can lead to crashes in gyp)
   } else {
     args.push('run', '--if-present');
   }
 
+  // args.push('--foreground-scripts');
   args.push(cmd);
 
   // sh.exec can't start tmux (not a terminal); using spawn instead
-  const result = spawnSync('npm', args,
-    { env: {...process.env, ...env},
-      stdio: 'inherit'
-    });
+  const result = spawnSync('npm', args, options);
   return result.status;
 }
 
