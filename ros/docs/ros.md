@@ -242,7 +242,7 @@ Unsubscribe from topic
 
 A class that is interface-compatible with our ROS and ROS2 classes, but
 connects to ZeroMQ addresses for pub and sub instead. For non-ROS users.
-To enable, set `global.rosFs` to a truthy value in `config.json`. Config options:
+To enable, set `global.ros0` to a truthy value in `config.json`. Config options:
 
 *   `address` (default 'ipc:///tmp/transitive-zmq.sock'): the zeroMQ address to
     connect Publisher (+`.pub` suffix) and connect Subscriber (+`.sub` suffix) to.
