@@ -50,7 +50,13 @@ if [[ ! -e ~/.transitive/config.json ]]; then
   echo "{}" > ~/.transitive/config.json
 fi;
 
-env $(cat ~/.transitive/.env | grep -v ^\# | xargs) \
+# source the .env files; make sure spaces are quoted in those files
+set -o allexport
+. ~/.transitive/.env
+. ~/.transitive/.env_user
+set +o allexport
+
+env \
 PASSWORD="1234" \
 TRPACKAGE=$CAP \
 TRCONFIG="$(cat ~/.transitive/config.json | tr -d '\n' | sed "s#$CAP#package#")" \

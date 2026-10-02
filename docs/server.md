@@ -54,6 +54,10 @@ Super class for all cloud capabilities.
 *   `onReady` &#x20;
 *   `options`   (optional, default `{}`)
 
+## connectToLocalMQTT
+
+On the robot, connect to the local MQTT broker run by the robot-agent.
+
 ## fetchURL
 
 a simple function to fetch a URL
@@ -69,6 +73,16 @@ walk up the directory tree until we find a file or directory called basename
 #### Parameters
 
 *   `basename` &#x20;
+
+## getLocalMQTTSync
+
+On the robot, connect to local MQTT broker and create an MQTTSync instance
+for it. The provided options can be used to override or extend the default
+MQTTSync options for the robot.
+
+#### Parameters
+
+*   `options`   (optional, default `{}`)
 
 ## getPackageVersionNamespace
 

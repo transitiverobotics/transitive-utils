@@ -6,8 +6,10 @@ const assert = require('assert');
 const jwt = require('jsonwebtoken');
 const http = require('http');
 const https = require('https');
+const mqtt = require('mqtt');
 
 const { getRandomId, decodeJWT, getLogger } = require('../common/common');
+const MqttSync = require('../common/MqttSync');
 
 const randomId = getRandomId;
 
@@ -138,8 +140,50 @@ const registerCatchAll = () => {
   });
 };
 
+/** On the robot, connect to the local MQTT broker run by the robot-agent.
+ */
+const connectToLocalMQTT = () => {
+  const PORT = process.env.TR_MQTT_PORT ? `:${process.env.TR_MQTT_PORT}` : '';
+  const version = getPackageVersionNamespace();
+  const mqttClient = mqtt.connect(`mqtt://localhost${PORT}`, {
+    clientId: `${process.env.npm_package_name}/${version}`,
+    username: JSON.stringify({
+      version: process.env.npm_package_version,
+    }),
+    password: process.env.PASSWORD, // set by the agent when starting the capability
+  });
+
+  mqttClient.on('error', log.error);
+  mqttClient.on('disconnect', log.warn);
+  mqttClient.on('connect', () => log.info('(re-)connected to MQTT broker'));
+  return mqttClient;
+};
+
+/** On the robot, connect to local MQTT broker and create an MQTTSync instance
+* for it. The provided options can be used to override or extend the default
+* MQTTSync options for the robot.
+*/
+const getLocalMQTTSync = (options = {}) => new Promise((resolve, reject) => {
+  const mqttClient = connectToLocalMQTT();
+  mqttClient.once('connect', (connack) => {
+    log.debug('connected to mqtt broker', connack);
+
+    const mqttSync = new MqttSync({
+      mqttClient,
+      ignoreRetain: true,
+      // Slices off the first N fields of the topic, i.e., our client NS
+      // "/org/device/@scope/name/version":
+      sliceTopic: 5,
+      ...options
+    });
+
+    resolve(mqttSync);
+  });
+});
+
 module.exports = Object.assign({}, {
   findPath, getPackageVersionNamespace,
   randomId, setTerminalTitle, fetchURL,
-  importCapability, registerCatchAll
+  importCapability, registerCatchAll,
+  connectToLocalMQTT, getLocalMQTTSync
 });
