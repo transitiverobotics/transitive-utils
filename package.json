@@ -16,11 +16,24 @@
     "access": "public"
   },
   "main": "index.js",
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.mjs",
+      "require": "./index.js",
+      "default": "./index.js"
+    },
+    "./common/datacache": "./common/datacache/index.js",
+    "./*.js": "./*.js",
+    "./*.json": "./*.json",
+    "./*": "./*.js"
+  },
   "scripts": {
     "test": "cd test && node --test --watch",
     "testMqttSync": "node --test --watch test/MqttSync.test.js",
     "testCloud": "cd cloud && node --test --watch *.test.js",
-    "prepack": "cat docs.js | node --input-type=module - server common"
+    "prepack": "cat docs.js | node --input-type=module - server common && node scripts/generate-package-entries.js"
   },
   "dependencies": {
     "chalk": "^4.1.2",
@@ -35,7 +48,7 @@
     "aedes": "^0.46.2",
     "documentation": "^14.0.2",
     "expect": "^28.1.0",
-    "jest": "^28.0.3"
+    "typescript": "^7.0.2"
   },
   "bin": {
     "auto-update": "./bin/auto-update.js"

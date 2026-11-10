@@ -1,5 +1,6 @@
 const esbuild = require('esbuild');
 const fs = require('fs');
+const path = require('path');
 
 const isDevelopment = (process.env.npm_lifecycle_event != 'prepare');
 
@@ -39,6 +40,11 @@ const run = async () => {
     await ctx.watch();
   } else {
     await ctx.rebuild();
+    fs.mkdirSync(path.join(__dirname, 'dist'), {recursive: true});
+    fs.copyFileSync(
+      path.resolve(__dirname, '../common/MqttSync.d.ts'),
+      path.join(__dirname, 'dist/MqttSync.d.ts')
+    );
     process.exit(0);
   }
 

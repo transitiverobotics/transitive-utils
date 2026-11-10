@@ -10,3 +10,5 @@ const cloud = require('./server/cloud.js');
 module.exports = Object.assign({}, common, dataCache, cloud, server, {
   MqttSync
 });
+
+module.exports.MqttSync = MqttSync;
