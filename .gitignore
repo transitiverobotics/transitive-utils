@@ -2,3 +2,7 @@
 **/dist
 coverage
 certs
+
+# these are auto-generated during npm prepack
+index.mjs
+index.d.ts

@@ -40,6 +40,10 @@ if (releases[2]) {
   try {
     const ros = require('./ros2');
     ROSs.push(ros);
+
+    // Somehow required because of rclnodejs; leave some time for other such hooks
+    // in the capabilities themselves.
+    process.on('SIGINT', () => setTimeout(() => process.exit(0), 500));
   } catch (e) {
     log.warn('Unable to load rclnodejs (ros2):', e.message);
   }

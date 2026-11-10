@@ -20,6 +20,7 @@
     "access": "public"
   },
   "main": "dist/utils-web.js",
+  "types": "index.d.ts",
   "NOT_USED-module": "./dist/utils-web.esm.mjs",
   "NOT_USED-exports": {
     "import": "./dist/utils-web.esm.mjs",
