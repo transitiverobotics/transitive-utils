@@ -1,5 +1,5 @@
 import type { IClientOptions, MqttClient } from 'mqtt';
-import MqttSync = require('../common/MqttSync');
+import type { MqttSync } from '../common/MqttSync';
 
 export interface CapabilityOptions {
   mqttOptions?: IClientOptions;
@@ -17,5 +17,5 @@ export class Capability {
   readonly fullName: string;
   readonly mqtt: MqttClient;
   mqttSync: MqttSync | undefined;
-  readonly data: MqttSync.MqttSyncData;
+  readonly data: MqttSync['data'];
 }

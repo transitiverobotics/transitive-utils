@@ -1,5 +1,5 @@
 import type { MqttClient } from 'mqtt';
-import MqttSync = require('../common/MqttSync');
+import type { MqttSync } from '../common/MqttSync';
 
 export interface ImportCapabilityOptions {
   jwt: string;
@@ -17,6 +17,6 @@ export function importCapability<T = unknown>(
 export function registerCatchAll(): void;
 export function connectToLocalMQTT(): MqttClient;
 export function getLocalMQTTSync(
-  options?: Omit<MqttSync.MqttSyncOptions, 'mqttClient'>
+  options?: Omit<ConstructorParameters<typeof MqttSync>[0], 'mqttClient'>
 ): Promise<MqttSync>;
 export function randomId(bytes?: number): string;

@@ -1,61 +1,61 @@
-export type DataCacheObject = Record<string, unknown>;
+export type DataCacheObject<TValue = unknown> = Record<string, TValue>;
 export type DataCacheTags = Record<string, unknown>;
 export type DataCacheMatch = boolean | Record<string, string>;
 
-export type DataCacheListener = (
-  changes: Record<string, unknown>,
+export type DataCacheListener<TValue = unknown> = (
+  changes: Record<string, TValue>,
   tags?: DataCacheTags
 ) => void;
 
-export type DataCachePathListener = (
-  value: unknown,
+export type DataCachePathListener<TValue = unknown> = (
+  value: TValue,
   key: string,
   matched: DataCacheMatch,
   tags?: DataCacheTags
 ) => void;
 
-export type DataCacheMatchListener = (
-  value: unknown,
+export type DataCacheMatchListener<TValue = unknown> = (
+  value: TValue,
   path: string[],
   matched: Record<string, string>
 ) => void;
 
-export class DataCache {
+export class DataCache<TValue = unknown> {
   constructor(data?: DataCacheObject);
 
   updateFromArray(
     path: string[],
-    value: unknown,
+    value: TValue,
     tags?: DataCacheTags
-  ): Record<string, unknown>;
+  ): Record<string, TValue>;
   update(
     path: string | string[],
-    value: unknown,
+    value: TValue,
     tags?: DataCacheTags
-  ): Record<string, unknown>;
+  ): Record<string, TValue>;
   updateFromTopic(
     topic: string,
-    value: unknown,
+    value: TValue,
     tags?: DataCacheTags
-  ): Record<string, unknown>;
+  ): Record<string, TValue>;
   updateFromModifier(
-    modifier: Record<string, unknown>,
+    modifier: Record<string, TValue>,
     tags?: DataCacheTags
-  ): Array<Record<string, unknown>>;
+  ): Array<Record<string, TValue>>;
 
-  subscribe(callback: DataCacheListener): void;
-  subscribePath(path: string | string[], callback: DataCachePathListener): void;
-  subscribeTopic(topic: string, callback: DataCachePathListener): void;
-  subscribePathFlat(topic: string | string[], callback: DataCachePathListener): void;
-  unsubscribe(callback: DataCacheListener): void;
+  subscribe(callback: DataCacheListener<TValue>): void;
+  subscribePath(path: string | string[], callback: DataCachePathListener<TValue>): void;
+  subscribeTopic(topic: string, callback: DataCachePathListener<TValue>): void;
+  subscribePathFlat(topic: string | string[], callback: DataCachePathListener<TValue>): void;
+  unsubscribe(callback: DataCacheListener<TValue>): void;
 
-  get(path?: string[]): unknown;
-  getByTopic(topic: string): unknown;
-  filter(path: string[]): DataCacheObject;
-  filterByTopic(topic: string): DataCacheObject;
+  get(path?: string[]): TValue | DataCacheObject<TValue> | undefined;
+  getByTopic(topic: string): TValue | DataCacheObject<TValue> | undefined;
+  filter(path: string[]): DataCacheObject<TValue>;
+  filterByTopic(topic: string): DataCacheObject<TValue>;
 
-  forMatch(topic: string, callback: DataCacheMatchListener): void;
-  forPathMatch(path: string[], callback: DataCacheMatchListener): void;
+  forMatch(topic: string, callback: DataCacheMatchListener<TValue>): void;
+  forPathMatch(path: string[], callback: DataCacheMatchListener<TValue>): void;
 }
 
 export function updateObject(

@@ -1,3 +1,3 @@
-import MqttSyncType = require('./dist/MqttSync');
+import MqttSyncType = require('./dist/common/MqttSync');
 
 export { MqttSyncType as MqttSync };
