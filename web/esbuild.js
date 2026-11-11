@@ -4,6 +4,20 @@ const path = require('path');
 
 const isDevelopment = (process.env.npm_lifecycle_event != 'prepare');
 
+const copyDeclarations = (sourceDir, destinationDir) => {
+  for (const entry of fs.readdirSync(sourceDir, {withFileTypes: true})) {
+    const sourcePath = path.join(sourceDir, entry.name);
+    const destinationPath = path.join(destinationDir, entry.name);
+
+    if (entry.isDirectory()) {
+      copyDeclarations(sourcePath, destinationPath);
+    } else if (entry.name.endsWith('.d.ts')) {
+      fs.mkdirSync(destinationDir, {recursive: true});
+      fs.copyFileSync(sourcePath, destinationPath);
+    }
+  }
+};
+
 const config = {
   entryPoints: [{in: './index.js', out: 'utils-web'}],
   bundle: true,
@@ -26,7 +40,7 @@ const config = {
       name: 'rebuild-notify',
       setup(build) {
         build.onEnd(result => {
-          console.log(new Date(),
+          console.log(new Date(), build.initialOptions.format,
             `build ended with ${result.errors.length} errors`);
         })
       },
@@ -35,16 +49,32 @@ const config = {
 };
 
 const run = async () => {
-  const ctx = await esbuild.context(config);
-  if (isDevelopment) {
-    await ctx.watch();
-  } else {
-    await ctx.rebuild();
-    fs.mkdirSync(path.join(__dirname, 'dist'), {recursive: true});
-    fs.copyFileSync(
-      path.resolve(__dirname, '../common/MqttSync.d.ts'),
-      path.join(__dirname, 'dist/MqttSync.d.ts')
-    );
+  // const ctx = await esbuild.context(config);
+
+  const formats = [
+    { format: 'cjs' },
+    // { format: 'esm', outExtension: {'.js': '.esm.mjs'}}
+    // not in use yet, because utils-web imports functions from utils (cjs), which
+    // will hence not be exported (`export`s need to be static).
+    // reenable
+  ];
+
+  for (let overwrites of formats) {
+    const ctx = await esbuild.context({...config, ...overwrites});
+
+    if (isDevelopment) {
+      await ctx.watch();
+    } else {
+      await ctx.rebuild();
+      fs.mkdirSync(path.join(__dirname, 'dist'), {recursive: true});
+      copyDeclarations(
+        path.resolve(__dirname, '../common'),
+        path.join(__dirname, 'dist/common')
+      );
+    }
+  }
+
+  if (!isDevelopment) {
     process.exit(0);
   }
 

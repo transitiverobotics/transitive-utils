@@ -1,4 +1,5 @@
 import type { MqttClient } from 'mqtt';
+import type { DataCache as DataCacheType } from './datacache/DataCache';
 
 declare namespace MqttSync {
   export type MqttSyncValue =
@@ -9,86 +10,7 @@ declare namespace MqttSync {
     | MqttSyncValue[]
     | { [key: string]: MqttSyncValue };
 
-  export interface MqttSyncData {
-    update(
-      path: string | string[],
-      value: MqttSyncValue,
-      tags?: Record<string, unknown>
-    ): Record<string, MqttSyncValue>;
-    updateFromArray(
-      path: string[],
-      value: MqttSyncValue,
-      tags?: Record<string, unknown>
-    ): Record<string, MqttSyncValue>;
-    updateFromTopic(
-      topic: string,
-      value: MqttSyncValue,
-      tags?: Record<string, unknown>
-    ): Record<string, MqttSyncValue>;
-    updateFromModifier(
-      modifier: Record<string, MqttSyncValue>,
-      tags?: Record<string, unknown>
-    ): Array<Record<string, MqttSyncValue>>;
-    subscribe(
-      callback: (
-        changes: Record<string, MqttSyncValue>,
-        tags?: Record<string, unknown>
-      ) => void
-    ): void;
-    subscribePath(
-      path: string | string[],
-      callback: (
-        value: MqttSyncValue,
-        key: string,
-        matched: boolean | Record<string, string>,
-        tags?: Record<string, unknown>
-      ) => void
-    ): void;
-    subscribePathFlat(
-      path: string | string[],
-      callback: (
-        value: MqttSyncValue,
-        key: string,
-        matched: boolean | Record<string, string>,
-        tags?: Record<string, unknown>
-      ) => void
-    ): void;
-    subscribeTopic(
-      topic: string,
-      callback: (
-        value: MqttSyncValue,
-        key: string,
-        matched: boolean | Record<string, string>,
-        tags?: Record<string, unknown>
-      ) => void
-    ): void;
-    unsubscribe(
-      callback: (
-        changes: Record<string, MqttSyncValue>,
-        tags?: Record<string, unknown>
-      ) => void
-    ): void;
-    get(path?: string[]): MqttSyncValue | undefined;
-    getByTopic(topic: string): MqttSyncValue | undefined;
-    filter(path: string[]): MqttSyncValue | undefined;
-    filterByTopic(topic: string): MqttSyncValue | undefined;
-    forMatch(
-      topic: string,
-      callback: (
-        value: MqttSyncValue,
-        path: string[],
-        matched: boolean | Record<string, string>
-      ) => void
-    ): void;
-    forPathMatch(
-      path: string[],
-      callback: (
-        value: MqttSyncValue,
-        path: string[],
-        matched: boolean | Record<string, string>
-      ) => void
-    ): void;
-  }
+  export type MqttSyncData = DataCacheType<MqttSyncValue>;
 
   export interface MqttSyncMigration {
     topic: string;
@@ -136,7 +58,7 @@ declare namespace MqttSync {
   ) => Result | Promise<Result>;
 }
 
-declare class MqttSync {
+export declare class MqttSync {
   constructor(options: MqttSync.MqttSyncOptions);
 
   readonly mqtt: MqttClient;
@@ -204,5 +126,3 @@ declare class MqttSync {
     params: MqttSync.MqttSyncHistoryQuery
   ): Promise<Result>;
 }
-
-export = MqttSync;
