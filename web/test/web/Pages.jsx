@@ -6,7 +6,7 @@ import ReactDOM from 'react-dom';
 
 import { Badge, Button, OverlayTrigger, Popover } from 'react-bootstrap';
 
-import { getLogger, loglevel, fetchJson, useMqttSync, MqttSync, Timer, TimerContext,
+import { getLogger, loglevel, fetchJson, useMqttSync, MqttSync,
     ErrorBoundary, createWebComponent, useTransitive, useTopics, useCapability,
     TransitiveCapability, TreeSelector } from '../../index';
 
@@ -34,13 +34,6 @@ const Section = ({title, children}) => <div style={styles.section}>
 </div>;
 
 
-const TimerChild = () => {
-  const context = useContext(TimerContext);
-  return <div style={{backgroundColor: '#ccd'}}>I'm the TimerChild.
-    <pre>{JSON.stringify(context, true, 2)}</pre>
-    <button onClick={context.reset}>Reset</button>
-  </div>;
-}
 
 /** ----  Custom components, exposing an imperative API */
 const Comp = forwardRef((props, ref) => {
@@ -280,14 +273,6 @@ const KitchenSink = () => {
       </ErrorBoundary>
     </Section>
 
-    <Section title="Timer">
-      <Timer duration={20}>
-        timeout in 20s
-        <TimerChild>
-        </TimerChild>
-      </Timer>
-    </Section>
-
     <Section title="Custom Components">
       <Badge bg="primary">bootstrap badge (outside)</Badge><br/>
       <button onClick={toggleShow}>
@@ -484,84 +469,4 @@ const FailMqtt = () => {
   </div>;
 };
 
-
-/** Test TreeSelector */
-const TreeSelect = () => {
-  const [selection, setSelection] = useState({});
-
-  const options = {
-    selector: 'video source',
-    field: 'type',
-    options: [
-      { label: 'ROS Topic', // label for this option (in parent selector)
-        value: 'rostopic', // value to use when selected
-        field: 'value', // the field for which options list possible values
-        selector: 'ROS Version', // label for next selector
-        options: [
-          { label: 'ROS1',
-            value: 'ros1',
-            selector: 'topic',
-            field: 'topic',
-            options: [{
-              label: 'topic1',
-              value: 'topic1'
-            }]
-          }, {
-            label: 'ROS2',
-            value: 'ros2',
-            selector: 'topic',
-            field: 'topic',
-            options: [{
-              label: 'topic1',
-              value: 'topic1'
-            }]
-          }, {
-            label: 'Free form',
-            value: 'free-form',
-            selector: 'Enter text',
-            field: 'textParam',
-            default: 'my text',
-          }, {
-            label: 'A Number',
-            value: 'free-form-number',
-            selector: 'Enter number',
-            type: 'number',
-            field: 'numberParam',
-          }, {
-            label: 'A Date',
-            value: 'free-form-date',
-            selector: 'Enter date',
-            type: 'datetime-local',
-            field: 'dateParam',
-          }
-        ]
-      }
-    ]};
-
-  return <div className='transitive-bs-root'>
-    <style>
-      @import url('/bootstrap_transitive-bs-root.css');
-    </style>
-
-    <h3>TreeSelector</h3>
-    <TreeSelector {...{options}} onSelect={(selected) => setSelection(selected)} />
-
-    Selected:
-    <pre>
-      {JSON.stringify(selection, true, 2)}
-    </pre>
-
-    <hr/>
-
-    Preselected:
-    <TreeSelector {...{options}}
-      preselected={{
-        type: "rostopic",
-        value: "free-form",
-        textParam: "asdf"
-      }} />
-
-  </div>
-};
-
-export default { KitchenSink, Simple, FailMqtt, TreeSelect };
+export default { KitchenSink, Simple, FailMqtt };
