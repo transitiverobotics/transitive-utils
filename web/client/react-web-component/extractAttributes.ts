@@ -4,12 +4,14 @@
  * @param nodeMap
  * @returns {{}}
  */
-module.exports = function extractAttributes(nodeMap) {
+export default function extractAttributes(
+  nodeMap: { attributes?: NamedNodeMap | null }
+): Record<string, string> {
   if (!nodeMap.attributes) {
     return {};
   }
 
-  let obj = {};
+  const obj: Record<string, string> = {};
   let attribute;
   const attributesAsNodeMap = [...nodeMap.attributes];
   const attributes = attributesAsNodeMap.map((attribute) =>

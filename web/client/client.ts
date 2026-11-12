@@ -1,8 +1,7 @@
 // It is OK to use paths outside of this package because webpack will bundle them
-export * from '../../common/common.js';
-export * from '../../common/datacache';
-import MS from '../../common/MqttSync.js';
-export const MqttSync = MS;
+export * from '../../common/common';
+export * from '../../common/datacache/index';
+export { MqttSync } from '../../common/MqttSync';
 
 // moved to common
 // export const decodeJWT = (jwt) => JSON.parse(atob(jwt.split('.')[1]));
@@ -18,7 +17,11 @@ export const parseCookie = str =>
     }, {});
 
 /** get or post (if body given) json */
-export const fetchJson = (url, callback, options = {}) => {
+export const fetchJson = (
+  url: string,
+  callback: (error: string | false | undefined, data?: unknown) => void,
+  options: { method?: string; body?: unknown; headers?: Record<string, string> } = {}
+) => {
   fetch(url, {
     method: options.method || (options.body ? 'post' : 'get'),
     mode: 'cors',

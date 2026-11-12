@@ -1,15 +1,11 @@
 
-const fs = require('fs');
-const path = require('path');
-
-const assert = require('assert');
-const jwt = require('jsonwebtoken');
-const http = require('http');
-const https = require('https');
-const mqtt = require('mqtt');
-
-const { getRandomId, decodeJWT, getLogger } = require('../common/common');
-const MqttSync = require('../common/MqttSync');
+import fs from 'node:fs';
+import path from 'node:path';
+import http from 'node:http';
+import https from 'node:https';
+import mqtt from 'mqtt';
+import { getRandomId, decodeJWT, getLogger } from '../common/common';
+import { MqttSync, type MqttSyncOptions } from '../common/MqttSync';
 
 const randomId = getRandomId;
 
@@ -163,7 +159,9 @@ const connectToLocalMQTT = () => {
 * for it. The provided options can be used to override or extend the default
 * MQTTSync options for the robot.
 */
-const getLocalMQTTSync = (options = {}) => new Promise((resolve, reject) => {
+const getLocalMQTTSync = (
+  options: Omit<MqttSyncOptions, 'mqttClient'> = {}
+) => new Promise<MqttSync>((resolve) => {
   const mqttClient = connectToLocalMQTT();
   mqttClient.once('connect', (connack) => {
     log.debug('connected to mqtt broker', connack);
@@ -181,9 +179,9 @@ const getLocalMQTTSync = (options = {}) => new Promise((resolve, reject) => {
   });
 });
 
-module.exports = Object.assign({}, {
+export {
   findPath, getPackageVersionNamespace,
   randomId, setTerminalTitle, fetchURL,
   importCapability, registerCatchAll,
   connectToLocalMQTT, getLocalMQTTSync
-});
+};

@@ -5,7 +5,7 @@ const cors = require('cors');
 const http = require('http');
 const ws = require('websocket-stream');
 
-const MqttSync = require('../../common/MqttSync');
+const { MqttSync } = require('../../dist/common/MqttSync.cjs');
 const { loglevel, getLogger } = require('../..');
 
 const log = getLogger('server');

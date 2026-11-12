@@ -31,7 +31,7 @@ const postProcessLine = (line) => line
 
 
 process.argv.slice(2).forEach(folder => {
-  build(`${folder}/**/*.js`, {
+  build(`${folder}/**/*.{ts,tsx}`, {
     sortOrder: ['kind', 'alpha'],
     inferPrivate: '^_',
     shallow: true,

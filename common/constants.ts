@@ -1,5 +1,4 @@
-module.exports = {
-  rosReleases: {
+export const rosReleases = {
     kinetic: { rosVersion: 1, ubuntuCodename: 'xenial' },
     melodic: { rosVersion: 1, ubuntuCodename: 'bionic' },
     noetic: { rosVersion: 1, ubuntuCodename: 'focal' },
@@ -12,5 +11,4 @@ module.exports = {
     jazzy: { rosVersion: 2 },
     kilted: { rosVersion: 2 },
     rolling: { rosVersion: 2 },
-  }
-};
+  };

@@ -1,23 +1,21 @@
 
-const _ = {
-  get: require('lodash/get'),
-  set: require('lodash/set'),
-  unset: require('lodash/unset'),
-  forEach: require('lodash/forEach'),
-  map: require('lodash/map'),
-  isEmpty: require('lodash/isEmpty'),
-  eq: require('lodash/isEqual'),
-  isPlainObject: require('lodash/isPlainObject'),
-  merge: require('lodash/merge'),
-};
+import get from 'lodash/get.js';
+import set from 'lodash/set.js';
+import unsetObject from 'lodash/unset.js';
+import forEach from 'lodash/forEach.js';
+import map from 'lodash/map.js';
+import isEmpty from 'lodash/isEmpty.js';
+import isEqual from 'lodash/isEqual.js';
+import { topicToPath, pathToTopic, toFlatObject, topicMatch, forMatchIterator }
+  from './tools';
 
-const {topicToPath, pathToTopic, toFlatObject, topicMatch, forMatchIterator}
-  = require('./tools');
+const _ = { get, set, unset: unsetObject, forEach, map, isEmpty, eq: isEqual };
+
 
 /** Unset the topic in that obj, and clean up parent if empty, recursively.
 Return the path to the removed node.
 */
-const unset = (obj, path) => {
+const unset = (obj: Record<string, unknown>, path: string[]) => {
   if (!path || path.length == 0) return;
   _.unset(obj, path);
   const parentPath = path.slice(0, -1);
@@ -32,7 +30,10 @@ const unset = (obj, path) => {
 
 /** Given a modifier `{"a/b/c": "xyz"}` update the object `obj` such that
 `obj.a.b.c = "xyz"`. */
-const updateObject = (obj, modifier) => {
+const updateObject = (
+  obj: Record<string, unknown>,
+  modifier: Record<string, unknown>
+) => {
   _.forEach( modifier, (value, topic) => {
     const path = topicToPath(topic);
     if (value == null) {
@@ -52,7 +53,7 @@ to only contain elements matched by the path, e.g.,
 @param {array} path - An array specifying the path to select, potentially
 containing mqtt wildcards ('+').
 */
-const selectFromObject = (obj, path) => {
+const selectFromObject = (obj: Record<string, unknown>, path: string[]) => {
   if (path.length == 0) return;
   const next = path[0];
   if (next) {
@@ -60,7 +61,9 @@ const selectFromObject = (obj, path) => {
       if (key != next && next != '*' && !next.startsWith('+')) {
         delete obj[key];
       } else {
-        selectFromObject(obj[key], path.slice(1));
+        if (obj[key] && typeof obj[key] === 'object') {
+          selectFromObject(obj[key] as Record<string, unknown>, path.slice(1));
+        }
       }
     }
   }
@@ -85,13 +88,13 @@ const selectFromObject = (obj, path) => {
 * In the cloud or in a web component you would need to use the full topic including
 * org, device, scope, cap-name, and version.
 */
-class DataCache {
+export class DataCache<TValue = unknown> {
 
-  #data = {};
-  #listeners = [];
-  #flatListeners = [];
+  #data: Record<string, TValue> = {};
+  #listeners: Array<(changes: Record<string, TValue>, tags?: Record<string, unknown>) => void> = [];
+  #flatListeners: Array<(changes: Record<string, TValue>, tags?: Record<string, unknown>) => void> = [];
 
-  constructor(data = {}) {
+  constructor(data: Record<string, TValue> = {}) {
     this.#data = data;
 
     // for now add an alias
@@ -103,7 +106,11 @@ class DataCache {
     them somehow based on the context, e.g., so that some subscriptions can choose
   to ignore updates with a certain tag.
   */
-  updateFromArray(path, value, tags = {}) {
+  updateFromArray(
+    path: string[],
+    value: TValue,
+    tags: Record<string, unknown> = {}
+  ): Record<string, TValue> {
     // const empty = Object.keys(this.#data).length == 0; // object already empty
     const current = _.get(this.#data, path);
     if (value == null) {
@@ -154,7 +161,11 @@ class DataCache {
   }
 
   /** Update the value at the given path (array or dot separated string) */
-  update(path, value, tags) {
+  update(
+    path: string | string[],
+    value: TValue,
+    tags?: Record<string, unknown>
+  ): Record<string, TValue> {
     if (typeof path == 'string') {
       return this.updateFromTopic(path, value, tags);
     } else if (path instanceof Array) {
@@ -165,19 +176,26 @@ class DataCache {
   }
 
   /** Set value from the given topic (with or without leading or trailing slash) */
-  updateFromTopic(topic, value, tags) {
+  updateFromTopic(
+    topic: string,
+    value: TValue,
+    tags?: Record<string, unknown>
+  ): Record<string, TValue> {
     return this.updateFromArray(topicToPath(topic), value, tags);
   }
 
   /** Update data from a modifier object where keys are topic names to be
     interpreted as paths, and values are the values to set */
-  updateFromModifier(modifier, tags) {
+  updateFromModifier(
+    modifier: Record<string, TValue>,
+    tags?: Record<string, unknown>
+  ): Array<Record<string, TValue>> {
     return _.map(modifier, (value, topic) =>
       this.updateFromTopic(topic, value, tags));
   }
 
   /** Add a callback for all change events. */
-  subscribe(callback) {
+  subscribe(callback: (changes: Record<string, TValue>, tags?: Record<string, unknown>) => void) {
     if (callback instanceof Function) {
       this.#listeners.push(callback);
     } else {
@@ -187,7 +205,10 @@ class DataCache {
 
   /** Subscribe to a specific path (array) only. Callback receives
   `value, key, matched, tags`. */
-  subscribePath(path, callback) {
+  subscribePath(
+    path: string | string[],
+    callback: (value: TValue, key: string, matched: boolean | Record<string, string>, tags?: Record<string, unknown>) => void
+  ) {
     this.#listeners.push((changes, tags) => {
       _.forEach(changes, (value, key) => {
         const matched = topicMatch(path, key);
@@ -198,12 +219,18 @@ class DataCache {
 
   /** Subscribe to a specific topic only. Callback receives
   `value, key, matched, tags`. */
-  subscribeTopic(topic, callback) {
+  subscribeTopic(
+    topic: string,
+    callback: (value: TValue, key: string, matched: boolean | Record<string, string>, tags?: Record<string, unknown>) => void
+  ) {
     this.subscribePath(topic, callback);
   }
 
   /** Same as subscribePath but always get all changes in flat form */
-  subscribePathFlat(topic, callback) {
+  subscribePathFlat(
+    topic: string | string[],
+    callback: (value: TValue, key: string, matched: boolean | Record<string, string>, tags?: Record<string, unknown>) => void
+  ) {
     this.#flatListeners.push((changes, tags) => {
       _.forEach(changes, (value, key) => {
         const matched = topicMatch(topic, key);
@@ -213,46 +240,50 @@ class DataCache {
   }
 
   /** Remove a callback previously registered using `subscribe`. */
-  unsubscribe(callback) {
+  unsubscribe(callback: (changes: Record<string, TValue>, tags?: Record<string, unknown>) => void) {
     this.#listeners = this.#listeners.filter(f => f != callback);
   }
 
   /** Get sub-value at path, or entire object if none given */
-  get(path = []) {
+  get(path: string[] = []): TValue | Record<string, TValue> | undefined {
     return path.length == 0 ? this.#data : _.get(this.#data, path);
   }
 
   /** Get sub-value specified by topic */
-  getByTopic(topic) {
+  getByTopic(topic: string): TValue | Record<string, TValue> | undefined {
     return this.get(topicToPath(topic));
   }
 
   /** Filter the object using path with wildcards */
-  filter(path) {
+  filter(path: string[]): Record<string, TValue> {
     const rtv = JSON.parse(JSON.stringify(this.get()));
     selectFromObject(rtv, path);
     return rtv;
   }
 
   /** Filter the object using topic with wildcards */
-  filterByTopic(topic) {
+  filterByTopic(topic: string): Record<string, TValue> {
     return this.filter(topicToPath(topic));
   }
 
   /** For each topic match, invoke the callback with the value, path, and match
   just like subscribePath, but on the current data rather than future changes. */
-  forMatch(topic, callback) {
+  forMatch(
+    topic: string,
+    callback: (value: unknown, path: string[], matched: Record<string, string>) => void
+  ) {
     const path = topicToPath(topic);
     this.forPathMatch(path, callback);
   }
 
   /** For each path match, invoke the callback with the value, path, and match
   just like subscribePath */
-  forPathMatch(path, callback) {
+  forPathMatch(
+    path: string[],
+    callback: (value: unknown, path: string[], matched: Record<string, string>) => void
+  ) {
     forMatchIterator(this.get(), path, callback);
   }
 };
 
-module.exports = {
-  DataCache, updateObject
-}
+export { updateObject };

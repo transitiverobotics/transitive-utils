@@ -1,11 +1,10 @@
-const React = require('react');
-const ReactDOM = require('react-dom');
-const { createRoot } = require('react-dom/client');
+import React from 'react';
+import { createRoot } from 'react-dom/client';
 
 // const { createRoot } = require('react-dom/client'); // react 18; wip
-const retargetEvents = require('react-shadow-dom-retarget-events');
-const getStyleElementsFromReactWebComponentStyleLoader = require('./getStyleElementsFromReactWebComponentStyleLoader');
-const extractAttributes = require('./extractAttributes');
+import retargetEvents from 'react-shadow-dom-retarget-events';
+import getStyleElementsFromReactWebComponentStyleLoader from './getStyleElementsFromReactWebComponentStyleLoader';
+import extractAttributes from './extractAttributes';
 
 // require('@webcomponents/shadydom');
 // require('@webcomponents/custom-elements');
@@ -17,16 +16,20 @@ const lifeCycleHooks = {
   adoptedCallback: 'webComponentAdopted'
 };
 
-module.exports = {
+export const create = (
   /*
    * @param {JSX.Element} wrapper: the wrapper component class to be instantiated and wrapped
    * @param {string} tagName - The name of the web component. Has to be minus "-" delimited.
    * @param {boolean} useShadowDom - If the value is set to "true" the web component will use the `shadowDom`. The default value is true.
    */
-  create: (wrapper, tagName, useShadowDom = true, compRef = undefined) => {
+  wrapper: React.ElementType,
+  tagName: string,
+  useShadowDom = true,
+  compRef?: React.RefObject<unknown>
+) => {
 
     const proto = class extends HTMLElement {
-      instance = null; // the instance we create of the wrapper
+      instance: any = null; // the instance we create of the wrapper
 
       callConstructorHook() {
         if (this.instance['webComponentConstructed']) {
@@ -34,7 +37,7 @@ module.exports = {
         }
       }
 
-      callLifeCycleHook(hook, params = []) {
+      callLifeCycleHook(hook: keyof typeof lifeCycleHooks, params: unknown[] = []) {
         const method = lifeCycleHooks[hook];
         if (method && this.instance && this.instance[method]) {
           this.instance[method].apply(this.instance, params);
@@ -43,7 +46,7 @@ module.exports = {
 
       connectedCallback() {
         const self = this;
-        let mountPoint = self;
+        let mountPoint: HTMLElement = self;
 
         if (useShadowDom) {
           // Re-assign the self (this) to the newly created shadowRoot
@@ -80,7 +83,7 @@ module.exports = {
 
       /* call a function defined in the component, either as a class method, or
       * via useImperativeHandle */
-      call(functionName, args) {
+      call(functionName: string, args: unknown) {
         return compRef?.current?.[functionName]?.call(compRef?.current, args);
       }
 
@@ -95,5 +98,4 @@ module.exports = {
     customElements.define(tagName, proto);
 
     return proto;
-  },
-};
+  };

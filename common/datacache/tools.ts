@@ -1,11 +1,8 @@
 
-const _ = {
-  get: require('lodash/get'),
-  set: require('lodash/set'),
-  forEach: require('lodash/forEach'),
-  map: require('lodash/map'),
-  isPlainObject: require('lodash/isPlainObject'),
-};
+import forEach from 'lodash/forEach.js';
+import isPlainObject from 'lodash/isPlainObject.js';
+
+const _ = { forEach, isPlainObject };
 
 
 // -------------------------------------------------------------------------
@@ -141,7 +138,7 @@ const isPrefixOf = (prefixArray, array) => {
 }
 
 
-module.exports = {
+export {
   topicToPath,
   pathToTopic,
   toFlatObject,

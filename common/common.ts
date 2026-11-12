@@ -1,34 +1,35 @@
-const semverCompare = require('semver/functions/compare');
-const semverMinVersion = require('semver/ranges/min-version');
+import semverCompare from 'semver/functions/compare.js';
+import semverMinVersion from 'semver/ranges/min-version.js';
+import get from 'lodash/get.js';
+import set from 'lodash/set.js';
+import unset from 'lodash/unset.js';
+import forEach from 'lodash/forEach.js';
+import map from 'lodash/map.js';
+import isEmpty from 'lodash/isEmpty.js';
+import isEqual from 'lodash/isEqual.js';
+import isPlainObject from 'lodash/isPlainObject.js';
+import merge from 'lodash/merge.js';
+import loglevel from 'loglevel';
+import prefix from 'loglevel-plugin-prefix';
+import chalk from 'chalk';
+import {
+  topicToPath, pathToTopic, toFlatObject, setFromPath, forMatchIterator,
+  topicMatch, isSubTopicOf, encodeTopicElement, decodeTopicElement
+} from './datacache/tools';
+import * as constants from './constants';
 
 const _ = {
-  get: require('lodash/get'),
-  set: require('lodash/set'),
-  unset: require('lodash/unset'),
-  forEach: require('lodash/forEach'),
-  map: require('lodash/map'),
-  isEmpty: require('lodash/isEmpty'),
-  eq: require('lodash/isEqual'),
-  isPlainObject: require('lodash/isPlainObject'),
-  merge: require('lodash/merge'),
+  get, set, unset, forEach, map, isEmpty, eq: isEqual, isPlainObject, merge,
 };
-
-const loglevel = require('loglevel');
-const prefix = require('loglevel-plugin-prefix');
-const chalk = require('chalk');
-
-const { topicToPath, pathToTopic, toFlatObject, setFromPath, forMatchIterator,
-  topicMatch, isSubTopicOf, encodeTopicElement, decodeTopicElement }
-  = require('./datacache/tools');
-
-const constants = require('./constants');
 
 // ----------------------------------------------------------------------------
 // Logging, incl. logger prefix
 
 /* Convenience function to set all loggers to the given level. */
-loglevel.setAll = (level) =>
-  Object.values(loglevel.getLoggers()).forEach(l => l.setLevel(level));
+const extendedLoglevel = Object.assign(loglevel, {
+  setAll: (level: Parameters<typeof loglevel.setLevel>[0]) =>
+    Object.values(loglevel.getLoggers()).forEach(l => l.setLevel(level))
+});
 
 const logColors = {
   warn: chalk.yellow,
@@ -259,7 +260,11 @@ const versionCompare = (a, b) =>
 * @param {string} options.minVersion: versions below this will be ignored,
 * @param {string} options.maxVersion: versions above this will be ignored
 */
-const mergeVersions = (versionsObject, subTopic = undefined, options = {}) => {
+const mergeVersions = (
+  versionsObject: Record<string, unknown> | null | undefined,
+  subTopic?: string,
+  options: { minVersion?: string; maxVersion?: string } = {}
+) => {
   if (!versionsObject) {
     return subTopic ? _.set({}, subTopic, versionsObject) : versionsObject;
   }
@@ -286,7 +291,10 @@ const mergeVersions = (versionsObject, subTopic = undefined, options = {}) => {
 * `@local/myNewCap`, and the values are options like the ones accepted by
 * mergeVersions, plus an also optional field `subTopic` given to the same.
  */
-const mergeAllVersions = (data, options = {}) => {
+const mergeAllVersions = (
+  data: Record<string, unknown>,
+  options: Record<string, { minVersion?: string; maxVersion?: string; subTopic?: string }> = {}
+) => {
   const rtv = {};
   forMatchIterator(data, ['+org', '+device', '+scope', '+capName'],
     (versionsObject, path) => {
@@ -312,7 +320,7 @@ const formatBytes = (bytes) => {
 
 const formatDuration = (seconds) => {
   if (!seconds) return '--';
-  const parts = {};
+  const parts: { h?: number; m?: number; s?: number } = {};
   if (seconds > 3600) {
     parts.h = Math.floor(seconds / 3600);
     seconds = seconds % 3600;
@@ -354,10 +362,10 @@ const doOnce = (fn, key = undefined) => {
 
 // -------------------------------------------------------------------------
 
-module.exports = { parseMQTTUsername, parseMQTTTopic,
+export { parseMQTTUsername, parseMQTTTopic,
   pathToTopic, topicToPath, toFlatObject, topicMatch,
   mqttParsePayload, getRandomId, toBase52, getDateBase52, versionCompare,
-  loglevel, getLogger,
+  getLogger,
   mergeVersions, mergeAllVersions,
   mqttClearRetained, isSubTopicOf, clone, setFromPath,
   forMatchIterator, encodeTopicElement, decodeTopicElement, constants, visit,
@@ -368,3 +376,5 @@ module.exports = { parseMQTTUsername, parseMQTTTopic,
   metaTopicToSelector, selectorToMetaTopic,
   doOnce
 };
+
+export { extendedLoglevel as loglevel };

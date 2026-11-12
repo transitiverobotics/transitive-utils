@@ -19,15 +19,25 @@
   "publishConfig": {
     "access": "public"
   },
-  "main": "dist/utils-web.js",
-  "types": "index.d.ts",
-  "NOT_USED-module": "./dist/utils-web.esm.mjs",
-  "NOT_USED-exports": {
-    "import": "./dist/utils-web.esm.mjs",
-    "default": "./dist/utils-web.js"
+  "main": "./dist/utils-web.cjs",
+  "module": "./dist/utils-web.mjs",
+  "types": "./dist/utils-web.d.cts",
+  "exports": {
+    ".": {
+      "types": "./dist/utils-web.d.cts",
+      "import": {
+        "types": "./dist/utils-web.d.mts",
+        "default": "./dist/utils-web.mjs"
+      },
+      "require": {
+        "types": "./dist/utils-web.d.cts",
+        "default": "./dist/utils-web.cjs"
+      }
+    }
   },
   "scripts": {
-    "prepare": "node esbuild.js && cd css && npx cleancss -o bootstrap_transitive-bs-root.min.css bootstrap_transitive-bs-root.css",
+    "build": "tsdown --config-loader native",
+    "prepare": "npm run build && cd css && npx cleancss -o bootstrap_transitive-bs-root.min.css bootstrap_transitive-bs-root.css",
     "prepack": "cat ../docs.js | node --input-type=module - client",
     "dev": "node esbuild.js"
   },
@@ -43,6 +53,9 @@
     "semver": "^7.7.4"
   },
   "devDependencies": {
+    "@types/lodash": "^4.17.20",
+    "@types/react": "^18.3.23",
+    "@types/react-dom": "^18.3.7",
     "clean-css-cli": "^5.6.3",
     "cors": "^2.8.5",
     "esbuild": "^0.28.0",
@@ -51,6 +64,8 @@
     "react-bootstrap": "^2.10.10",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",
+    "tsdown": "^0.23.7",
+    "typescript": "^7.0.2",
     "websocket-stream": "^5.3.0"
   }
 }

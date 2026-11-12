@@ -15,25 +15,63 @@
   "publishConfig": {
     "access": "public"
   },
-  "main": "index.js",
-  "types": "index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/types/index.d.ts",
   "exports": {
     ".": {
-      "types": "./index.d.ts",
-      "import": "./index.mjs",
-      "require": "./index.js",
-      "default": "./index.js"
+      "types": "./dist/types/index.d.ts",
+      "import": {
+        "types": "./dist/types/index.d.ts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/types/index.d.ts",
+        "default": "./dist/index.cjs"
+      }
     },
-    "./common/datacache": "./common/datacache/index.js",
-    "./*.js": "./*.js",
+    "./common/datacache": {
+      "types": "./dist/types/common/datacache/index.d.ts",
+      "import": {
+        "types": "./dist/types/common/datacache/index.d.ts",
+        "default": "./dist/common/datacache/index.mjs"
+      },
+      "require": {
+        "types": "./dist/types/common/datacache/index.d.ts",
+        "default": "./dist/common/datacache/index.cjs"
+      }
+    },
+    "./*.js": {
+      "types": "./dist/types/*.d.ts",
+      "import": {
+        "types": "./dist/types/*.d.ts",
+        "default": "./dist/*.mjs"
+      },
+      "require": {
+        "types": "./dist/types/*.d.ts",
+        "default": "./dist/*.cjs"
+      }
+    },
     "./*.json": "./*.json",
-    "./*": "./*.js"
+    "./*": {
+      "types": "./dist/types/*.d.ts",
+      "import": {
+        "types": "./dist/types/*.d.ts",
+        "default": "./dist/*.mjs"
+      },
+      "require": {
+        "types": "./dist/types/*.d.ts",
+        "default": "./dist/*.cjs"
+      }
+    }
   },
   "scripts": {
+    "build": "tsdown --config-loader native && tsdown --no-config --format cjs,esm --no-dts --no-clean --out-dir dist common/common.ts common/constants.ts common/MqttSync.ts common/datacache/index.ts common/datacache/DataCache.ts common/datacache/tools.ts server/capability.ts server/cloud.ts server/server.ts && tsc --emitDeclarationOnly --pretty false --outDir dist/types",
+    "prepare": "npm run build",
     "test": "cd test && node --test --watch",
     "testMqttSync": "node --test --watch test/MqttSync.test.js",
     "testCloud": "cd cloud && node --test --watch *.test.js",
-    "prepack": "cat docs.js | node --input-type=module - server common && node scripts/generate-package-entries.js"
+    "prepack": "cat docs.js | node --input-type=module - server common"
   },
   "dependencies": {
     "chalk": "^4.1.2",
@@ -45,9 +83,12 @@
     "semver": "^7.3.5"
   },
   "devDependencies": {
+    "@types/lodash": "^4.17.20",
+    "@types/node": "^22.15.30",
     "aedes": "^0.46.2",
     "documentation": "^14.0.2",
     "expect": "^28.1.0",
+    "tsdown": "^0.23.7",
     "typescript": "^7.0.2"
   },
   "bin": {

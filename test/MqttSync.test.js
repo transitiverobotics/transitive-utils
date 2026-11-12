@@ -3,9 +3,8 @@ const assert = require('assert');
 const Aedes = require('aedes');
 const mqtt = require('mqtt');
 
-// const MqttSync = require('../common/MqttSync');
 const { getLogger, DataCache, parseMQTTTopic, randomId, topicToPath, wait,
-  MqttSync, metaPathToSelectorPath, pathToTopic } = require('../index');
+  MqttSync, metaPathToSelectorPath, pathToTopic } = require('..');
 
 const loglevel = require('loglevel');
 // log.getLogger('MqttSync.js').setLevel('debug');

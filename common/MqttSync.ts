@@ -1,13 +1,14 @@
 'use strict';
 
-const _ = require('lodash');
-
-const { mqttParsePayload, topicMatch, topicToPath, pathToTopic,
+import _ from 'lodash';
+import type { MqttClient } from 'mqtt';
+import {
+  mqttParsePayload, topicMatch, topicToPath, pathToTopic,
   toFlatObject, getLogger, mergeVersions, parseMQTTTopic, isSubTopicOf,
   versionCompare, encodeTopicElement, visitAncestor, getRandomId,
   selectorPathToMetaPath, selectorToMetaTopic
-} = require('./common');
-const { DataCache } = require('./datacache/DataCache');
+} from './common';
+import { DataCache } from './datacache/DataCache';
 
 
 const log = getLogger('MqttSync');
@@ -35,6 +36,58 @@ const ensureHashSuffix = (topic) =>
 
 /* given a path, replace any double slashes, '//', with single ones */
 const resolveDoubleSlashes = (path) => path.replace(/\/\//g, '/');
+
+export type MqttSyncValue =
+  | string
+  | number
+  | boolean
+  | null
+  | MqttSyncValue[]
+  | { [key: string]: MqttSyncValue };
+
+export interface MqttSyncMigration {
+  topic: string;
+  newVersion: string;
+  transform?: (value: MqttSyncValue | undefined) => MqttSyncValue;
+  flat?: boolean;
+  level?: number;
+}
+export interface MqttSyncOptions {
+  mqttClient: MqttClient;
+  onChange?: (changes: Record<string, MqttSyncValue>) => void;
+  ignoreRetain?: boolean;
+  migrate?: MqttSyncMigration[];
+  onReady?: () => void;
+  sliceTopic?: number;
+  onHeartbeatGranted?: () => void;
+  inclMeta?: boolean;
+}
+
+export interface MqttSyncPublishOptions {
+  atomic?: boolean;
+}
+
+export interface MqttSyncClearOptions {
+  filter?: (topic: string) => boolean;
+}
+
+export interface MqttSyncHistoryQuery {
+  topic: string;
+  since?: Date;
+  until?: Date;
+  path?: string[];
+  type?: string;
+  orderBy?: string;
+  limit?: number;
+  bins?: number;
+  agg?: string;
+  aggSeconds?: number;
+}
+
+export type MqttSyncRPCHandler<Args = unknown, Result = unknown> = (
+  args: Args,
+  commandTopic: string
+) => Result | Promise<Result>;
 
 
 /** A class that combines DataCache and MQTT to implement a data synchronization
@@ -66,16 +119,18 @@ const resolveDoubleSlashes = (path) => path.replace(/\/\//g, '/');
 * use the finer grained `MqttSync.data.subscribePath` instead, that allows you to
 * subscribe to changes just on a specific sun-object instead, see DataCache.
 */
-class MqttSync {
+export class MqttSync {
 
-  data = new DataCache();
+  readonly mqtt: MqttClient;
+  sliceTopic?: number;
+  data = new DataCache<MqttSyncValue>();
 
   /* Directory of paths we've subscribed to in this class; this matters
     because the same mqtt client may have subscriptions to paths that we don't
   care to store (sync). */
-  subscribedPaths = {};
+  subscribedPaths: Record<string, 1> = {};
 
-  publishedPaths = {}; // not used in atomic mode
+  publishedPaths: Record<string, MqttSyncPublishOptions> = {}; // not used in atomic mode
 
   /* Store messages retained on mqtt so we can publish what is necessary to
   achieve the "should-be" state. Note that we cannot use a structured document
@@ -85,30 +140,32 @@ class MqttSync {
   Note: we use specialKey in this DataCache to allow overlapping
   topics (e.g., `/a/b/$_ = 1` and `/a/$_ = {b: 2}`)
   */
-  publishedMessages = new DataCache();
+  publishedMessages = new DataCache<MqttSyncValue>();
 
   /* The order in which we send retained messages matters, which is why we use
   a queue for sending things. Note that we here use the property of Map that it
   remembers insertion order of keys. */
-  publishQueue = new Map();
+  publishQueue = new Map<string, MqttSyncValue>();
 
   /* We need to keep a record of all received topics (not messages) so far in
   case we want to clear any of them. */
-  receivedTopics = new Set();
+  receivedTopics = new Set<string>();
 
   /* List of callbacks waiting for next heartbeat, gets purged with each
   heartbeat */
-  heartbeatWaitersOnce = [];
+  heartbeatWaitersOnce: Array<() => void> = [];
 
   heartbeats = 0;
 
-  beforeDisconnectHooks = [];
+  beforeDisconnectHooks: Array<(mqttSync: MqttSync) => void> = [];
 
-  rpcHandlers = {};  // handlers for incoming RPC requests
-  rpcCallbacks = {}; // callback for RPC requests we've sent
+  rpcHandlers: Record<string, MqttSyncRPCHandler> = {};  // handlers for incoming RPC requests
+  rpcCallbacks: Record<string, (result: unknown) => void> = {}; // callback for RPC requests we've sent
+  private _processing = false;
+  private _processQueueThrottled?: () => void;
 
   constructor({mqttClient, onChange, ignoreRetain, migrate, onReady,
-    sliceTopic, onHeartbeatGranted, inclMeta }) {
+    sliceTopic, onHeartbeatGranted, inclMeta }: MqttSyncOptions) {
 
     this.mqtt = mqttClient;
     this.sliceTopic = sliceTopic;
@@ -185,7 +242,7 @@ class MqttSync {
       }
     });
 
-    this.mqtt.subscribe(HEARTBEAT_TOPIC, {rap: true}, (err, granted) => {
+    this.mqtt.subscribe(HEARTBEAT_TOPIC, {rap: true, qos: 0}, (err, granted) => {
       log.debug(HEARTBEAT_TOPIC, {granted});
       granted && granted.length > 0 && onHeartbeatGranted?.();
     });
@@ -199,9 +256,14 @@ class MqttSync {
   /** Reconstruct list of published (retained) topic paths from publishedMessages
   * object and the specialKey marker.
   */
-  getPublishedPaths(object = this.publishedMessages, path = []) {
-    const paths = [];
-    _.each(object, (value, key) => {
+  getPublishedPaths(
+    object: DataCache<MqttSyncValue> | MqttSyncValue = this.publishedMessages,
+    path: string[] = []
+  ) {
+    const paths: string[][] = [];
+    const data = object instanceof DataCache ? object.get() : object;
+    if (!data || typeof data !== 'object') return paths;
+    Object.entries(data as Record<string, MqttSyncValue>).forEach(([key, value]) => {
       if (key == specialKey) {
         paths.push(path);
       } else {
@@ -217,11 +279,11 @@ class MqttSync {
   * topic (plus sub-key, of course).
   */
   // TODO: Is this OK, or do we need to go through this.publish?
-  publishAtLevel(topic, value, level) {
+  publishAtLevel(topic: string, value: MqttSyncValue, level: number) {
     log.debug(`publishingAtLevel ${level}`, topic, value);
 
-    if (level > 0) {
-      _.forEach(value, (subValue, subKey) => {
+    if (level > 0 && value !== null && typeof value === 'object') {
+      Object.entries(value).forEach(([subKey, subValue]) => {
         const subTopic = `${topic}/${encodeTopicElement(subKey)}`;
         log.debug(`publishing ${subTopic}`);
         this.publishAtLevel(subTopic, subValue, level - 1);
@@ -243,7 +305,7 @@ class MqttSync {
   * mqttSync.migrate([{topic: '/+/dId/@scope/capname/+/b', newVersion: '1.2.0'}]
   * ```
   */
-  migrate(list, onReady = undefined) {
+  migrate(list: MqttSyncMigration[], onReady?: () => void) {
 
     let toGo = list.length;
     if (toGo == 0) {
@@ -287,13 +349,14 @@ class MqttSync {
               // collect for cleanup
               Object.assign(all, value);
 
-              const merged = mergeVersions(value, suffix, {maxVersion: newVersion});
+              const merged = mergeVersions(value as Record<string, unknown>, suffix, {maxVersion: newVersion});
               // get suffix in merged
               const suffixMergedValue = _.get(merged, topicToPath(suffix));
               log.debug({value, suffix, merged, suffixMergedValue});
               // ^ this will need to change to support wild-cards in suffix
-              const transformed = transform ? transform(suffixMergedValue) :
-                suffixMergedValue;
+              const transformed = transform
+                ? transform(suffixMergedValue as MqttSyncValue | undefined)
+                : suffixMergedValue as MqttSyncValue;
 
               // Publish the transformed value under the ground prefix as
               // `newVersion/suffix`
@@ -357,7 +420,11 @@ class MqttSync {
   prefix and received topic prefix don't match (the device prefix is added to
   subscription by localMQTT.
   */
-  clear(prefixes, callback = undefined, options = {}) {
+  clear(
+    prefixes?: string[],
+    callback?: (count: number) => void,
+    options: MqttSyncClearOptions = {}
+  ) {
 
     // If prefixes are empty, just skip (call callback and return)
     if (!prefixes || prefixes.length == 0) {
@@ -409,18 +476,18 @@ class MqttSync {
 
 
   /** Register a callback for the next heartbeat from the broker */
-  waitForHeartbeatOnce(callback) {
+  waitForHeartbeatOnce(callback: () => void) {
     // need to wait a tick, in case we are still in the callback tree
     // of a previous heartbeat waiter
     setTimeout(() => this.heartbeatWaitersOnce.push(callback), 1);
   }
 
-  heartbeatPromise() {
+  heartbeatPromise(): Promise<void> {
     return new Promise((resolve, reject) => this.waitForHeartbeatOnce(resolve));
   }
 
   /* check whether we are subscribed to the given topic */
-  isSubscribed(topic) {
+  isSubscribed(topic: string) {
     return this.subscribedPaths[topic] ||
       Object.keys(this.subscribedPaths).some(subscribedTopic =>
         topicMatch(subscribedTopic, topic));
@@ -428,7 +495,7 @@ class MqttSync {
 
   /* Check whether we are publishing the given topic in a non-atomic way.
   This is used to determine whether to store the published value or not. */
-  isPublished(topic) {
+  isPublished(topic: string) {
     return (
       (this.publishedPaths[topic] && !this.publishedPaths[topic].atomic)
         || Object.keys(this.publishedPaths).some(subscribedTopic =>
@@ -439,7 +506,7 @@ class MqttSync {
 
   /** Subscribe to the given topic (and all sub-topics). The callback will
   indicate success/failure, *not* a message on the topic. */
-  subscribe(topic, callback = noop) {
+  subscribe(topic: string, callback: (error?: string | null) => void = noop) {
     topic = ensureHashSuffix(topic);
     log.debug('subscribing to', topic);
     if (this.subscribedPaths[topic]) {
@@ -449,7 +516,7 @@ class MqttSync {
     }
 
     this.subscribedPaths[topic] = 1;
-    this.mqtt.subscribe(topic, {rap: true}, (err, granted) => {
+    this.mqtt.subscribe(topic, {rap: true, qos: 0}, (err, granted) => {
       log.debug('subscribe', topic, 'granted:', granted);
       if (granted && granted.some(grant => grant.topic == topic && grant.qos < 128)) {
         // granted
@@ -462,7 +529,7 @@ class MqttSync {
     });
   }
 
-  unsubscribe(topic) {
+  unsubscribe(topic: string) {
     topic = ensureHashSuffix(topic);
     if (this.subscribedPaths[topic]) {
       this.mqtt.unsubscribe(topic);
@@ -471,7 +538,7 @@ class MqttSync {
   }
 
   /* Publish retained to MQTT, store as published, and return a promise */
-  _actuallyPublish(topic, value) {
+  _actuallyPublish(topic: string, value: MqttSyncValue) {
     // return new Promise((resolve, reject) =>
     //   this.mqtt.publish(topic,
     //     value == null ? null : JSON.stringify(value), // aka "unparse payload"
@@ -517,7 +584,7 @@ class MqttSync {
   // }
 
   // when using Map
-  _processQueue_rec(cb) {
+  _processQueue_rec(cb: () => void) {
     if (this.publishQueue.size > 0) {
       const [topic, value] = this.publishQueue.entries().next().value;
       // this.publishQueue.delete(topic);
@@ -550,7 +617,7 @@ class MqttSync {
   @param {number} [delay] - Number of milliseconds to wait between processing
   of publish queue.
   */
-  setThrottle(delay) {
+  setThrottle(delay: number) {
     this._processQueueThrottled =
       _.throttle(this._processQueue.bind(this), delay);
   }
@@ -560,13 +627,13 @@ class MqttSync {
     delete this._processQueueThrottled;
   }
 
-  addToQueue(topic, value) {
+  addToQueue(topic: string, value: MqttSyncValue) {
     // this.publishQueue.push({topic, value});
     this.publishQueue.set(topic, value);
   }
 
   /* Add to publication queue */
-  _enqueue(topic, value) {
+  _enqueue(topic: string, value: MqttSyncValue) {
     log.debug('enqueuing', topic);
     this.addToQueue(topic, value);
     if (this._processQueueThrottled) {
@@ -590,7 +657,7 @@ class MqttSync {
 
     @return true if publication added (false, e.g., when already present)
   */
-  publish(topic, options = {atomic: false}) {
+  publish(topic: string, options: MqttSyncPublishOptions = {atomic: false}) {
     topic = ensureHashSuffix(topic);
 
     if (_.isEqual(this.publishedPaths[topic], options)) {
@@ -637,7 +704,7 @@ class MqttSync {
       const publishedSub = this.publishedMessages.get(path);
       // log.debug({publishedSub});
 
-      _.each(publishedSub, (oldSubVal, oldSubKey) => {
+      Object.entries(publishedSub || {}).forEach(([oldSubKey, oldSubVal]) => {
         if (oldSubKey == specialKey) return true;
         // We are going from flat to atomic, i.e., we are publishing at a
         // higher level than before: clear out old sub-keys.
@@ -669,9 +736,9 @@ class MqttSync {
 
           // Now re-add as separate flat messages
           const flat = toFlatObject(oldVal);
-          _.each(flat, (flatValue, flatKey) => {
+          Object.entries(flat).forEach(([flatKey, flatValue]) => {
             const oldFlatKey = `${prefixTopic}${flatKey}`;
-            this._enqueue(oldFlatKey, flatValue);
+            this._enqueue(oldFlatKey, flatValue as MqttSyncValue);
           })
         }
       });
@@ -693,7 +760,7 @@ class MqttSync {
   }
 
   /** Register a new hook to be called before disconnecting */
-  onBeforeDisconnect(fn) {
+  onBeforeDisconnect(fn: (mqttSync: MqttSync) => void) {
     this.beforeDisconnectHooks.push(fn);
   }
 
@@ -703,13 +770,17 @@ class MqttSync {
 
   /** Given a (ground) topic find the matching RPC handler, if any. This is
   * needed because RPC topics can include wildcards. */
-  getRPCHandler(topic) {
+  getRPCHandler(topic: string): MqttSyncRPCHandler | undefined {
     return _.find(this.rpcHandlers, (_handler, topicSelector) =>
       topicMatch(topicSelector, topic));
   }
 
   /* Handle RPC requests  */
-  async handleRPCRequest(path, handler, json) {
+  async handleRPCRequest(
+    path: string[],
+    handler: MqttSyncRPCHandler,
+    json: { id: string; args: unknown }
+  ) {
     log.debug('handling RPC request for', path, json);
     const commandTopic = pathToTopic(path.slice(0, -1));
     const result = handler(json.args, commandTopic);
@@ -728,7 +799,7 @@ class MqttSync {
   }
 
   /* Handle RPC response  */
-  handleRPCResponse(topic, json) {
+  handleRPCResponse(topic: string, json: { id: string; result: unknown }) {
     log.debug('handle RPC response', topic, json);
     this.rpcCallbacks[topic](json.result);
     delete this.rpcCallbacks[topic];
@@ -759,7 +830,10 @@ class MqttSync {
   * will be handled correctly, i.e., MqttSync will await the result of the
   * handler before responding to the RPC request client.
   */
-  register(command, handler) {
+  register<Args = unknown, Result = unknown>(
+    command: string,
+    handler: MqttSyncRPCHandler<Args, Result>
+  ) {
     log.debug('registering RPC handler for', command);
     const requestTopic = `${command}/request`;
 
@@ -798,7 +872,17 @@ class MqttSync {
   * Note: It is your responsibility to only call methods that exist (have been
   * registered). Calling a non-existent command just hangs.
   */
-  call(command, args, callback = undefined) {
+  call<Result = unknown>(command: string, args: unknown): Promise<Result>;
+  call<Result = unknown>(
+    command: string,
+    args: unknown,
+    callback: (result: Result) => void
+  ): void;
+  call<Result = unknown>(
+    command: string,
+    args: unknown,
+    callback?: (result: Result) => void
+  ): Promise<Result> | void {
     const id = getRandomId();
 
     const responseTopic = `${command}/response/${id}`;
@@ -828,7 +912,7 @@ class MqttSync {
   * be stored in ClickHouse for the `ttl` number of days (if the mqtt2clickhouse
   * service is running -- as it usually is inside the
   * transitiverobotics/clickhouse docker image). */
-  requestHistoryStorage(topic, ttl = 1) {
+  requestHistoryStorage(topic: string, ttl = 1) {
     const path = selectorPathToMetaPath(topicToPath(topic));
     path.splice(5,0, '$store'); // inject the instruction
     const storageRequest = pathToTopic(path);
@@ -861,22 +945,22 @@ class MqttSync {
   * @param {integer} [params.aggSeconds] - How many seconds to group together
   * (alternative to `bins` + `since`).
   * */
-  async queryHistory(params) {
+  async queryHistory<Result = unknown>(
+    params: MqttSyncHistoryQuery
+  ): Promise<Result> {
     const path = topicToPath(params.topic);
     const rpc =
       selectorToMetaTopic(`${pathToTopic(path.slice(0,5))}/$queryMQTTHistory`);
-    const query = {
+    const query: Record<string, unknown> = {
       subtopic: pathToTopic(path.slice(5)),
-      ...params
+      ...params,
+      since: params.since?.getTime(),
+      until: params.until?.getTime()
     };
     delete query.topic;
-    query.since && (query.since = query.since.getTime());
-    query.until && (query.until = query.until.getTime());
 
     log.info('queryHistory', {rpc, query});
-    const result = await this.call(rpc, query);
+    const result = await this.call<Result>(rpc, query);
     return result;
   }
 }
-
-module.exports = MqttSync;

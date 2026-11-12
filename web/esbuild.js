@@ -19,7 +19,7 @@ const copyDeclarations = (sourceDir, destinationDir) => {
 };
 
 const config = {
-  entryPoints: [{in: './index.js', out: 'utils-web'}],
+  entryPoints: [{in: './index.ts', out: 'utils-web'}],
   bundle: true,
   format: 'cjs',
   preserveSymlinks: true, // this allows us to use symlinks

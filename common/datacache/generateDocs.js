@@ -4,7 +4,7 @@ documentation from jsdoc comments in the code. */
 import { build, formats } from 'documentation';
 import fs from 'fs';
 
-build('index.js', {
+build('index.ts', {
   sortOrder: ['kind', 'alpha'],
   inferPrivate: '^_',
   markdownToc: true,

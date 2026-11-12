@@ -5,7 +5,7 @@ import mqtt from 'mqtt/dist/mqtt.esm';
 
 import { decodeJWT, getLogger, clone, pathToTopic, mergeVersions, topicToPath }
   from './client';
-const MqttSync = require('../../common/MqttSync');
+import { MqttSync } from '../../common/MqttSync';
 
 const log = getLogger('utils-web/hooks');
 log.setLevel('info');
@@ -136,7 +136,8 @@ export const useTransitive =
     const prefixPathVersion = [...prefixPath, versionNS];
     const prefixVersion = pathToTopic(prefixPathVersion);
 
-    const mqttUrl = `${ssl && JSON.parse(ssl) ? 'wss' : 'ws'}://mqtt.${host}`;
+    const useSSL = typeof ssl === 'string' ? JSON.parse(ssl) : ssl;
+    const mqttUrl = `${useSSL ? 'wss' : 'ws'}://mqtt.${host}`;
     const fromMqttSync = useMqttSync({ jwt, id, mqttUrl, appReact });
 
     return {...fromMqttSync, device, prefixPath, prefix, prefixPathVersion,
@@ -193,8 +194,10 @@ export const useTopics = ({jwt, host = 'transitiverobotics.com', ssl = true,
         }
       }, [mqttSync, ready]);
 
-    const agentStatus = mergeVersions(
-      data[id]?.[device]['@transitive-robotics']['_robot-agent'], 'status').status;
+    const agentStatus = (mergeVersions(
+      data[id]?.[device]['@transitive-robotics']['_robot-agent'], 'status') as
+        { status?: { runningPackages?: Record<string, Record<string, string>> } }
+        | undefined)?.status;
     const runningPackages = agentStatus?.runningPackages;
 
     const [scope, capName] = capability.split('/');
@@ -236,10 +239,19 @@ const loadedModules = {};
 */
 export const useCapability = ({ capability, name, userId, deviceId,
     host = 'transitiverobotics.com', ssl = true, appReact
+  }: {
+    capability: string;
+    name: string;
+    userId: string;
+    deviceId: string;
+    host?: string;
+    ssl?: boolean;
+    appReact?: typeof React;
   }) => {
     const { useState, useEffect } = appReact || React;
 
-    const [returns, setReturns] = useState({ loaded: false });
+    const [returns, setReturns] =
+      useState<{ loaded: boolean; loadedModule?: unknown }>({ loaded: false });
 
     // called when loaded
     const done = (message, theModule) => {

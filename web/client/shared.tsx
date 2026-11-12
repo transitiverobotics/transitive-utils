@@ -1,11 +1,40 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import _ from 'lodash';
 
-import ReactWebComponent from './react-web-component';
+import * as ReactWebComponent from './react-web-component';
 import { parseCookie, decodeJWT } from './client';
 import { useCapability } from './hooks';
 
 const F = React.Fragment;
+
+interface CapabilityModule {
+  provideContext?: (options: Record<string, unknown>) => Record<string, unknown>;
+}
+
+interface WebComponentElement extends HTMLElement {
+  instance?: {
+    state: WrapperState;
+    setState: React.Component<WrapperProps, WrapperState>['setState'];
+    webComponentConstructed(instance: HTMLElement): void;
+    webComponentDisconnected(): void;
+  };
+  callLifeCycleHook(hook: string): void;
+}
+
+interface WrapperProps extends Record<string, unknown> {
+  _element: WebComponentElement;
+}
+
+interface WrapperState extends Record<string, unknown> {
+  _disconnected?: boolean;
+  config?: unknown;
+}
+
+interface WebComponentOptions {
+  stylesheets?: string[];
+  className?: string;
+  shadowDOM?: boolean;
+}
 
 const styles = {
   code: {
@@ -24,13 +53,12 @@ const styles = {
 
 
 /** Reusable component for showing code */
-export const Code = ({children}) => <pre style={styles.code}>
+export const Code = ({children}: React.PropsWithChildren) => <pre style={styles.code}>
   {children}
 </pre>;
 
-export const InlineCode = ({children}) => <tt style={styles.inlineCode}>
-  {children}
-</tt>;
+export const InlineCode = ({children}: React.PropsWithChildren) =>
+  React.createElement('tt', {style: styles.inlineCode}, children);
 
 
 /** Dynamically load and use the Transitive web component specified in the JWT.
@@ -60,7 +88,7 @@ export const InlineCode = ({children}) => <tt style={styles.inlineCode}>
 */
 export const TransitiveCapability = ({
     jwt, host = 'transitiverobotics.com', ssl = true, ...config
-  }) => {
+  }: { jwt: string; host?: string; ssl?: boolean; [key: string]: unknown }) => {
 
     const assertPresent = (value, name) => {
       if (!value) throw new Error(`JWT is missing ${name}`);
@@ -75,7 +103,7 @@ export const TransitiveCapability = ({
     const type = device == '_fleet' ? 'fleet' : 'device';
     const capName = capability.split('/')[1];
     const name = `${capName}-${type}`;
-    const component = config.component || name;
+    const component = typeof config.component === 'string' ? config.component : name;
 
     const { loaded } = useCapability({
       capability,
@@ -86,7 +114,7 @@ export const TransitiveCapability = ({
       ssl
     });
 
-    const ref = useRef();
+    const ref = useRef<HTMLElement & { instance?: { setState: (update: (state: object) => object) => void } }>(null);
     // Attach functional and object properties to the component when ready and
     // on change
     useEffect(() => {
@@ -110,7 +138,10 @@ export const TransitiveCapability = ({
 *  </ErrorBoundary>
 * ```
 */
-export class ErrorBoundary extends React.Component {
+export class ErrorBoundary extends React.Component<
+  React.PropsWithChildren<{ message?: string }>,
+  { hasError: boolean; messages: string[] }
+> {
   constructor(props) {
     super(props);
     this.state = {
@@ -141,7 +172,14 @@ export class ErrorBoundary extends React.Component {
 export const CapabilityContext = React.createContext({});
 
 /* Only used internally: the actual context provider, given the loaded module */
-const LoadedCapabilityContextProvider = (props) => {
+const LoadedCapabilityContextProvider = (props: {
+  children?: React.ReactNode;
+  jwt: string;
+  id: string;
+  host?: string;
+  ssl?: boolean;
+  loadedModule: CapabilityModule;
+}) => {
   const {children, jwt, id, host, ssl, loadedModule} = props;
 
   const context = loadedModule.provideContext?.({
@@ -178,7 +216,12 @@ const LoadedCapabilityContextProvider = (props) => {
 * @param {object} props
 */
 export const CapabilityContextProvider =
-  ({children, jwt, host = undefined, ssl = undefined}) => {
+  ({children, jwt, host = undefined, ssl = undefined}: {
+    children?: React.ReactNode;
+    jwt: string;
+    host?: string;
+    ssl?: boolean;
+  }) => {
 
     const {id, device, capability} = decodeJWT(jwt);
     const type = device == '_fleet' ? 'fleet' : 'device';
@@ -196,7 +239,8 @@ export const CapabilityContextProvider =
     });
 
     if (!loadedModule) return <div>Loading {capability}</div>;
-    return <LoadedCapabilityContextProvider {...{jwt, id, host, ssl, loadedModule}}>
+    return <LoadedCapabilityContextProvider
+      {...{jwt, id, host, ssl, loadedModule: loadedModule as CapabilityModule}}>
       {children}
     </LoadedCapabilityContextProvider>;
   };
@@ -204,9 +248,14 @@ export const CapabilityContextProvider =
 
 /* whether or not the given react component allows refs, i.e., is either
  * a functional component wrapped with forwardRef or a class component */
-const componentPermitsRefs = (Component) =>
-  (Component.$$typeof == Symbol.for('react.forward_ref'))
-    || Component.prototype?.render;
+const componentPermitsRefs = (Component: React.ElementType) => {
+  const component = Component as React.ElementType & {
+    $$typeof?: symbol;
+    prototype?: { render?: unknown };
+  };
+  return component.$$typeof == Symbol.for('react.forward_ref')
+    || component.prototype?.render;
+};
 
 
 /** Create a WebComponent from the given react component and name that is
@@ -215,18 +264,22 @@ const componentPermitsRefs = (Component) =>
 * createWebComponent(Diagnostics, 'health-monitoring-device', TR_PKG_VERSION);
 * ```
 */
-export const createWebComponent = (Component, name, version = '0.0.0',
-    options = {}) => {
+export const createWebComponent = (
+  Component: React.ElementType,
+  name: string,
+  version = '0.0.0',
+  options: WebComponentOptions = {}
+) => {
 
     // Only create a ref if the component accepts it. This avoids an ugly
     // error in the console when trying to give a ref to a non-forwardRef-wrapped
     // functional component.
     const compRef = componentPermitsRefs(Component) ? React.createRef() : null;
 
-    class Wrapper extends React.Component {
+    class Wrapper extends React.Component<WrapperProps, WrapperState> {
 
-      onDisconnect = null;
-      state = {};
+      onDisconnect: (() => void) | null = null;
+      state: WrapperState = {};
 
       componentDidMount() {
         this.props._element.instance = this;
@@ -235,11 +288,11 @@ export const createWebComponent = (Component, name, version = '0.0.0',
       }
 
       /* function used by `Component` to register a onDisconnect handler */
-      setOnDisconnect(fn) {
+      setOnDisconnect(fn: () => void) {
         this.onDisconnect = fn;
       }
 
-      webComponentConstructed(instance) {
+      webComponentConstructed(instance: HTMLElement) {
         // Observe all changes to attributes and update React state from it
         const observer = new MutationObserver((mutationRecords) => {
             const update = {};
@@ -265,7 +318,7 @@ export const createWebComponent = (Component, name, version = '0.0.0',
       * the "config" state variable inside the wrapper (not the component
       * itself). This config is retrieved by the portal for inclusion in the
       * embedding instructions. */
-      setConfig(config) {
+      setConfig(config: unknown | ((current: WrapperState) => unknown)) {
         if (config instanceof Function) {
           this.setState(current => ({
             // call the provided update function with current:

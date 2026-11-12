@@ -1,18 +1,32 @@
-const _ = require('lodash');
-const fs = require('fs');
-const mqtt = require('mqtt');
+import fs from 'fs';
+import mqtt from 'mqtt';
+import type { IClientOptions, MqttClient } from 'mqtt';
 
-const { getLogger } = require('../common/common');
-const MqttSync = require('../common/MqttSync');
-const { findPath, getPackageVersionNamespace } = require('./server.js');
+import { getLogger } from '../common/common';
+import { MqttSync } from '../common/MqttSync';
+import { findPath, getPackageVersionNamespace } from './server';
+
+export interface CapabilityOptions {
+  mqttOptions?: IClientOptions;
+}
 
 const log = getLogger('Capability');
 log.setLevel('info');
 
 /** Super class for all cloud capabilities. */
-class Capability {
+export class Capability {
 
-  constructor(onReady, options = {}) {
+  scope: string;
+  name: string;
+  fullVersion: string | undefined;
+  version: string | undefined;
+  capability: string;
+  ourPath: string[];
+  fullName: string;
+  readonly mqtt: MqttClient;
+  mqttSync: MqttSync | undefined;
+
+  constructor(onReady?: () => void, options: CapabilityOptions = {}) {
 
     [this.scope, this.name] = process.env.npm_package_name.split('/');
     this.fullVersion = process.env.npm_package_version;
@@ -54,7 +68,4 @@ class Capability {
   get data() {
     return this.mqttSync.data;
   }
-};
-
-
-module.exports = { Capability };
+}
