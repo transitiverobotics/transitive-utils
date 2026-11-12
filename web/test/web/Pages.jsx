@@ -8,7 +8,7 @@ import { Badge, Button, OverlayTrigger, Popover } from 'react-bootstrap';
 
 import { getLogger, loglevel, fetchJson, useMqttSync, MqttSync,
     ErrorBoundary, createWebComponent, useTransitive, useTopics, useCapability,
-    TransitiveCapability, TreeSelector } from '../../index';
+    TransitiveCapability } from '../../index';
 
 const log = getLogger('test/App');
 log.setLevel('debug');
