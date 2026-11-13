@@ -421,7 +421,11 @@ class ROS2 extends AbstractROS() {
 
       // construct the ParameterValue msg payload
       const parameterValue = {type};
-      parameterValue[types[type]] = value; // set value into the right field
+      // set value into the right field:
+      parameterValue[types[type]] =
+        type == rclnodejs.ParameterType.PARAMETER_INTEGER
+        ? BigInt(value) // all ints in params are int64 (bigint)
+        : value;
       const result = await this.callService(`${node}/set_parameters`,
         'rcl_interfaces/srv/SetParameters',
         {parameters: [{ name: param, value: parameterValue }]}
@@ -460,7 +464,10 @@ const types = ['type',
   'string_array_value',
 ];
 const getValueFromParameterMsg = (msg) => {
-  return msg[types[msg.type]];
+  const value = msg[types[msg.type]];
+  return msg.type == rclnodejs.ParameterType.PARAMETER_INTEGER
+  ? Number(value) // convert from bigint
+  : value;
 };
 
 const instance = new ROS2();

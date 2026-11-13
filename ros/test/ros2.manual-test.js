@@ -41,6 +41,18 @@ const run = async () => {
 
   setInterval(() => ROS2.publish(topic1, type, {data: 'hello1!'}), 1000);
 
+  // test int64 (bigint)
+  ROS2.publish('/test_int64', 'std_msgs/msg/Int64', {
+    data: 1234n
+  });
+
+  ROS2.publish('/test_int16', 'std_msgs/msg/Int16', {
+    data: 1234
+  });
+
+  const value = await ROS2.getParam('tf_buffer_cache_time_ms', '/rviz');
+  console.log({value});
+
   // action
   setTimeout(async () => {
       const actions = ROS2.getActions();
