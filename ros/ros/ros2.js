@@ -78,6 +78,8 @@ class ROS2 extends AbstractROS() {
   rosVersion = 2;
   emitter;
 
+  serviceClients = {};
+
   async generateMessages() {
     log.info('Generating messages for ROS 2');
     await rclnodejs.regenerateAll();
@@ -274,28 +276,38 @@ class ROS2 extends AbstractROS() {
     };
   }
 
+  /** Get or create the service client for the named service */
+  async _getServiceClient(serviceName, type) {
+    if (!this.serviceClients[serviceName]) {
+      try {
+        const ros2Type = toROS2Type(type, 'srv');
+        this.serviceClients[serviceName] = this.node.createClient(ros2Type, serviceName);
+        const available = await this.serviceClients[serviceName].waitForService(5000);
+
+        if (!available) {
+          const error = `service not available "${serviceName}"`;
+          log.warn(`callService: ${error}`);
+          return null;
+        }
+      } catch (e) {
+        const error = `Unable to get service: "${e}"`;
+        log.warn(`callService: ${error}`);
+        return null;
+      }
+    }
+
+    return this.serviceClients[serviceName];
+  }
 
   /** Call the given service of the given type with the given body (not required
   * when type is "std_srvs/srv/Empty"). */
   async callService(serviceName, type, request = undefined) {
 
-    let serviceClient;
-    try {
-      const ros2Type = toROS2Type(type, 'srv');
-      serviceClient = this.node.createClient(ros2Type, serviceName);
-    } catch (e) {
-      const error = `Unable to get service: "${e}"`;
-      log.warn(`callService: ${error}`);
-      return {success: false, error};
+    const serviceClient = await this._getServiceClient(serviceName, type);
+    if (!serviceClient) {
+      return {success: false, error: 'unable to get service client'}
     }
-
-    const available = await serviceClient.waitForService(5000);
-
-    if (!available) {
-      const error = `service not available "${serviceName}"`;
-      log.warn(`callService: ${error}`);
-      return {success: false, error};
-    }
+    // const available = await serviceClient.waitForService(5000);
 
     log.debug(`calling ${serviceName}`, request);
     let raceEnded = false;

@@ -1,3 +1,5 @@
+const { wait } = require('@transitive-sdk/utils');
+
 let rclnodejs;
 try {
   rclnodejs = require('rclnodejs');
@@ -50,11 +52,11 @@ const run = async () => {
     data: 1234
   });
 
-  const value = await ROS2.getParam('tf_buffer_cache_time_ms', '/rviz');
-  console.log({value});
+  // const value = await ROS2.getParam('tf_buffer_cache_time_ms', '/rviz');
+  // console.log({value});
 
   // action
-  setTimeout(async () => {
+  false && setTimeout(async () => {
       const actions = ROS2.getActions();
       console.log(actions);
       // console.log(ROS2.getAvailableTypes());
@@ -80,6 +82,29 @@ const run = async () => {
 
 
     }, 2000);
+
+  // jump around!
+  const call = async () => {
+    // await ROS2.callService('/turtle1/teleport_relative', 'turtlesim/srv/TeleportRelative', {
+    //   linear: Math.random() / 10,
+    //   angular: Math.random() / 10,
+    // });
+    await ROS2.callService(
+      '/turtle1/teleport_absolute',
+      'turtlesim/srv/TeleportAbsolute',
+      {
+        x: Math.random() * 10,
+        y: Math.random() * 10,
+        theta: Math.random() * Math.PI - (Math.PI/2),
+      }
+    );
+  };
+
+  while (true) {
+    await call();
+    await wait(20);
+    process.stdout.write('.');
+  }
 }
 
 setTimeout(run, 1000);
