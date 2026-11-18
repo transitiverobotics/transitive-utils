@@ -1,6 +1,6 @@
 {
   "name": "@transitive-sdk/utils-caps",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Utilities to build and run Transitive capabilities in dev",
   "homepage": "https://transitiverobotics.com",
   "repository": {
