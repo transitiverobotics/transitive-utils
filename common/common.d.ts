@@ -25,10 +25,6 @@ export interface ROSRelease {
   ubuntuCodename?: string;
 }
 
-export interface CommonConstants {
-  rosReleases: Record<string, ROSRelease>;
-}
-
 export interface ExtendedLogLevel extends loglevelModule.RootLogger {
   setAll(level: loglevelModule.LogLevelDesc): void;
 }
@@ -58,7 +54,6 @@ export interface MergeAllVersionsOptions extends MergeVersionsOptions {
   subTopic?: string;
 }
 
-export const constants: CommonConstants;
 export const loglevel: ExtendedLogLevel;
 export const getLogger: typeof loglevelModule.getLogger;
 

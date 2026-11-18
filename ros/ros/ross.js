@@ -3,12 +3,13 @@
 
 const fs = require('node:fs');
 
-const { getLogger, constants } = require('@transitive-sdk/utils');
+const { getLogger } = require('@transitive-sdk/utils');
+const { rosReleases } = require('./common');
 const log = getLogger('ROSs');
 log.setLevel('info');
 
 const config = JSON.parse(process.env.TRCONFIG || '{}');
-log.debug('using config', config, constants);
+log.debug('using config', config, rosReleases);
 
 // determine available and configured ROS releases
 let available = [];
@@ -21,7 +22,7 @@ const active = !config.global?.rosReleases ? available :
 /* check which ROS versions (1 or 2 or both) we are configured to use */
 const releases = {};
 active.forEach(rosRelease =>
-  releases[constants.rosReleases[rosRelease]?.rosVersion] = true);
+  releases[rosReleases[rosRelease]?.rosVersion] = true);
 
 const ROSs = [];
 
