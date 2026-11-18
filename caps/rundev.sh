@@ -44,6 +44,8 @@ tryToSourceROS humble
 tryToSourceROS iron
 tryToSourceROS jazzy
 tryToSourceROS kilted
+tryToSourceROS lyrical
+tryToSourceROS makoa
 
 # Make sure a config file exists
 if [[ ! -e ~/.transitive/config.json ]]; then

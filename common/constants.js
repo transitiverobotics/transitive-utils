@@ -11,6 +11,8 @@ module.exports = {
     iron: { rosVersion: 2 },
     jazzy: { rosVersion: 2 },
     kilted: { rosVersion: 2 },
+    lyrical: { rosVersion: 2 },
+    makoa: { rosVersion: 2 },
     rolling: { rosVersion: 2 },
   }
 };

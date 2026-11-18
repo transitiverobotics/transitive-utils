@@ -424,6 +424,7 @@ Example:
 *   `param` &#x20;
 *   `value` &#x20;
 *   `node`   (optional, default `undefined`)
+*   `valueType`   (optional, default `undefined`)
 
 ### subscribe
 

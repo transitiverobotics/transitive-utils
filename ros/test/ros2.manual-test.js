@@ -28,6 +28,9 @@ rclnodejs.init().then(() => {
 
 
 const run = async () => {
+
+  // run: ros2 run turtlesim turtlesim_node
+
   const ROS2 = require('./ros2');
   await ROS2.init();
 
@@ -91,13 +94,17 @@ const run = async () => {
     // });
     await ROS2.callService(
       '/turtle1/teleport_absolute',
-      'turtlesim/srv/TeleportAbsolute',
+      'turtlesim_msgs/srv/TeleportAbsolute',
       {
         x: Math.random() * 10,
         y: Math.random() * 10,
         theta: Math.random() * Math.PI - (Math.PI/2),
       }
     );
+
+    const result = await ROS2.setParam('background_r', Math.floor(Math.random() * 255),
+      '/turtlesim', 'int');
+    console.log(result);
   };
 
   while (true) {

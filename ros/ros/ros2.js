@@ -399,7 +399,7 @@ class ROS2 extends AbstractROS() {
    * Example:
    *   `await setParam('background_b', 188, '/turtlesim')`
    */
-  async setParam(param, value, node = undefined) {
+  async setParam(param, value, node = undefined, valueType = undefined) {
     const typeMap = {
       'boolean': () => rclnodejs.ParameterType.PARAMETER_BOOL,
       'number': x => (Number.isInteger(x)
@@ -417,10 +417,24 @@ class ROS2 extends AbstractROS() {
             ? rclnodejs.ParameterType.PARAMETER_STRING_ARRAY
             : rclnodejs.ParameterType.PARAMETER_NOT_SET)
         )
-      // PARAMETER_BYTE_ARRAY, // not supported
     };
 
-    const type = typeMap[typeof(value)](value);
+    const typeNames = {
+      'bool': rclnodejs.ParameterType.PARAMETER_BOOL,
+      'int': rclnodejs.ParameterType.PARAMETER_INTEGER,
+      'double': rclnodejs.ParameterType.PARAMETER_DOUBLE,
+      'string': rclnodejs.ParameterType.PARAMETER_STRING,
+      'bool[]': rclnodejs.ParameterType.PARAMETER_BOOL_ARRAY,
+      'byte[]': rclnodejs.ParameterType.PARAMETER_BYTE_ARRAY,
+      'int[]': rclnodejs.ParameterType.PARAMETER_INTEGER_ARRAY,
+      'double[]': rclnodejs.ParameterType.PARAMETER_DOUBLE_ARRAY,
+      'string[]': rclnodejs.ParameterType.PARAMETER_STRING_ARRAY,
+    };
+
+    // use explicit type if provided and valid, else auto-detect
+    const type = (valueType && typeNames[valueType])
+      || typeMap[typeof(value)](value);
+
     if (type == rclnodejs.ParameterType.PARAMETER_NOT_SET) {
       log.warn('Could not identify type of parameter value', value);
       return;
@@ -434,15 +448,22 @@ class ROS2 extends AbstractROS() {
       // construct the ParameterValue msg payload
       const parameterValue = {type};
       // set value into the right field:
-      parameterValue[types[type]] =
-        type == rclnodejs.ParameterType.PARAMETER_INTEGER
-        ? BigInt(value) // all ints in params are int64 (bigint)
-        : value;
+      try {
+        parameterValue[types[type]] =
+          type == rclnodejs.ParameterType.PARAMETER_INTEGER
+          ? BigInt(value) // all ints in params are int64 (bigint)
+          : value;
+      } catch (e) {
+        log.warn(`Failed to set parameter value: ${e}`);
+        return;
+      }
+
       const result = await this.callService(`${node}/set_parameters`,
         'rcl_interfaces/srv/SetParameters',
         {parameters: [{ name: param, value: parameterValue }]}
       );
       log.debug('setting parameter', result);
+      return result;
     }
   }
 
