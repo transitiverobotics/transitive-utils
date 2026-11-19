@@ -14,7 +14,7 @@ const log = getLogger('MqttSync');
 log.setLevel('info');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
-const specialKey = '$_'; // special key to reify "value" in publishedMessages
+const SPECIAL_KEY = '$_'; // special key to reify "value" in publishedMessages
 
 const noop = () => {};
 
@@ -82,7 +82,7 @@ class MqttSync {
   for storing these publishedMessages since we need to be able to store separate
   values at non-leaf nodes in the object (just like mqtt, where you can have
   `/a/b = 1` and `/a/b/c = 1` at the same time). Note: not used in atomic mode.
-  Note: we use specialKey in this DataCache to allow overlapping
+  Note: we use SPECIAL_KEY in this DataCache to allow overlapping
   topics (e.g., `/a/b/$_ = 1` and `/a/$_ = {b: 2}`)
   */
   publishedMessages = new DataCache();
@@ -163,7 +163,7 @@ class MqttSync {
             // not interpreted; we just store them to undo them if necessary, e.g.,
             // for switching between atomic and non-atomic subdocuments
             // log.trace('setting publishedMessages', topic);
-            this.publishedMessages.updateFromArray([...path, specialKey], json);
+            this.publishedMessages.updateFromArray([...path, SPECIAL_KEY], json);
 
             // this.pubData.update(topic, json);
             // Still need to update the data so that we can detect changes we make
@@ -197,12 +197,12 @@ class MqttSync {
   }
 
   /** Reconstruct list of published (retained) topic paths from publishedMessages
-  * object and the specialKey marker.
+  * object and the SPECIAL_KEY marker.
   */
-  getPublishedPaths(object = this.publishedMessages, path = []) {
+  getPublishedPaths(object = this.publishedMessages.get(), path = []) {
     const paths = [];
     _.each(object, (value, key) => {
-      if (key == specialKey) {
+      if (key == SPECIAL_KEY) {
         paths.push(path);
       } else {
         const subPaths = this.getPublishedPaths(value, path.concat([key]));
@@ -210,6 +210,22 @@ class MqttSync {
       }
     });
     return paths;
+  }
+
+  /** Reconstruct list of published (retained) topic paths and their values
+  * from publishedMessages object and the SPECIAL_KEY marker.
+  */
+  getPublishedValues(object = this.publishedMessages.get(), path = []) {
+    const values = {}
+    _.each(object, (value, key) => {
+      if (key == SPECIAL_KEY) {
+        values[pathToTopic(path)] = value;
+      } else {
+        const subValues = this.getPublishedValues(value, path.concat([key]));
+        Object.assign(values, subValues);
+      }
+    });
+    return values;
   }
 
   /**
@@ -577,20 +593,30 @@ class MqttSync {
     // yes, this is optimistic, but if we don't, then upcoming changes
     // may not work as expected (e.g., when switching from flat to atomic to flat)
     const path = topicToPath(topic);
-    this.publishedMessages.updateFromArray([...path, specialKey],
+    this.publishedMessages.updateFromArray([...path, SPECIAL_KEY],
       value == null ? null : clone(value));
   }
 
-  /** Register a listener for path in data. Make sure to populate the data
-    before calling this or set the data all at once afterwards.
-
-    With option "atomic" this will always send the whole sub-document,
-    not flat changes. Useful, e.g., for desiredPackages, see
-    https://github.com/chfritz/transitive/issues/85.
-
-    @return true if publication added (false, e.g., when already present)
+  /** Register a path in data to publish.
+   *
+   * Make sure to populate the data before calling this or set the data all at
+   * once afterwards.
+   *
+   * With option `atomic` this will always send the whole sub-document, never flat
+   * changes. This means that even when sub-documents are updated directly, the
+   * whole object at the topic declared in this publish() call will be re-published.
+   *
+   * `flat` means the opposite of `atomic`: no matter at what level changes happen,
+   * i.e., the DataCache is updated, all changes are published at the leaf level.
+   * This will also unpublish (set to `null`) any removals of such leaf topics
+   * made in an update to the DataCache (at any level).
+   *
+   * @return true if publication added (false, e.g., when already present)
   */
-  publish(topic, options = {atomic: false}) {
+  publish(topic, options = {atomic: false, flat: false}) {
+    // Atomic is useful, e.g., for desiredPackages, see
+    // https://github.com/chfritz/transitive/issues/85.
+
     topic = ensureHashSuffix(topic);
 
     if (_.isEqual(this.publishedPaths[topic], options)) {
@@ -632,13 +658,41 @@ class MqttSync {
       create consistency). */
       // first, clear/replace all messages below or above this sub-path (if any)
       const path = topicToPath(key);
-
-      // Check flat to atomic
       const publishedSub = this.publishedMessages.get(path);
       // log.debug({publishedSub});
 
+      if (options.flat) {
+        // we need to create a diff of what's out there (retained on mqtt,
+        // cached in this.publishedMessages) and what we want to have out there,
+        // i.e., the new set of flat topic-value pairs implied by this change.
+        log.info('flat', JSON.stringify({topic, value, key,
+          pubVals: this.getPublishedValues()}, true, 2));
+
+        const currentFlat = this.getPublishedValues();
+        const flat = toFlatObject(value);
+
+        log.info('flat diff', JSON.stringify({currentFlat, flat}, true, 2));
+
+        const prefix = topic.slice(0,-2); // slice off the /# suffix
+        _.forEach(flat, (flatValue, flatKey) => {
+          const flatTopic = `${prefix}${flatKey}`;
+          this._enqueue(flatTopic, flatValue);
+          delete currentFlat[flatTopic]; // remove all updated topics
+        });
+
+        log.info('remove', currentFlat);
+
+        // Now remove all remaining existing topics that were not updated
+        _.forEach(currentFlat, (_oldV, oldKey) => this._enqueue(oldKey, null));
+
+        return;
+      }
+
+      // The "normal" case, neither atomic nor flat by definition.
+
+      // Check flat to atomic
       _.each(publishedSub, (oldSubVal, oldSubKey) => {
-        if (oldSubKey == specialKey) return true;
+        if (oldSubKey == SPECIAL_KEY) return true;
         // We are going from flat to atomic, i.e., we are publishing at a
         // higher level than before: clear out old sub-keys.
 
@@ -656,7 +710,7 @@ class MqttSync {
       // Check atomic to flat
       const published = this.publishedMessages.get();
       visitAncestor(published, path.slice(0, -1), (subObj, prefix) => {
-        const oldVal = subObj[specialKey];
+        const oldVal = subObj[SPECIAL_KEY];
         if (oldVal && _.isObject(oldVal)) {
           log.debug('atomic->flat', {oldVal});
           // A parent topic has been published. We are going from atomic to

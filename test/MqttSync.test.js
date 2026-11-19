@@ -1523,4 +1523,25 @@ describe('MqttSync', function() {
       assert.equal(result, 'ok');
     });
   });
+
+  describe('flat publishing', function() {
+    it('stays in sync', function(t, done) {
+      clientA.publish('/a/#', {flat: true});
+      clientB.subscribe('/a/#');
+      clientA.data.update('a', {b: 1});
+      inSync(clientA, clientB, done);
+    });
+
+    it('stays in sync with removals', async function(t) {
+      clientA.publish('/a/#', {flat: true});
+      clientA.publish('/b/#');
+      clientB.subscribe('/a/#');
+      clientB.subscribe('/b/#');
+      clientA.data.update('a', {b: 1, c: 2});
+      clientA.data.update('b', {bb: 123});
+      await wait(200);
+      clientA.data.update('a', {b: 3});
+      await inSyncPromise(clientA, clientB);
+    });
+  });
 });

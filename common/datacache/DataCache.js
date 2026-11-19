@@ -138,6 +138,7 @@ class DataCache {
       _.forEach(flatValue, (atomic, flatKey) => {
         flatChanges[`${topic}${flatKey}`] = atomic;
       });
+      // Note: not the same as toFlatObject(obj); which would escape /'s in topic
     } else {
       flatChanges = obj;
     }
