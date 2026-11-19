@@ -18,8 +18,8 @@ const prefix = require('loglevel-plugin-prefix');
 const chalk = require('chalk');
 
 const { topicToPath, pathToTopic, toFlatObject, setFromPath, forMatchIterator,
-  topicMatch, isSubTopicOf, encodeTopicElement, decodeTopicElement }
-  = require('./datacache/tools');
+  topicMatch, isSubTopicOf, encodeTopicElement, decodeTopicElement,
+  isNaturalNumberString } = require('./datacache/tools');
 
 const constants = require('./constants');
 
@@ -366,5 +366,5 @@ module.exports = { parseMQTTUsername, parseMQTTTopic,
   // storageRequestToSelector, selectorToStorageRequest
   metaPathToSelectorPath, selectorPathToMetaPath,
   metaTopicToSelector, selectorToMetaTopic,
-  doOnce
+  doOnce, isNaturalNumberString
 };

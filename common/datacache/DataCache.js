@@ -6,23 +6,33 @@ const _ = {
   forEach: require('lodash/forEach'),
   map: require('lodash/map'),
   isEmpty: require('lodash/isEmpty'),
+  isArray: require('lodash/isArray'),
   eq: require('lodash/isEqual'),
   isPlainObject: require('lodash/isPlainObject'),
   merge: require('lodash/merge'),
 };
 
-const {topicToPath, pathToTopic, toFlatObject, topicMatch, forMatchIterator}
-  = require('./tools');
+const {topicToPath, pathToTopic, toFlatObject, topicMatch, forMatchIterator,
+  isNaturalNumberString } = require('./tools');
 
 /** Unset the topic in that obj, and clean up parent if empty, recursively.
 Return the path to the removed node.
 */
 const unset = (obj, path) => {
   if (!path || path.length == 0) return;
-  _.unset(obj, path);
+
   const parentPath = path.slice(0, -1);
   // _.get doesn't do the intuitive thing for the empty path, handle it ourselves
-  const parent = parentPath.length == 0 ? obj : _.get(obj, parentPath);
+  let parent = parentPath.length == 0 ? obj : _.get(obj, parentPath);
+
+  _.unset(obj, path);
+
+  // If it's an array, trim empty element at the end
+  if (isNaturalNumberString(path.at(-1))) {
+    // find all non-empty indices and use last as the length
+    parent.length = Number(Object.keys(parent).at(-1) || -1) + 1;
+  }
+
   if (_.isEmpty(parent)) {
     return unset(obj, parentPath);
   } else {
@@ -122,7 +132,6 @@ class DataCache {
         // probably wrong. May want to always clone value first.
         return {}; // nothing to do, do not bother listeners
       }
-      // console.log('setting', path, value);
       _.set(this.#data, path, value);
       // TODO: implement this ourselves so we can do better change-checking
     }
@@ -138,6 +147,7 @@ class DataCache {
       _.forEach(flatValue, (atomic, flatKey) => {
         flatChanges[`${topic}${flatKey}`] = atomic;
       });
+      // Note: not the same as toFlatObject(obj); which would escape /'s in topic
     } else {
       flatChanges = obj;
     }

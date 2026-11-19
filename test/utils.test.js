@@ -12,7 +12,7 @@ const { updateObject, DataCache, toFlatObject, topicToPath, topicMatch,
   formatDuration, findPath, tryJSONParse,
   forMatchIterator,
   metaTopicToSelector, selectorToMetaTopic,
-  doOnce
+  doOnce, isNaturalNumberString
 } = require('../index');
 const Mongo = require('../mongo/index');
 
@@ -607,6 +607,16 @@ describe('toFlatObject', function() {
       { '/a/b/0/c/d': 1,
         '/a/b/1/e': 3,
         '/a2': 1 }
+    );
+  });
+
+  it('should keep empty arrays', function() {
+    const obj = {a: {b: [{c: {d: 1}}, {e: 3}]}, a2: []};
+    assert.deepEqual(
+      toFlatObject(obj),
+      { '/a/b/0/c/d': 1,
+        '/a/b/1/e': 3,
+        '/a2': [] }
     );
   });
 
@@ -1244,6 +1254,28 @@ describe('doOnce', function() {
     doIt();
     doIt();
     assert.equal(count, 1);
+  });
+});
+
+describe('isNaturalNumberString', function() {
+  it('succeeds on 0-120', function() {
+    for (let i = 0; i <= 120; i++) {
+      assert(isNaturalNumberString(String(i)));
+    }
+  });
+
+  it('fails on x.0 floats', function() {
+    for (let i = 0; i <= 12; i++) {
+      assert(!isNaturalNumberString(`${i}.0`));
+    }
+  });
+
+  it('fails on version numbers', function() {
+    assert(!isNaturalNumberString('1.1.0'));
+    assert(!isNaturalNumberString('1.0.1'));
+    assert(!isNaturalNumberString('1.0.0'));
+    assert(!isNaturalNumberString('0.0.1'));
+    assert(!isNaturalNumberString('0.0.0'));
   });
 });
 
