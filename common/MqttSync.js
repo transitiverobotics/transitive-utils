@@ -11,7 +11,8 @@ const { DataCache } = require('./datacache/DataCache');
 
 
 const log = getLogger('MqttSync');
-log.setLevel('info');
+// log.setLevel('info');
+log.setLevel('debug');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 const SPECIAL_KEY = '$_'; // special key to reify "value" in publishedMessages
@@ -218,6 +219,7 @@ class MqttSync {
   getPublishedValues(object = this.publishedMessages.get(), path = []) {
     const values = {}
     _.each(object, (value, key) => {
+      if (value == undefined) return true; // skip empty values to avoid the object default kicking in
       if (key == SPECIAL_KEY) {
         values[pathToTopic(path)] = value;
       } else {
@@ -579,6 +581,7 @@ class MqttSync {
   addToQueue(topic, value) {
     // this.publishQueue.push({topic, value});
     this.publishQueue.set(topic, value);
+    log.info('q', this.publishQueue);
   }
 
   /* Add to publication queue */
@@ -665,25 +668,38 @@ class MqttSync {
         // we need to create a diff of what's out there (retained on mqtt,
         // cached in this.publishedMessages) and what we want to have out there,
         // i.e., the new set of flat topic-value pairs implied by this change.
-        log.info('flat', JSON.stringify({topic, value, key,
-          pubVals: this.getPublishedValues()}, true, 2));
-
-        const currentFlat = this.getPublishedValues();
-        const flat = toFlatObject(value);
-
-        log.info('flat diff', JSON.stringify({currentFlat, flat}, true, 2));
 
         const prefix = topic.slice(0,-2); // slice off the /# suffix
+
+        log.info(this.publishedMessages.getByTopic(prefix));
+        const currentFlat = this.getPublishedValues(
+          this.publishedMessages.getByTopic(prefix));
+        log.info('flat', JSON.stringify({topic, prefix, value, key, currentFlat}, true, 2));
+
+        const flat = toFlatObject(value);
+        log.info('flat diff', JSON.stringify({currentFlat, flat}, true, 2));
+
         _.forEach(flat, (flatValue, flatKey) => {
-          const flatTopic = `${prefix}${flatKey}`;
-          this._enqueue(flatTopic, flatValue);
-          delete currentFlat[flatTopic]; // remove all updated topics
+          // only publish changed values:
+          if (currentFlat[flatKey] != flatValue) {
+            const flatTopic = `${prefix}${flatKey}`;
+            this._enqueue(flatTopic, flatValue);
+          }
+
+          // Remove all updated and unchanged topics and all their parent topics
+          const flatPath = topicToPath(flatKey);
+          for (let i = 0; i < flatPath.length; i++) {
+            delete currentFlat[pathToTopic(flatPath.slice(0, i + 1))];
+          }
         });
 
         log.info('remove', currentFlat);
 
+
         // Now remove all remaining existing topics that were not updated
-        _.forEach(currentFlat, (_oldV, oldKey) => this._enqueue(oldKey, null));
+        _.forEach(currentFlat, (_oldV, oldKey) => {
+          this._enqueue(`${prefix}${oldKey}`, null);
+        });
 
         return;
       }

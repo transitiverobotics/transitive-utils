@@ -6,6 +6,7 @@ const _ = {
   forEach: require('lodash/forEach'),
   map: require('lodash/map'),
   isEmpty: require('lodash/isEmpty'),
+  isArray: require('lodash/isArray'),
   eq: require('lodash/isEqual'),
   isPlainObject: require('lodash/isPlainObject'),
   merge: require('lodash/merge'),
@@ -18,11 +19,23 @@ const {topicToPath, pathToTopic, toFlatObject, topicMatch, forMatchIterator}
 Return the path to the removed node.
 */
 const unset = (obj, path) => {
+  console.log('unset', obj, path);
   if (!path || path.length == 0) return;
   _.unset(obj, path);
   const parentPath = path.slice(0, -1);
   // _.get doesn't do the intuitive thing for the empty path, handle it ourselves
-  const parent = parentPath.length == 0 ? obj : _.get(obj, parentPath);
+  let parent = parentPath.length == 0 ? obj : _.get(obj, parentPath);
+
+  // if (_.isArray(parent)) {
+  //   const filtered = parent.filter(() => true);
+  //   console.log('compact', parent, parentPath, obj, filtered);
+  //   // compact array after removal of an element, i.e., filter out empty elements
+  //   _.set(obj, parentPath, filtered);
+  // }
+  // NO! This ^^ is wrong, it will change the indices of all other flat topics
+  // which may be changed at the same time (right after this one for instance).
+
+  // parent = parentPath.length == 0 ? obj : _.get(obj, parentPath);
   if (_.isEmpty(parent)) {
     return unset(obj, parentPath);
   } else {

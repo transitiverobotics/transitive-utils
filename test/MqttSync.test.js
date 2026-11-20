@@ -40,7 +40,7 @@ const inSync = (a, b, done, delay = 150) => {
     }, delay);
 };
 
-const inSyncPromise = async (a, b, delay) => {
+const inSyncPromise = async (a, b, delay = 250) => {
   await wait(delay);
   log.debug('A', a.data.get());
   log.debug('B', b.data.get());
@@ -1543,5 +1543,73 @@ describe('MqttSync', function() {
       clientA.data.update('a', {b: 3});
       await inSyncPromise(clientA, clientB);
     });
+
+    // Arrays
+    it('stays in sync with arrays', function(t, done) {
+      clientA.publish('/a/#', {flat: true});
+      clientB.subscribe('/a/#');
+      clientA.data.update('a', [123, true, 'mystring', {b: 2}]);
+      inSync(clientA, clientB, done);
+    });
+
+    it('stays in sync with changes to arrays', async function() {
+      clientA.publish('/a/#', {flat: true});
+      clientB.subscribe('/a/#');
+      clientA.data.update('a', [123, true, 'mystring', {b: 2}]);
+      await wait(200);
+      clientA.data.update('a', [123, true, 'mystring2', {b: 2}]);
+      await inSyncPromise(clientA, clientB);
+    });
+
+    it('stays in sync when emptying arrays', async function() {
+      clientA.publish('/a/#', {flat: true});
+      clientA.publish('/b/#');
+      clientB.subscribe('/a/#');
+      clientB.subscribe('/b/#');
+      clientA.data.update('b', {bb: 123});
+      clientA.data.update('a', [123, true, 'mystring', {b: 2}]);
+      await wait(200);
+      clientA.data.update('a', []);
+      await inSyncPromise(clientA, clientB);
+    });
+
+    it('stays in sync with removals from arrays', async function() {
+      clientA.publish('/a/#', {flat: true});
+      clientA.publish('/b/#');
+      clientB.subscribe('/a/#');
+      clientB.subscribe('/b/#');
+      clientA.data.update('b', {bb: 123});
+      clientA.data.update('a', [123, true, 'mystring', {b: 2}]);
+      await wait(200);
+      clientA.data.update('a', [123, true, {b: 2}]);
+      await inSyncPromise(clientA, clientB);
+    });
+
+    it('stays in sync with multiple removals from arrays', async function() {
+      clientA.publish('/a/#', {flat: true});
+      clientA.publish('/b/#');
+      clientB.subscribe('/a/#');
+      clientB.subscribe('/b/#');
+      clientA.data.update('b', {bb: 123});
+      clientA.data.update('a', [123, true, 'mystring', {b: 2}]);
+      await wait(200);
+      clientA.data.update('a', [123, true]);
+      await inSyncPromise(clientA, clientB);
+    });
+
+    it('stays in sync with multiple separate removals from arrays', async function(t) {
+      log.info('----- starting', t.name);
+      clientA.publish('/a/#', {flat: true});
+      clientA.publish('/b/#');
+      clientB.subscribe('/a/#');
+      clientB.subscribe('/b/#');
+      clientA.data.update('b', {bb: 123});
+      clientA.data.update('a', [123, true, 'mystring', 445]);
+      await wait(200);
+      clientA.data.update('a', [123, true, 445]);
+      clientA.data.update('a', [true, 445]);
+      await inSyncPromise(clientA, clientB);
+    });
+
   });
 });
