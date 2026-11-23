@@ -5,7 +5,7 @@ const _ = require('lodash');
 const { mqttParsePayload, topicMatch, topicToPath, pathToTopic,
   toFlatObject, getLogger, mergeVersions, parseMQTTTopic, isSubTopicOf,
   versionCompare, encodeTopicElement, visitAncestor, getRandomId,
-  selectorPathToMetaPath, selectorToMetaTopic
+  selectorPathToMetaPath, selectorToMetaTopic, isNaturalNumberString
 } = require('./common');
 const { DataCache } = require('./datacache/DataCache');
 
@@ -225,7 +225,8 @@ class MqttSync {
             // If topic is an array topic (has a numeric topic-part anywhere
             // then: revisit that level and re-create it from publishedMessages.
 
-            const arrayIndex = path.findLastIndex(x => Number.isInteger(Number.parseFloat(x)));
+            // const arrayIndex = path.findLastIndex(x => Number.isInteger(Number.parseFloat(x)));
+            const arrayIndex = path.findLastIndex(isNaturalNumberString);
             if (json == null && arrayIndex >= 0) {
             // // if (arrayIndex >= 0) {
             //   // reconstruct that level
@@ -298,7 +299,6 @@ class MqttSync {
         values[pathToTopic(path)] = value;
       } else {
         const subValues = this.getPublishedValues(value, path.concat([key]));
-        log.warn('assigning', object, values, subValues, value, path, key);
         Object.assign(values, subValues);
       }
     });

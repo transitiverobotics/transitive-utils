@@ -12,8 +12,8 @@ const _ = {
   merge: require('lodash/merge'),
 };
 
-const {topicToPath, pathToTopic, toFlatObject, topicMatch, forMatchIterator}
-  = require('./tools');
+const {topicToPath, pathToTopic, toFlatObject, topicMatch, forMatchIterator,
+  isNaturalNumberString } = require('./tools');
 
 /** Unset the topic in that obj, and clean up parent if empty, recursively.
 Return the path to the removed node.
@@ -26,9 +26,10 @@ const unset = (obj, path) => {
   // _.get doesn't do the intuitive thing for the empty path, handle it ourselves
   let parent = parentPath.length == 0 ? obj : _.get(obj, parentPath);
 
-  if (Number.isInteger(Number.parseFloat(path.at(-1)))) {
+  // if (Number.isInteger(Number.parseFloat(path.at(-1)))) {
+  if (isNaturalNumberString(path.at(-1))) {
     // we are unsetting an entry in an array, use splice
-    const index = Number.parseFloat(path.at(-1));
+    const index = Number.parseInt(path.at(-1));
     parent.splice(index, 1);
   } else {
     _.unset(obj, path);

@@ -141,6 +141,17 @@ const isPrefixOf = (prefixArray, array) => {
   );
 }
 
+/** Check if string is an integer >= 0 */
+const isNaturalNumberString = (str) => {
+  const len = str.length;
+  if (len === 0) return false;
+
+  for (let i = 0; i < len; i++) {
+    const code = str.charCodeAt(i);
+    if (code < 48 || code > 57) return false; // '0' is 48, '9' is 57
+  }
+  return true;
+}
 
 module.exports = {
   topicToPath,
@@ -152,4 +163,5 @@ module.exports = {
   decodeTopicElement,
   topicMatch,
   isSubTopicOf,
+  isNaturalNumberString
 };
