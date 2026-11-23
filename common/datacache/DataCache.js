@@ -19,12 +19,20 @@ const {topicToPath, pathToTopic, toFlatObject, topicMatch, forMatchIterator}
 Return the path to the removed node.
 */
 const unset = (obj, path) => {
-  console.log('unset', obj, path);
+  // console.log('unset', obj, path);
   if (!path || path.length == 0) return;
-  _.unset(obj, path);
+
   const parentPath = path.slice(0, -1);
   // _.get doesn't do the intuitive thing for the empty path, handle it ourselves
   let parent = parentPath.length == 0 ? obj : _.get(obj, parentPath);
+
+  if (Number.isInteger(Number.parseFloat(path.at(-1)))) {
+    // we are unsetting an entry in an array, use splice
+    const index = Number.parseFloat(path.at(-1));
+    parent.splice(index, 1);
+  } else {
+    _.unset(obj, path);
+  }
 
   // if (_.isArray(parent)) {
   //   const filtered = parent.filter(() => true);
@@ -34,6 +42,8 @@ const unset = (obj, path) => {
   // }
   // NO! This ^^ is wrong, it will change the indices of all other flat topics
   // which may be changed at the same time (right after this one for instance).
+  // This would *also* happen in mqttSync.publishedMessages, which we absolutely
+  // _don't_ want.
 
   // parent = parentPath.length == 0 ? obj : _.get(obj, parentPath);
   if (_.isEmpty(parent)) {

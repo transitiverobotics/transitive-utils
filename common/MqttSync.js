@@ -11,8 +11,8 @@ const { DataCache } = require('./datacache/DataCache');
 
 
 const log = getLogger('MqttSync');
-// log.setLevel('info');
-log.setLevel('debug');
+log.setLevel('info');
+// log.setLevel('debug');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 const SPECIAL_KEY = '$_'; // special key to reify "value" in publishedMessages
@@ -36,6 +36,43 @@ const ensureHashSuffix = (topic) =>
 
 /* given a path, replace any double slashes, '//', with single ones */
 const resolveDoubleSlashes = (path) => path.replace(/\/\//g, '/');
+
+/* A simpler version of DataCache, just for publishedMessages, that doesn't
+shrink arrays, and doesn't emit events. */
+class SimpleDataCache {
+  #data = {};
+
+  unset(path) {
+    if (!path || path.length == 0) return;
+
+    _.unset(this.#data, path);
+
+    const parentPath = path.slice(0, -1);
+    let parent = this.get(parentPath);
+
+    if (_.isEmpty(parent)) {
+      this.unset(parentPath);
+    }
+  }
+
+  updateFromArray(path, value) {
+    log.debug('SimpleDataCache, set', path, value);
+    if (value === null) {
+      this.unset(path);
+    } else {
+      _.set(this.#data, path, value);
+    }
+  }
+
+  get(path = []) {
+    // _.get doesn't do the intuitive thing for the empty path, handle it ourselves
+    return path.length == 0 ? this.#data : _.get(this.#data, path);
+  }
+
+  getByTopic(topic) {
+    return this.get(topicToPath(topic));
+  }
+};
 
 
 /** A class that combines DataCache and MQTT to implement a data synchronization
@@ -86,7 +123,8 @@ class MqttSync {
   Note: we use SPECIAL_KEY in this DataCache to allow overlapping
   topics (e.g., `/a/b/$_ = 1` and `/a/$_ = {b: 2}`)
   */
-  publishedMessages = new DataCache();
+  // publishedMessages = new DataCache();
+  publishedMessages = new SimpleDataCache();
 
   /* The order in which we send retained messages matters, which is why we use
   a queue for sending things. Note that we here use the property of Map that it
@@ -113,6 +151,9 @@ class MqttSync {
 
     this.mqtt = mqttClient;
     this.sliceTopic = sliceTopic;
+
+    // #DEBUG
+    // this.publishedMessages.subscribe(log.warn);
 
     this.mqtt.on('message', (topic, payload, packet) => {
       const payloadString = payload && payload.toString()
@@ -158,7 +199,7 @@ class MqttSync {
             return;
           }
 
-          if (this.isPublished(topic)) {
+          if (this.isPublished(topic) || this.isSubscribed(topic)) {
             const json = mqttParsePayload(payload);
             // store plain messages, still stored in a structure, but values are
             // not interpreted; we just store them to undo them if necessary, e.g.,
@@ -169,16 +210,49 @@ class MqttSync {
             // this.pubData.update(topic, json);
             // Still need to update the data so that we can detect changes we make
             // and publish them. But we need to break the reaction-chain to avoid
-            // loops, so tag this update with 'published' and then ignore those
+            // loops, so tag this update with 'external' and then ignore those
             // updates in this.publish.
-            this.data.update(topic, json, {external: true});
 
-          } else if (this.isSubscribed(topic)) {
-            const json = mqttParsePayload(payload);
-
-            log.debug('applying received update', topic);
+            log.debug('applying received update', topic, json, this.data.get());
+            // this.data.update(topic, json, {external: true});
             const changes = this.data.update(topic, json, {external: true});
-            onChange && Object.keys(changes).length > 0 && onChange(changes);
+            log.debug('applied, after: ', this.data.get());
+
+          // } else if (this.isSubscribed(topic)) {
+          //   const json = mqttParsePayload(payload);
+
+
+            // If topic is an array topic (has a numeric topic-part anywhere
+            // then: revisit that level and re-create it from publishedMessages.
+
+            const arrayIndex = path.findLastIndex(x => Number.isInteger(Number.parseFloat(x)));
+            if (json == null && arrayIndex >= 0) {
+            // // if (arrayIndex >= 0) {
+            //   // reconstruct that level
+              const pathToArray = path.slice(0, arrayIndex);
+
+              // this.data.update(pathToArray, null, {external: true});
+
+              // log.info(this.publishedMessages.get(), pathToArray);
+
+              // const flatKV = this.getPublishedValues(
+              //   this.publishedMessages.get(pathToArray));
+
+              // log.info('recreating', pathToArray, flatKV);
+              // const prefix = pathToTopic(pathToArray);
+              // _.forEach(flatKV, (value, topic) =>
+              //   this.data.update(`${prefix}${topic}`, value, {external: true}));
+
+              const published = this.publishedMessages.get(pathToArray);
+              log.debug({published});
+              // trim it to length of actual values "on the wire" (retained on mqtt)
+              this.data.get(pathToArray).length = published.filter(() => true).length;
+            }
+
+          //   log.debug('applying received update', topic);
+          //   const changes = this.data.update(topic, json, {external: true});
+            onChange && Object.keys(changes).length > 0 && this.isSubscribed(topic)
+              && onChange(changes);
           }
         }
         // else: do not try to parse it, it might be a binary message sent
@@ -216,7 +290,7 @@ class MqttSync {
   /** Reconstruct list of published (retained) topic paths and their values
   * from publishedMessages object and the SPECIAL_KEY marker.
   */
-  getPublishedValues(object = this.publishedMessages.get(), path = []) {
+  getPublishedValues(object, path = []) {
     const values = {}
     _.each(object, (value, key) => {
       if (value == undefined) return true; // skip empty values to avoid the object default kicking in
@@ -224,6 +298,7 @@ class MqttSync {
         values[pathToTopic(path)] = value;
       } else {
         const subValues = this.getPublishedValues(value, path.concat([key]));
+        log.warn('assigning', object, values, subValues, value, path, key);
         Object.assign(values, subValues);
       }
     });
@@ -581,7 +656,6 @@ class MqttSync {
   addToQueue(topic, value) {
     // this.publishQueue.push({topic, value});
     this.publishQueue.set(topic, value);
-    log.info('q', this.publishQueue);
   }
 
   /* Add to publication queue */
@@ -655,6 +729,68 @@ class MqttSync {
 
       log.debug('processing change', key);
 
+      if (options.flat) {
+        // we need to create a diff of what's out there (retained on mqtt,
+        // cached in this.publishedMessages) and what we want to have out there,
+        // i.e., the new set of flat topic-value pairs implied by this change.
+
+        const prefix = topic.slice(0,-2); // slice off the /# suffix
+
+        log.debug(this.publishedMessages.getByTopic(prefix));
+        const currentFlat = this.getPublishedValues(
+          this.publishedMessages.getByTopic(prefix));
+        // const currentFlat = _.get(this.getPublishedValues(
+        //   this.publishedMessages.getByTopic(prefix)), topicToPath(prefix));
+        // log.debug('flat', JSON.stringify({topic, prefix, value, key, currentFlat}, true, 2));
+
+        const flat = toFlatObject(value);
+        log.debug('flat diff', JSON.stringify({currentFlat, flat}, true, 2));
+
+        const updates = {};
+
+
+        // #HERE: we need more special rules for array, because they are arrays,
+        // not linked lists. Every deletion (except at the end) requires rewriting
+        // the entire array in MQTT topics, just like in memory. So only entry
+        // updates are allowed "in place" (without reenumerating). Upon deletion,
+        // the deleted index and all following need to be rewritten.
+
+
+
+        if (value instanceof Array && value.length == 0) {
+          // special case for empty arrays
+          this._enqueue(prefix, value);
+        } else _.forEach(flat, (flatValue, flatKey) => {
+          // only publish changed values:
+          if (currentFlat?.[flatKey] != flatValue) {
+            const flatTopic = `${prefix}${flatKey}`;
+            // this._enqueue(flatTopic, flatValue);
+            // updates.push({topic: flatTopic, value: flatValue})
+            updates[flatTopic] = flatValue;
+          }
+
+          // Remove all updated and unchanged topics and all their parent topics
+          // const flatPath = topicToPath(flatKey);
+          // for (let i = 0; i < flatPath.length; i++) {
+          //   delete currentFlat[pathToTopic(flatPath.slice(0, i + 1))];
+          // }
+          delete currentFlat?.[flatKey];
+        });
+
+        log.debug('remove', currentFlat);
+
+        // Now remove all remaining existing topics that were not updated
+        _.forEach(currentFlat, (_oldV, oldKey) => {
+          this._enqueue(`${prefix}${oldKey}`, null);
+        });
+
+        _.forEach(updates, (value, topic) => this._enqueue(topic, value));
+
+        return;
+      }
+
+      // The "normal" case, neither atomic nor flat by definition.
+
       /* First: establish clarity by ensuring that the object defined by the
         currently present retained messages under this path accurately reflect
         the current value of this.data (and if not, publish what is necessary to
@@ -663,48 +799,6 @@ class MqttSync {
       const path = topicToPath(key);
       const publishedSub = this.publishedMessages.get(path);
       // log.debug({publishedSub});
-
-      if (options.flat) {
-        // we need to create a diff of what's out there (retained on mqtt,
-        // cached in this.publishedMessages) and what we want to have out there,
-        // i.e., the new set of flat topic-value pairs implied by this change.
-
-        const prefix = topic.slice(0,-2); // slice off the /# suffix
-
-        log.info(this.publishedMessages.getByTopic(prefix));
-        const currentFlat = this.getPublishedValues(
-          this.publishedMessages.getByTopic(prefix));
-        log.info('flat', JSON.stringify({topic, prefix, value, key, currentFlat}, true, 2));
-
-        const flat = toFlatObject(value);
-        log.info('flat diff', JSON.stringify({currentFlat, flat}, true, 2));
-
-        _.forEach(flat, (flatValue, flatKey) => {
-          // only publish changed values:
-          if (currentFlat[flatKey] != flatValue) {
-            const flatTopic = `${prefix}${flatKey}`;
-            this._enqueue(flatTopic, flatValue);
-          }
-
-          // Remove all updated and unchanged topics and all their parent topics
-          const flatPath = topicToPath(flatKey);
-          for (let i = 0; i < flatPath.length; i++) {
-            delete currentFlat[pathToTopic(flatPath.slice(0, i + 1))];
-          }
-        });
-
-        log.info('remove', currentFlat);
-
-
-        // Now remove all remaining existing topics that were not updated
-        _.forEach(currentFlat, (_oldV, oldKey) => {
-          this._enqueue(`${prefix}${oldKey}`, null);
-        });
-
-        return;
-      }
-
-      // The "normal" case, neither atomic nor flat by definition.
 
       // Check flat to atomic
       _.each(publishedSub, (oldSubVal, oldSubKey) => {

@@ -610,6 +610,16 @@ describe('toFlatObject', function() {
     );
   });
 
+  it('should keep empty arrays', function() {
+    const obj = {a: {b: [{c: {d: 1}}, {e: 3}]}, a2: []};
+    assert.deepEqual(
+      toFlatObject(obj),
+      { '/a/b/0/c/d': 1,
+        '/a/b/1/e': 3,
+        '/a2': [] }
+    );
+  });
+
   it('should handle null values', function() {
     const obj = {a: null};
     assert.deepEqual(

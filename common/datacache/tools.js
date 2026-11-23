@@ -50,11 +50,12 @@ const toFlatObject = (obj, prefix = [], rtv = {}) => {
 
     // TODO: using isPlainObject also means custom objects (classes) do not get
     // broken down.
-    if ((_.isPlainObject(value) || value instanceof Array) && value !== null) {
-      // it's an object or array
+    if ((_.isPlainObject(value) || (value instanceof Array && value.length > 0))
+      && value !== null) {
+      // it's an object or non-empty array
       toFlatObject(value, newPrefix, rtv);
     } else {
-      // it's a primitive
+      // it's a primitive or empty array
       rtv[pathToTopic(newPrefix)] = value;
     }
   });

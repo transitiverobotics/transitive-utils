@@ -52,14 +52,14 @@ const inSyncPromise = async (a, b, delay = 250) => {
 const getAllMessages = async () => {
   const client = mqtt.connect(mqttURL);
   await new Promise((resolve, reject) => client.on('connect', resolve));
-  const list = [];
+  const all = {};
   client.subscribe('/#');
   client.on('message', (topic, value) => {
-    list.push(topic);
+    all[topic] = value?.toString() || null;
   });
   await wait(HEARTBEAT_MS);
   client.end();
-  return list;
+  return all;
 };
 
 /* --------------------------- */
@@ -89,67 +89,66 @@ describe('MqttSync', function() {
 
   beforeEach(function(t, done) {
     // Start the local mqtt broker
-    // console.log('\n    ▶ ', this.currentTest?.title);
-
-    aedes = Aedes({
-      authenticate: (client, username, password, callback) => {
-        // callback(null, username === 'skroob' && password === '12345')
-        // console.log('auth', username, password);
-        callback(null, true);
-      },
-      authorizePublish: (client, sub, callback) => {
-        // callback(null, username === 'skroob' && password === '12345')
-        // console.log('authorizePublish', sub);
-        if (sub.topic.endsWith('notAllowed')) {
-          // console.log('not allowing', sub);
-          callback('not allowed', false);
-        } else {
+      aedes = Aedes({
+        authenticate: (client, username, password, callback) => {
+          // callback(null, username === 'skroob' && password === '12345')
+          // console.log('auth', username, password);
           callback(null, true);
+        },
+        authorizePublish: (client, sub, callback) => {
+          // callback(null, username === 'skroob' && password === '12345')
+          // console.log('authorizePublish', sub);
+          if (sub.topic.endsWith('notAllowed')) {
+            // console.log('not allowing', sub);
+            callback('not allowed', false);
+          } else {
+            callback(null, true);
+          }
+        },
+      });
+      // aedes.on('client', function (client) {
+      //   console.log('new client', client.id);
+      // })
+      // aedes.on('publish', (packet, client) => {
+      //   console.log('[aedes] publishing', packet);
+      // });
+
+      server = require('net').createServer(aedes.handle);
+      server.listen(port, function () {
+        // console.log('mqtt server started and listening on port ', port);
+
+        mqttClientA = mqtt.connect(mqttURL);
+        mqttClientB = mqtt.connect(mqttURL);
+        mqttClientRobot = mqtt.connect(mqttURL);
+        mqttClientMeta = mqtt.connect(mqttURL);
+
+        const initAll = () => {
+          if (mqttClientA.connected && mqttClientB.connected &&
+            mqttClientRobot.connected && mqttClientMeta.connected &&
+            !clientA && !clientB && !clientRobot && !clientMeta) {
+            clientA = new MqttSync({mqttClient: mqttClientA, ignoreRetain: true});
+            clientB = new MqttSync({mqttClient: mqttClientB, ignoreRetain: true});
+            clientRobot = new MqttSync({mqttClient: mqttClientRobot});
+            clientMeta = new MqttSync({mqttClient: mqttClientMeta, inclMeta: true});
+            console.log('\n▶  start:', t.name);
+            done();
+          }
         }
-      },
-    });
-    // aedes.on('client', function (client) {
-    //   console.log('new client', client.id);
-    // })
-    // aedes.on('publish', (packet, client) => {
-    //   console.log('[aedes] publishing', packet);
-    // });
 
-    server = require('net').createServer(aedes.handle);
-    server.listen(port, function () {
-      // console.log('mqtt server started and listening on port ', port);
+        mqttClientA.on('connect', initAll);
+        mqttClientB.on('connect', initAll);
+        mqttClientRobot.on('connect', initAll);
+        mqttClientMeta.on('connect', initAll);
 
-      mqttClientA = mqtt.connect(mqttURL);
-      mqttClientB = mqtt.connect(mqttURL);
-      mqttClientRobot = mqtt.connect(mqttURL);
-      mqttClientMeta = mqtt.connect(mqttURL);
+        // Aedes doesn't by itself send these, so we will, like mosquitto does
+        const start = Date.now();
+        interval = setInterval(() => aedes.publish({
+            topic: '$SYS/broker/uptime',
+            payload: String((Date.now() - start)/1e3) + ' seconds'
+          }), HEARTBEAT_MS);
+      });
 
-      const initAll = () => {
-        if (mqttClientA.connected && mqttClientB.connected &&
-          mqttClientRobot.connected && mqttClientMeta.connected &&
-          !clientA && !clientB && !clientRobot && !clientMeta) {
-          clientA = new MqttSync({mqttClient: mqttClientA, ignoreRetain: true});
-          clientB = new MqttSync({mqttClient: mqttClientB, ignoreRetain: true});
-          clientRobot = new MqttSync({mqttClient: mqttClientRobot});
-          clientMeta = new MqttSync({mqttClient: mqttClientMeta, inclMeta: true});
-          done();
-        }
-      }
-
-      mqttClientA.on('connect', initAll);
-      mqttClientB.on('connect', initAll);
-      mqttClientRobot.on('connect', initAll);
-      mqttClientMeta.on('connect', initAll);
-
-      // Aedes doesn't by itself send these, so we will, like mosquitto does
-      const start = Date.now();
-      interval = setInterval(() => aedes.publish({
-          topic: '$SYS/broker/uptime',
-          payload: String((Date.now() - start)/1e3) + ' seconds'
-        }), HEARTBEAT_MS);
-    });
-
-  }, {timeout: 2000});
+    }, {timeout: 2000});
 
   afterEach(function(t, done) {
     clearInterval(interval);
@@ -250,7 +249,7 @@ describe('MqttSync', function() {
 
       // verify that all retained messages have been cleared
       const all = await getAllMessages();
-      assert(all.length == 0, `messages not cleared ${JSON.stringify(all)}`);
+      assert(Object.keys(all).length == 0, `messages not cleared ${JSON.stringify(all)}`);
 
       await inSyncPromise(clientA, clientB);
       // also check that publishedMessages were updated
@@ -732,7 +731,7 @@ describe('MqttSync', function() {
                   console.log('b', clientA.data.getByTopic('/uId/dId/@scope/capname/1.1.0/b'));
                   assert(
                     clientA.data.getByTopic('/uId/dId/@scope/capname/1.1.0/b')
-                    == undefined);
+                    == undefined, JSON.stringify(clientA.data.get(), true, 2));
                   mqttClientC.end();
                   mqttClientC = null;
                   clientC = null;
@@ -1567,9 +1566,71 @@ describe('MqttSync', function() {
       clientB.subscribe('/a/#');
       clientB.subscribe('/b/#');
       clientA.data.update('b', {bb: 123});
+      clientA.data.update('a', {aa: [123, true, 'mystring', {b: 2}]});
+      await wait(200);
+      clientA.data.update('a', {aa: []});
+      log.debug('all', await getAllMessages());
+      await inSyncPromise(clientA, clientB);
+    });
+
+    it('maintains local consistency when emptying simple top-level arrays', async function() {
+      clientA.publish('/a/#', {flat: true});
+      clientA.publish('/b/#');
+      clientA.data.update('b', {bb: 123});
+      clientA.data.update('a', [123, true, 'mystring']);
+      await wait(200);
+      clientA.data.update('a', []);
+      log.debug('all', await getAllMessages());
+      assert.deepEqual(clientA.data.get(), {a: [], b: {bb: 123}},
+        'local inconsistency');
+    });
+
+    it('maintains local consistency when emptying top-level arrays with sub-objects', async function() {
+      clientA.publish('/a/#', {flat: true});
+      clientA.publish('/b/#');
+      clientA.data.update('b', {bb: 123});
       clientA.data.update('a', [123, true, 'mystring', {b: 2}]);
       await wait(200);
       clientA.data.update('a', []);
+      log.debug('all', await getAllMessages());
+      assert.deepEqual(clientA.data.get(), {a: [], b: {bb: 123}},
+        'local inconsistency');
+    });
+
+    it('maintains local consistency with removals from arrays', async function() {
+      clientA.publish('/a/#', {flat: true});
+      clientA.publish('/b/#');
+      clientA.data.update('b', {bb: 123});
+      clientA.data.update('a', [123, true, 'mystring']);
+      await wait(200);
+      clientA.data.update('a', [true, 'mystring']);
+      await wait(200);
+      assert.deepEqual(clientA.data.get(), {a: [true, 'mystring'], b: {bb: 123}},
+        'local inconsistency');
+    });
+
+    it('maintains local consistency with removals from arrays with sub-objects', async function() {
+      clientA.publish('/a/#', {flat: true});
+      clientA.publish('/b/#');
+      clientA.data.update('b', {bb: 123});
+      clientA.data.update('a', [123, true, 'mystring', {b: 2}]);
+      await wait(200);
+      clientA.data.update('a', [123, true, {b: 2}]);
+      await wait(200);
+      assert.deepEqual(clientA.data.get(), {a: [123, true, {b: 2}], b: {bb: 123}},
+        'local inconsistency');
+    });
+
+    it('stays in sync when emptying top-level arrays', async function() {
+      clientA.publish('/a/#', {flat: true});
+      clientA.publish('/b/#');
+      clientB.subscribe('/a/#');
+      clientB.subscribe('/b/#');
+      clientA.data.update('b', {bb: 123});
+      clientA.data.update('a', [123, true, 'mystring', {b: 2}]);
+      await wait(200);
+      clientA.data.update('a', []);
+      log.debug('all', await getAllMessages());
       await inSyncPromise(clientA, clientB);
     });
 
@@ -1594,11 +1655,24 @@ describe('MqttSync', function() {
       clientA.data.update('a', [123, true, 'mystring', {b: 2}]);
       await wait(200);
       clientA.data.update('a', [123, true]);
+      log.debug('all', await getAllMessages());
+      await inSyncPromise(clientA, clientB);
+    });
+
+    it('stays in sync with multiple front removals from arrays', async function() {
+      clientA.publish('/a/#', {flat: true});
+      clientA.publish('/b/#');
+      clientB.subscribe('/a/#');
+      clientB.subscribe('/b/#');
+      clientA.data.update('b', {bb: 123});
+      clientA.data.update('a', [123, true, 'mystring', {b: 2}]);
+      await wait(200);
+      clientA.data.update('a', ['mystring', {b: 2}]);
+      log.debug('all', await getAllMessages());
       await inSyncPromise(clientA, clientB);
     });
 
     it('stays in sync with multiple separate removals from arrays', async function(t) {
-      log.info('----- starting', t.name);
       clientA.publish('/a/#', {flat: true});
       clientA.publish('/b/#');
       clientB.subscribe('/a/#');
@@ -1608,6 +1682,7 @@ describe('MqttSync', function() {
       await wait(200);
       clientA.data.update('a', [123, true, 445]);
       clientA.data.update('a', [true, 445]);
+      log.debug('all', await getAllMessages());
       await inSyncPromise(clientA, clientB);
     });
 
