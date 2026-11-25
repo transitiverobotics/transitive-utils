@@ -272,11 +272,21 @@ Clear the set throttling delay.
 ### getPublishedPaths
 
 Reconstruct list of published (retained) topic paths from publishedMessages
-object and the specialKey marker.
+object and the SPECIAL\_KEY marker.
 
 ##### Parameters
 
-*   `object`   (optional, default `this.publishedMessages`)
+*   `object`   (optional, default `this.publishedMessages.get()`)
+*   `path`   (optional, default `[]`)
+
+### getPublishedValues
+
+Reconstruct list of published (retained) topic paths and their values
+from publishedMessages object and the SPECIAL\_KEY marker.
+
+##### Parameters
+
+*   `object` &#x20;
 *   `path`   (optional, default `[]`)
 
 ### getRPCHandler
@@ -316,17 +326,26 @@ Register a new hook to be called before disconnecting
 
 ### publish
 
-Register a listener for path in data. Make sure to populate the data
-before calling this or set the data all at once afterwards.
+Register a path in data to publish.
 
-With option "atomic" this will always send the whole sub-document,
-not flat changes. Useful, e.g., for desiredPackages, see
-[https://github.com/chfritz/transitive/issues/85][6].
+Make sure to populate the data before calling this or set the data all at
+once afterwards.
+
+With option `atomic` this will always send the whole sub-document, never flat
+changes. This means that even when sub-documents are updated directly, the
+whole object at the topic declared in this publish() call will be re-published.
+
+`flat` means the opposite of `atomic`: no matter at what level changes happen,
+i.e., the DataCache is updated, all changes are published at the leaf level.
+This will also unpublish (set to `null`) any removals of such leaf topics
+made in an update to the DataCache (at any level). If a `flatTransform`
+function is given, apply it to each flat value before publishing. Useful,
+e.g., to reduce precision of floating point numbers.
 
 ##### Parameters
 
 *   `topic` &#x20;
-*   `options`   (optional, default `{atomic:false}`)
+*   `options`   (optional, default `{atomic:false,flat:false,flatTransform:undefined}`)
 
 Returns **any** true if publication added (false, e.g., when already present)
 
@@ -357,19 +376,19 @@ in utils/clickhouse.
         to retrieve history.
     *   `params.until` **[number][5]?** A time (seconds since epoch) until when on
         to retrieve history.
-    *   `params.path` **\[[string][7]]?** A path into the payload to extract, e.g.,
+    *   `params.path` **\[[string][6]]?** A path into the payload to extract, e.g.,
         `['a', 'b']` would retrieve the value 123 from `{a: {b: 123}}`. Requires `type`.
-    *   `params.type` **[string][7]?** Type of element to extract using `path`.
-        For available types, see [https://clickhouse.com/docs/sql-reference/data-types][8].
-    *   `params.orderBy` **[string][7]?** an `ORDER BY` statement to use for sorting
+    *   `params.type` **[string][6]?** Type of element to extract using `path`.
+        For available types, see [https://clickhouse.com/docs/sql-reference/data-types][7].
+    *   `params.orderBy` **[string][6]?** an `ORDER BY` statement to use for sorting
         results.
     *   `params.limit` **integer?** Max number of results to return, after grouping.
     *   `params.bins` **integer?** Into how many bins to aggregate (if given,
         requires `since`).
-    *   `params.agg` **[string][7]?** Aggregation function to use (if `aggSeconds`
+    *   `params.agg` **[string][6]?** Aggregation function to use (if `aggSeconds`
         or `bins` and `since` are given). Defaults to `count` (which works for any
         data type). See
-        [https://clickhouse.com/docs/sql-reference/aggregate-functions/reference][9].
+        [https://clickhouse.com/docs/sql-reference/aggregate-functions/reference][8].
     *   `params.aggSeconds` **integer?** How many seconds to group together
         (alternative to `bins` + `since`).
 
@@ -513,7 +532,7 @@ Get a base52 representation \[a-zA-Z] of the current date (ms since epoch)
 
 Get a new loglevel logger; call with a name, e.g., `module.id`. The returned
 logger has methods trace, debug, info, warn, error. See
-[https://www.npmjs.com/package/loglevel][10] for details.
+[https://www.npmjs.com/package/loglevel][9] for details.
 
 ## getRandomId
 
@@ -522,6 +541,14 @@ Generate a random id (base36)
 #### Parameters
 
 *   `bytes`   (optional, default `6`)
+
+## isNaturalNumberString
+
+Check if string is an integer >= 0
+
+#### Parameters
+
+*   `str` &#x20;
 
 ## isPrefixOf
 
@@ -561,12 +588,12 @@ where the latest version of each subfield overwrites any previous.
 #### Parameters
 
 *   `versionsObject` &#x20;
-*   `subTopic` **[string][7]** : if given, merge versions only for this subTopic,
+*   `subTopic` **[string][6]** : if given, merge versions only for this subTopic,
     other subtopics will not be included in the result. (optional, default `undefined`)
 *   `options` **[object][1]**  (optional, default `{}`)
 
-    *   `options.minVersion` **[string][7]** : versions below this will be ignored,
-    *   `options.maxVersion` **[string][7]** : versions above this will be ignored
+    *   `options.minVersion` **[string][6]** : versions below this will be ignored,
+    *   `options.maxVersion` **[string][6]** : versions above this will be ignored
 
 ## metaPathToSelectorPath
 
@@ -795,12 +822,10 @@ Wait for delay ms, for use in async functions.
 
 [5]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Number
 
-[6]: https://github.com/chfritz/transitive/issues/85
+[6]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String
 
-[7]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String
+[7]: https://clickhouse.com/docs/sql-reference/data-types
 
-[8]: https://clickhouse.com/docs/sql-reference/data-types
+[8]: https://clickhouse.com/docs/sql-reference/aggregate-functions/reference
 
-[9]: https://clickhouse.com/docs/sql-reference/aggregate-functions/reference
-
-[10]: https://www.npmjs.com/package/loglevel
+[9]: https://www.npmjs.com/package/loglevel
