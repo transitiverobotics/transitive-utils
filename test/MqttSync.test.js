@@ -2,6 +2,7 @@ const { describe, it, before, after, beforeEach, afterEach } = require('node:tes
 const assert = require('assert');
 const Aedes = require('aedes');
 const mqtt = require('mqtt');
+const _ = require('lodash');
 
 // const MqttSync = require('../common/MqttSync');
 const { getLogger, DataCache, parseMQTTTopic, randomId, topicToPath, wait,
@@ -130,7 +131,7 @@ describe('MqttSync', function() {
             clientB = new MqttSync({mqttClient: mqttClientB, ignoreRetain: true});
             clientRobot = new MqttSync({mqttClient: mqttClientRobot});
             clientMeta = new MqttSync({mqttClient: mqttClientMeta, inclMeta: true});
-            console.log('\n▶  start:', t.name);
+            console.log('\n      ➡️ start:', t.name);
             done();
           }
         }
@@ -1560,6 +1561,36 @@ describe('MqttSync', function() {
       await inSyncPromise(clientA, clientB);
     });
 
+    it('stays in sync with additions to arrays', async function() {
+      clientA.publish('/a/#', {flat: true});
+      clientB.subscribe('/a/#');
+      clientA.data.update('a', [123, true]);
+      await wait(200);
+      clientA.data.update('a', [123, true, 'mystring2', {b: 2}]);
+      await inSyncPromise(clientA, clientB);
+    });
+
+    it('stays locally consistent with complex additions to arrays', async function() {
+      clientA.publish('/a/#', {flat: true});
+      clientA.data.update('a', [true, 445, {b: 234}, 567, {c: {d: 12}, e: 4}]);
+      await wait(200);
+      const newA = [{b: 234}, 567, 455, 'mynewstring', {c: {d: 12}, e: 4}];
+      clientA.data.update('a', structuredClone(newA));
+      await wait(200);
+      log.debug('all', await getAllMessages());
+      assert.deepEqual(clientA.data.get(), {a: newA});
+    });
+
+    it('stays in sync with complex additions to arrays', async function() {
+      clientA.publish('/a/#', {flat: true});
+      clientB.subscribe('/a/#');
+      clientA.data.update('a', [true, 445, {b: 234}, 567, {c: {d: 12}, e: 4}]);
+      await wait(200);
+      clientA.data.update('a', [{b: 234}, 567, 455, 'mynewstring', {c: {d: 12}, e: 4}]);
+      log.debug('all', await getAllMessages());
+      await inSyncPromise(clientA, clientB);
+    });
+
     it('stays in sync when emptying arrays', async function() {
       clientA.publish('/a/#', {flat: true});
       clientA.publish('/b/#');
@@ -1686,5 +1717,46 @@ describe('MqttSync', function() {
       await inSyncPromise(clientA, clientB);
     });
 
+    it('stays in sync with multiple separate removals from and additions to arrays', async function(t) {
+      clientA.publish('/a/#', {flat: true});
+      clientA.publish('/b/#');
+      clientB.subscribe('/a/#');
+      clientB.subscribe('/b/#');
+      clientA.data.update('b', {bb: 123});
+      clientA.data.update('a', [123, true, 'mystring', 445]);
+      await wait(200);
+      clientA.data.update('a', [123, true, 445]);
+      clientA.data.update('a', [true, 445]);
+      await wait(200);
+      clientA.data.update('a', [true, 445, {b: 234}, 567, {c: {d: 12}, e: 4}]);
+      await wait(200);
+      clientA.data.update('a', [{b: 234}, 567, 455, 'mynewstring', {c: {d: 12}, e: 4}]);
+      await wait(200);
+      log.debug('all', await getAllMessages());
+      await inSyncPromise(clientA, clientB);
+    });
+
+
+    describe('transforms', function() {
+      it('applies transforms only to flat publishings', async function(t) {
+        clientA.publish('/a/#', {flat: true,
+          flatTransform: (x) => _.isNumber(x) ? Number(x.toFixed(2)) : x
+        });
+        clientA.publish('/b/#');
+        clientA.publish('/c/#');
+        clientB.subscribe('/');
+        clientA.data.update('a', {a: 1.1111, b: 2.22222, c: 3.33333});
+        clientA.data.update('b', {bb: 123.12345});
+        clientA.data.update('c', 234.12345);
+        // Note that transforms also transform the local data!
+        await wait(200);
+        assert.deepEqual(clientB.data.get(), {
+          a: {a: 1.11, b: 2.22, c: 3.33},
+          b: {bb: 123.12345},
+          c: 234.12345
+        });
+        await inSyncPromise(clientA, clientB);
+      });
+    });
   });
 });
